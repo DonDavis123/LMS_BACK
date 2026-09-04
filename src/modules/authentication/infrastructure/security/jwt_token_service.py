@@ -1,8 +1,6 @@
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from src.modules.authentication.application.interfaces.token_service import (
-    TokenService,
-)
+from src.modules.authentication.application.interfaces.token_service import TokenService
 
 
 class JWTTokenService(TokenService):
@@ -13,4 +11,11 @@ class JWTTokenService(TokenService):
         return {
             "access_token": str(refresh.access_token),
             "refresh_token": str(refresh),
+        }
+
+    def refresh_access_token(self, refresh_token: str) -> dict:
+        refresh = RefreshToken(refresh_token)
+
+        return {
+            "access_token": str(refresh.access_token),
         }

@@ -1,7 +1,10 @@
 from .views import CreateLeadView
 from .get_leads import GetLeadsView
+from .update_leads import UpdateLeadView
+
 
 __all__ = [
     "CreateLeadView",
     "GetLeadsView",
+    "UpdateLeadView",
 ]

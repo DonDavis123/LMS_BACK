@@ -19,7 +19,7 @@ from src.modules.authentication.infrastructure.security.jwt_token_service import
     JWTTokenService,
 )
 
-from .serializers import LoginSerializer
+from ..serializer.login import LoginSerializer
 
 
 class LoginView(APIView):

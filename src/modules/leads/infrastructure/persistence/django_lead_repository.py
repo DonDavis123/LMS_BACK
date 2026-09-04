@@ -3,6 +3,7 @@ from uuid import UUID
 from src.modules.leads.application.interfaces.lead_repository import (
     LeadRepository,
 )
+
 from src.modules.leads.domain.entities.business_type import BusinessType
 from src.modules.leads.domain.entities.lead import Lead
 
@@ -13,18 +14,20 @@ class DjangoLeadRepository(LeadRepository):
 
     def save(self, lead: Lead) -> Lead:
 
-        model = DjangoLeadModel.objects.create(
+        model, created = DjangoLeadModel.objects.update_or_create(
             id=lead.id,
-            lead_generator=lead.lead_generator,
-            client_partner_name=lead.client_partner_name,
-            mobile_number=lead.mobile_number,
-            email=lead.email,
-            city_location=lead.city_location,
-            business_type=lead.business_type.value,
-            lead_source=lead.lead_source,
-            remarks=lead.remarks,
-            created_at=lead.created_at,
-            updated_at=lead.updated_at,
+            defaults={
+                "lead_generator": lead.lead_generator,
+                "client_partner_name": lead.client_partner_name,
+                "mobile_number": lead.mobile_number,
+                "email": lead.email,
+                "city_location": lead.city_location,
+                "business_type": lead.business_type.value,
+                "lead_source": lead.lead_source,
+                "remarks": lead.remarks,
+                "created_at": lead.created_at,
+                "updated_at": lead.updated_at,
+            },
         )
 
         return self._to_domain(model)
@@ -33,6 +36,7 @@ class DjangoLeadRepository(LeadRepository):
 
         try:
             model = DjangoLeadModel.objects.get(id=lead_id)
+
         except DjangoLeadModel.DoesNotExist:
             return None
 
@@ -54,10 +58,12 @@ class DjangoLeadRepository(LeadRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
-    def get_all(self) -> list[Lead]:
-       models = DjangoLeadModel.objects.all()
 
-       return [
-          self._to_domain(model)
-          for model in models
+    def get_all(self) -> list[Lead]:
+
+        models = DjangoLeadModel.objects.all()
+
+        return [
+            self._to_domain(model)
+            for model in models
         ]
