@@ -2,21 +2,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from src.modules.authentication.application.use_cases.login_user import (
-    LoginUserUseCase,
-)
 from src.modules.authentication.domain.exceptions import (
     InvalidCredentialsError,
     InactiveUserError,
 )
-from src.modules.authentication.infrastructure.persistence.django_user_repository import (
-    DjangoUserRepository,
-)
-from src.modules.authentication.infrastructure.security.django_password_hasher import (
-    DjangoPasswordHasher,
-)
-from src.modules.authentication.infrastructure.security.jwt_token_service import (
-    JWTTokenService,
+
+from src.modules.authentication.presentation.api.dependencies.authentication_dependencies import (
+    get_login_user_use_case,
 )
 
 from ..serializer.login import LoginSerializer
@@ -25,15 +17,10 @@ from ..serializer.login import LoginSerializer
 class LoginView(APIView):
 
     def post(self, request):
-
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        use_case = LoginUserUseCase(
-            user_repository=DjangoUserRepository(),
-            password_hasher=DjangoPasswordHasher(),
-            token_service=JWTTokenService(),
-        )
+        use_case = get_login_user_use_case()
 
         try:
             result = use_case.execute(

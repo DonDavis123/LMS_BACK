@@ -11,14 +11,12 @@ class CreateLeadUseCase:
     def execute(self, data: CreateLeadDTO) -> Lead:
 
         lead = Lead.create(
-            lead_generator=data.lead_generator,
-            client_partner_name=data.client_partner_name,
-            mobile_number=data.mobile_number,
+            name=data.name,
+            company_name=data.company_name,
             email=data.email,
-            city_location=data.city_location,
-            business_type=data.business_type,
-            remarks=data.remarks,
+            mobile_number=data.mobile_number,
             lead_source=data.lead_source,
+            owner_id=data.owner_id,
         )
 
         return self.lead_repository.save(lead)

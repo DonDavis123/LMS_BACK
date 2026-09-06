@@ -3,17 +3,10 @@ from rest_framework import serializers
 from src.modules.leads.domain.entities.lead_source import LeadSource
 
 
-class UpdateLeadSerializer(serializers.Serializer):
+class CreateLeadSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
 
-    name = serializers.CharField(
-        max_length=255,
-        required=False,
-    )
-
-    company_name = serializers.CharField(
-        max_length=255,
-        required=False,
-    )
+    company_name = serializers.CharField(max_length=255)
 
     email = serializers.EmailField(
         required=False,
@@ -21,15 +14,11 @@ class UpdateLeadSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-    mobile_number = serializers.CharField(
-        max_length=20,
-        required=False,
-    )
+    mobile_number = serializers.CharField(max_length=20)
 
     lead_source = serializers.ChoiceField(
         choices=[
             (source.value, source.value)
             for source in LeadSource
-        ],
-        required=False,
+        ]
     )

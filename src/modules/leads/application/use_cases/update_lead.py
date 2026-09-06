@@ -1,11 +1,13 @@
-from datetime import datetime, timezone
 from uuid import UUID
 
 from src.modules.leads.application.interfaces.lead_repository import (
     LeadRepository,
 )
-from src.modules.leads.domain.entities.business_type import BusinessType
 from src.modules.leads.domain.entities.lead import Lead
+from src.modules.leads.domain.entities.lead_source import LeadSource
+
+
+_UNSET = object()
 
 
 class UpdateLeadUseCase:
@@ -19,13 +21,11 @@ class UpdateLeadUseCase:
     def execute(
         self,
         lead_id: UUID,
-        client_partner_name: str | None = None,
+        name: str | None = None,
+        company_name: str | None = None,
+        email: str | None | object = _UNSET,
         mobile_number: str | None = None,
-        email: str | None = None,
-        city_location: str | None = None,
-        business_type: BusinessType | None = None,
-        lead_source: str | None = None,
-        remarks: str | None = None,
+        lead_source: LeadSource | None = None,
     ) -> Lead:
 
         existing_lead = self.lead_repository.get_by_id(
@@ -37,34 +37,20 @@ class UpdateLeadUseCase:
                 "Lead not found."
             )
 
-        if client_partner_name is not None:
-            existing_lead.client_partner_name = (
-                client_partner_name
-            )
+        if name is not None:
+            existing_lead.name = name
 
-        if mobile_number is not None:
-            existing_lead.mobile_number = (
-                mobile_number
-            )
+        if company_name is not None:
+            existing_lead.company_name = company_name
 
-        if email is not None:
+        if email is not _UNSET:
             existing_lead.email = email
 
-        if city_location is not None:
-            existing_lead.city_location = city_location
-
-        if business_type is not None:
-            existing_lead.business_type = business_type
+        if mobile_number is not None:
+            existing_lead.mobile_number = mobile_number
 
         if lead_source is not None:
             existing_lead.lead_source = lead_source
-
-        if remarks is not None:
-            existing_lead.remarks = remarks
-
-        existing_lead.updated_at = datetime.now(
-            timezone.utc
-        )
 
         return self.lead_repository.save(
             existing_lead

@@ -3,11 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
-from src.modules.leads.application.use_cases.get_leads import (
-    GetLeadsUseCase,
-)
-from src.modules.leads.infrastructure.persistence.django_lead_repository import (
-    DjangoLeadRepository,
+from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
+    get_leads_use_case,
 )
 
 from ..serializers import LeadSerializer
@@ -21,16 +18,16 @@ class GetLeadsView(APIView):
         IsAdmin,
     ]
 
-
     def get(self, request):
 
-        use_case = GetLeadsUseCase(
-            lead_repository=DjangoLeadRepository(),
-        )
+        use_case = get_leads_use_case()
 
         leads = use_case.execute()
 
-        serializer = LeadSerializer(leads, many=True)
+        serializer = LeadSerializer(
+            leads,
+            many=True,
+        )
 
         return Response(
             serializer.data,

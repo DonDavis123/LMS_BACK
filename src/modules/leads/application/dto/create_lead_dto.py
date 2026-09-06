@@ -1,15 +1,14 @@
 from dataclasses import dataclass
+from uuid import UUID
 
-from src.modules.leads.domain.entities.business_type import BusinessType
+from src.modules.leads.domain.entities.lead_source import LeadSource
 
 
 @dataclass
 class CreateLeadDTO:
-    lead_generator: str
-    client_partner_name: str
-    mobile_number: str
+    name: str
+    company_name: str
     email: str | None
-    city_location: str | None
-    business_type: BusinessType
-    remarks: str | None
-    lead_source: str
+    mobile_number: str
+    lead_source: LeadSource
+    owner_id: UUID

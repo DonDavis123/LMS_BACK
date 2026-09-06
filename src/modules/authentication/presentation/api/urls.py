@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views.views import LoginView
+from .views.login import LoginView
 from .views.refresh_tokens import RefreshTokenView
 
 

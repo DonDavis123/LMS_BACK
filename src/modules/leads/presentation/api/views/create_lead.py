@@ -4,13 +4,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from src.modules.leads.application.dto.create_lead_dto import CreateLeadDTO
-from src.modules.leads.application.use_cases.create_lead import CreateLeadUseCase
-from src.modules.leads.infrastructure.persistence.django_lead_repository import (
-    DjangoLeadRepository,
+from src.modules.leads.domain.entities.lead_source import LeadSource
+from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
+    get_create_lead_use_case,
 )
 
-from ..serializers.serializers import CreateLeadSerializer
-from src.modules.leads.domain.entities.business_type import BusinessType
+from ..serializers import CreateLeadSerializer
 
 
 class CreateLeadView(APIView):
@@ -32,21 +31,17 @@ class CreateLeadView(APIView):
         data = serializer.validated_data
 
         dto = CreateLeadDTO(
-            lead_generator=request.user.name,
-            client_partner_name=data["client_partner_name"],
-            mobile_number=data["mobile_number"],
+            name=data["name"],
+            company_name=data["company_name"],
             email=data.get("email"),
-            city_location=data.get("city_location"),
-            business_type=BusinessType(
-                data["business_type"]
+            mobile_number=data["mobile_number"],
+            lead_source=LeadSource(
+                data["lead_source"]
             ),
-            lead_source=data["lead_source"],
-            remarks=data.get("remarks"),
+            owner_id=request.user.id,
         )
 
-        use_case = CreateLeadUseCase(
-            lead_repository=DjangoLeadRepository(),
-        )
+        use_case = get_create_lead_use_case()
 
         lead = use_case.execute(dto)
 

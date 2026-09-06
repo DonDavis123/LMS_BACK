@@ -10,6 +10,9 @@ from src.modules.authentication.infrastructure.security.jwt_token_service import
 )
 
 from ..serializer.refresh_token import RefreshTokenSerializer
+from src.modules.authentication.presentation.api.dependencies.authentication_dependencies import (
+    get_refresh_token_use_case,
+)
 
 
 class RefreshTokenView(APIView):
@@ -20,9 +23,7 @@ class RefreshTokenView(APIView):
 
         refresh_token = serializer.validated_data["refresh_token"]
 
-        use_case = RefreshTokenUseCase(
-            token_service=JWTTokenService(),
-        )
+        use_case = get_refresh_token_use_case()
 
         try:
             tokens = use_case.execute(refresh_token)

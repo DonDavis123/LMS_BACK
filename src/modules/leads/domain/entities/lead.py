@@ -2,48 +2,42 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from .business_type import BusinessType
+from .lead_source import LeadSource
 
 
 @dataclass
 class Lead:
     id: UUID
-    lead_generator: str
-    client_partner_name: str
-    mobile_number: str
+    name: str
+    company_name: str
     email: str | None
-    city_location: str | None
-    business_type: BusinessType
-    remarks: str | None
-    lead_source: str
+    mobile_number: str
+    lead_source: LeadSource
+    owner_id: UUID
     created_at: datetime
     updated_at: datetime
 
     @classmethod
     def create(
         cls,
-        lead_generator: str,
-        client_partner_name: str,
-        mobile_number: str,
+        name: str,
+        company_name: str,
         email: str | None,
-        city_location: str | None,
-        business_type: BusinessType,
-        remarks: str | None,
-        lead_source: str,
+        mobile_number: str,
+        lead_source: LeadSource,
+        owner_id: UUID,
     ) -> "Lead":
 
         now = datetime.utcnow()
 
         return cls(
             id=uuid4(),
-            lead_generator=lead_generator,
-            client_partner_name=client_partner_name,
-            mobile_number=mobile_number,
+            name=name,
+            company_name=company_name,
             email=email,
-            city_location=city_location,
-            business_type=business_type,
-            remarks=remarks,
+            mobile_number=mobile_number,
             lead_source=lead_source,
+            owner_id=owner_id,
             created_at=now,
             updated_at=now,
         )

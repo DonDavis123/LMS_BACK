@@ -6,18 +6,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from src.modules.leads.application.use_cases.update_lead import (
-    UpdateLeadUseCase,
+    _UNSET,
+)
+from src.modules.leads.domain.entities.lead_source import LeadSource
+from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
+    get_update_lead_use_case,
 )
 
-from src.modules.leads.domain.entities.business_type import BusinessType
-
-from src.modules.leads.infrastructure.persistence.django_lead_repository import (
-    DjangoLeadRepository,
-)
-
-from ..serializers import (
-    UpdateLeadSerializer,
-)
+from ..serializers import UpdateLeadSerializer
 
 
 class UpdateLeadView(APIView):
@@ -29,7 +25,7 @@ class UpdateLeadView(APIView):
     def patch(self, request, lead_id):
 
         serializer = UpdateLeadSerializer(
-            data=request.data,
+            data=request.data
         )
 
         serializer.is_valid(
@@ -38,39 +34,27 @@ class UpdateLeadView(APIView):
 
         data = serializer.validated_data
 
-        use_case = UpdateLeadUseCase(
-            lead_repository=DjangoLeadRepository(),
+        lead_source = data.get("lead_source")
+
+        if lead_source is not None:
+            lead_source = LeadSource(lead_source)
+
+        email = (
+            data["email"]
+            if "email" in data
+            else _UNSET
         )
 
+        use_case = get_update_lead_use_case()
+
         try:
-            business_type = data.get("business_type")
-
-            if business_type is not None:
-                business_type = BusinessType(
-                    business_type
-                )
-
             lead = use_case.execute(
                 lead_id=UUID(str(lead_id)),
-                client_partner_name=data.get(
-                    "client_partner_name"
-                ),
-                mobile_number=data.get(
-                    "mobile_number"
-                ),
-                email=data.get(
-                    "email"
-                ),
-                city_location=data.get(
-                    "city_location"
-                ),
-                business_type=business_type,
-                lead_source=data.get(
-                    "lead_source"
-                ),
-                remarks=data.get(
-                    "remarks"
-                ),
+                name=data.get("name"),
+                company_name=data.get("company_name"),
+                email=email,
+                mobile_number=data.get("mobile_number"),
+                lead_source=lead_source,
             )
 
         except ValueError as error:
@@ -82,14 +66,12 @@ class UpdateLeadView(APIView):
         return Response(
             {
                 "id": str(lead.id),
-                "lead_generator": lead.lead_generator,
-                "client_partner_name": lead.client_partner_name,
-                "mobile_number": lead.mobile_number,
+                "name": lead.name,
+                "company_name": lead.company_name,
                 "email": lead.email,
-                "city_location": lead.city_location,
-                "business_type": lead.business_type.value,
-                "lead_source": lead.lead_source,
-                "remarks": lead.remarks,
+                "mobile_number": lead.mobile_number,
+                "lead_source": lead.lead_source.value,
+                "owner_id": str(lead.owner_id),
                 "created_at": lead.created_at,
                 "updated_at": lead.updated_at,
             },
