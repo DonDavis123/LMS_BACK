@@ -15,6 +15,9 @@ from src.modules.leads.presentation.api.views.delete_lead import (
 from src.modules.leads.presentation.api.views.convert_lead import (
     ConvertLeadView,
 )
+from src.modules.leads.presentation.api.views.conversion_check import (
+    ConversionCheckView,
+)
 
 
 
@@ -54,6 +57,11 @@ path(
     "<uuid:lead_id>/convert/",
     ConvertLeadView.as_view(),
     name="convert-lead",
+),
+path(
+    "<uuid:lead_id>/conversion-check/",
+    ConversionCheckView.as_view(),
+    name="conversion-check",
 ),
 
 

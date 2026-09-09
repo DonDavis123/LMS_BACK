@@ -15,5 +15,24 @@ class ContactRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all(self) -> list[Contact]:
+    def get_all_with_relations(
+        self,
+    ) -> list[tuple[Contact, str | None, str | None]]:
         pass
+
+    @abstractmethod
+    def find_conversion_matches(
+        self,
+        name: str,
+        email: str | None,
+        phone: str | None,
+        mobile: str | None,
+    ) -> list[Contact]:
+        pass
+
+    @abstractmethod
+    def get_by_id_with_relations(
+    self,
+    contact_id: UUID,
+) -> tuple[Contact, str | None, str | None] | None:
+       pass

@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 
 class CreateAccountSerializer(serializers.Serializer):
+
     account_owner_id = serializers.UUIDField(
         required=False,
         allow_null=True,
@@ -88,6 +89,51 @@ class CreateAccountSerializer(serializers.Serializer):
 
     sic_code = serializers.CharField(
         max_length=20,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    # Billing information
+
+    billing_address = serializers.CharField(
+        max_length=500,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    billing_city = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    billing_state = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    billing_country = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    billing_postal_code = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    # Description
+
+    description = serializers.CharField(
         required=False,
         allow_blank=True,
         allow_null=True,

@@ -17,13 +17,19 @@ class CreateAccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = CreateAccountSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        serializer = CreateAccountSerializer(
+            data=request.data,
+        )
+
+        serializer.is_valid(
+            raise_exception=True,
+        )
 
         data = serializer.validated_data
 
         dto = CreateAccountDTO(
             account_owner_id=data.get("account_owner_id"),
+
             account_name=data["account_name"],
             account_site=data.get("account_site"),
             account_number=data.get("account_number"),
@@ -37,6 +43,16 @@ class CreateAccountView(APIView):
             ownership=data.get("ownership"),
             employees=data.get("employees"),
             sic_code=data.get("sic_code"),
+
+            # Billing information
+            billing_address=data.get("billing_address"),
+            billing_city=data.get("billing_city"),
+            billing_state=data.get("billing_state"),
+            billing_country=data.get("billing_country"),
+            billing_postal_code=data.get("billing_postal_code"),
+
+            # Description
+            description=data.get("description"),
         )
 
         use_case = get_create_account_use_case()
@@ -46,6 +62,7 @@ class CreateAccountView(APIView):
                 data=dto,
                 current_user_id=request.user.id,
             )
+
         except ValueError as error:
             return Response(
                 {"detail": str(error)},

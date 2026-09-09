@@ -57,14 +57,88 @@ class DjangoContactRepository(ContactRepository):
             return None
 
         return self._to_domain(model)
+    def get_by_id_with_relations(
+    self,
+    contact_id: UUID,
+) -> tuple[Contact, str | None, str | None] | None:
 
-    def get_all(self) -> list[Contact]:
-        models = DjangoContactModel.objects.all()
+      try:
+          model = (
+              DjangoContactModel.objects
+              .select_related(
+                  "account",
+                  "contact_owner",
+              )
+              .get(id=contact_id)
+          )
+      except DjangoContactModel.DoesNotExist:
+          return None
 
-        return [
-            self._to_domain(model)
-            for model in models
-        ]
+      return (
+        self._to_domain(model),
+        model.account.account_name if model.account else None,
+        model.contact_owner.name if model.contact_owner else None,
+    )
+    
+
+    def get_all_with_relations(
+    self,
+) -> list[tuple[Contact, str | None, str | None]]:
+
+      models = DjangoContactModel.objects.select_related(
+          "account",
+          "contact_owner",
+      ).all()
+
+      return [
+          (
+              self._to_domain(model),
+              model.account.account_name if model.account else None,
+              model.contact_owner.name if model.contact_owner else None,
+          )
+          for model in models
+    ]
+    def find_conversion_matches(
+    self,
+    name: str,
+    email: str | None,
+    phone: str | None,
+    mobile: str | None,
+) -> list[Contact]:
+
+      queryset = DjangoContactModel.objects.all()
+
+      matches = queryset.filter(
+          name__iexact=name,
+      )
+
+      if email:
+          email_matches = queryset.filter(
+              email__iexact=email,
+          )
+
+          matches = matches | email_matches
+
+      if phone:
+          phone_matches = queryset.filter(
+              phone=phone,
+          )
+
+          matches = matches | phone_matches
+
+      if mobile:
+          mobile_matches = queryset.filter(
+              mobile=mobile,
+          )
+
+          matches = matches | mobile_matches
+
+      matches = matches.distinct()
+
+      return [
+          self._to_domain(model)
+          for model in matches
+      ]
 
     @staticmethod
     def _to_domain(model: DjangoContactModel) -> Contact:

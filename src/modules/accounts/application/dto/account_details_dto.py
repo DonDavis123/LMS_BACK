@@ -1,10 +1,14 @@
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 
 @dataclass
-class CreateAccountDTO:
-    account_owner_id: UUID | None
+class GetAccountDetailsDTO:
+    id: UUID
+
+    account_owner_id: UUID
+    account_owner_name: str | None
 
     account_name: str
     account_site: str | None
@@ -16,16 +20,20 @@ class CreateAccountDTO:
     phone: str | None
     website: str | None
     ticker_symbol: str | None
-    ownership: str | None
+    ownership: str
     employees: int | None
     sic_code: str | None
 
-    # Billing information
     billing_address: str | None
     billing_city: str | None
     billing_state: str | None
     billing_country: str | None
     billing_postal_code: str | None
 
-    # Description
     description: str | None
+
+    created_by_id: UUID
+    created_at: datetime
+
+    modified_by_id: UUID
+    updated_at: datetime

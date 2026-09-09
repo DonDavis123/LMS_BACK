@@ -21,7 +21,10 @@ class CreateAccountUseCase:
         current_user_id,
     ) -> Account:
 
-        account_owner_id = data.account_owner_id or current_user_id
+        account_owner_id = (
+            data.account_owner_id
+            or current_user_id
+        )
 
         account = Account.create(
             account_owner_id=account_owner_id,
@@ -38,6 +41,17 @@ class CreateAccountUseCase:
             ownership=data.ownership,
             employees=data.employees,
             sic_code=data.sic_code,
+
+            # Billing information
+            billing_address=data.billing_address,
+            billing_city=data.billing_city,
+            billing_state=data.billing_state,
+            billing_country=data.billing_country,
+            billing_postal_code=data.billing_postal_code,
+
+            # Description
+            description=data.description,
+
             created_by_id=current_user_id,
         )
 

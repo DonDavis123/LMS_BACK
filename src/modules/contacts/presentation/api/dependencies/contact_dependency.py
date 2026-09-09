@@ -10,6 +10,12 @@ from src.modules.accounts.infrastructure.persistence.django_account_repository i
 from src.modules.users.infrastructure.persistence.user_repository import (
     DjangoUserRepository,
 )
+from src.modules.contacts.application.use_cases.get_contacts import (
+    GetContactsUseCase,
+)
+from src.modules.contacts.application.use_cases.get_contact_details import (
+    GetContactDetailsUseCase,
+)
 
 
 def get_create_contact_use_case() -> CreateContactUseCase:
@@ -21,4 +27,18 @@ def get_create_contact_use_case() -> CreateContactUseCase:
         contact_repository=contact_repository,
         account_repository=account_repository,
         user_repository=user_repository,
+    )
+
+def get_contacts_use_case() -> GetContactsUseCase:
+    contact_repository = DjangoContactRepository()
+
+    return GetContactsUseCase(
+        contact_repository=contact_repository,
+    )
+
+def get_contact_details_use_case() -> GetContactDetailsUseCase:
+    contact_repository = DjangoContactRepository()
+
+    return GetContactDetailsUseCase(
+        contact_repository=contact_repository,
     )
