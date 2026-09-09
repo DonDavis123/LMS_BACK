@@ -21,4 +21,13 @@ urlpatterns = [
         "api/leads/",
         include("src.modules.leads.presentation.api.urls"),
     ),
+
+    path(
+      "api/accounts/",
+      include("src.modules.accounts.presentation.api.urls"),
+),
+    path(
+        "api/contacts/",
+        include("src.modules.contacts.presentation.api.urls"),
+    ),
 ]

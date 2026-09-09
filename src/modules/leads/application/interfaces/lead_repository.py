@@ -21,3 +21,10 @@ class LeadRepository(ABC):
     @abstractmethod
     def get_all_with_owner(self) -> list[tuple[Lead, str]]:
         pass
+    
+    @abstractmethod
+    def get_by_id_with_owner(
+      self,
+      lead_id: UUID,
+    ) -> tuple[Lead, str] | None:
+      pass

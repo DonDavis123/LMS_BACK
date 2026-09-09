@@ -35,7 +35,7 @@ class DjangoUserRepository(UserRepository):
 
         try:
             django_user = DjangoUser.objects.get(
-                email=email
+                email=email,
             )
         except DjangoUser.DoesNotExist:
             return None
@@ -49,12 +49,27 @@ class DjangoUserRepository(UserRepository):
 
         try:
             django_user = DjangoUser.objects.get(
-                id=user_id
+                id=user_id,
             )
         except DjangoUser.DoesNotExist:
             return None
 
         return self._to_domain(django_user)
+
+    def get_lead_owners(self) -> list[User]:
+
+        django_users = DjangoUser.objects.filter(
+            role__in=[
+                DjangoUser.Role.SUPERADMIN,
+                DjangoUser.Role.ADMIN,
+            ],
+            is_active=True,
+        ).order_by("name")
+
+        return [
+            self._to_domain(django_user)
+            for django_user in django_users
+        ]
 
     @staticmethod
     def _to_domain(

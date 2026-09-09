@@ -9,9 +9,8 @@ from .managers import UserManager
 class User(AbstractBaseUser, PermissionsMixin):
 
     class Role(models.TextChoices):
+        SUPERADMIN = "SUPERADMIN", "Superadmin"
         ADMIN = "ADMIN", "Admin"
-        SALES_MANAGER = "SALES_MANAGER", "Sales Manager"
-        SALES_EXECUTIVE = "SALES_EXECUTIVE", "Sales Executive"
 
     id = models.UUIDField(
         primary_key=True,
@@ -31,7 +30,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     role = models.CharField(
         max_length=30,
         choices=Role.choices,
-        default=Role.SALES_EXECUTIVE,
+        default=Role.ADMIN,
     )
 
     is_active = models.BooleanField(
