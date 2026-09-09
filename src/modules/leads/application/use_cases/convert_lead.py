@@ -184,37 +184,58 @@ class ConvertLeadUseCase:
 
         account_data = data.account
 
-        account = Account.create(
-            account_owner_id=lead.owner_id,
+        # When account data is not supplied by the frontend,
+        # create the Account from the Lead automatically.
+        if account_data is None:
+            account = Account.create(
+                account_owner_id=lead.owner_id,
+                account_name=lead.company_name,
+                account_site=None,
+                account_number=None,
+                account_type=None,
+                industry=lead.industry.value,
+                annual_revenue=lead.annual_revenue,
+                rating=lead.rating.value,
+                phone=lead.phone,
+                website=lead.website,
+                ticker_symbol=None,
+                ownership="None",
+                employees=lead.number_of_employees,
+                sic_code=None,
+                billing_address=lead.address,
+                billing_city=lead.city,
+                billing_state=lead.state,
+                billing_country=lead.country,
+                billing_postal_code=lead.postal_code,
+                description=lead.description,
+                created_by_id=current_user_id,
+            )
+        else:
+            account = Account.create(
+                account_owner_id=lead.owner_id,
+                account_name=account_data.account_name,
+                account_site=account_data.account_site,
+                account_number=account_data.account_number,
+                account_type=account_data.account_type,
+                industry=account_data.industry,
+                annual_revenue=account_data.annual_revenue,
+                rating=account_data.rating,
+                phone=account_data.phone,
+                website=account_data.website,
+                ticker_symbol=account_data.ticker_symbol,
+                ownership=account_data.ownership,
+                employees=account_data.employees,
+                sic_code=account_data.sic_code,
+                billing_address=account_data.billing_address,
+                billing_city=account_data.billing_city,
+                billing_state=account_data.billing_state,
+                billing_country=account_data.billing_country,
+                billing_postal_code=account_data.billing_postal_code,
+                description=account_data.description,
+                created_by_id=current_user_id,
+            )
 
-            account_name=account_data.account_name,
-            account_site=account_data.account_site,
-            account_number=account_data.account_number,
-            account_type=account_data.account_type,
-            industry=account_data.industry,
-            annual_revenue=account_data.annual_revenue,
-            rating=account_data.rating,
-            phone=account_data.phone,
-            website=account_data.website,
-            ticker_symbol=account_data.ticker_symbol,
-            ownership=account_data.ownership,
-            employees=account_data.employees,
-            sic_code=account_data.sic_code,
-
-            billing_address=account_data.billing_address,
-            billing_city=account_data.billing_city,
-            billing_state=account_data.billing_state,
-            billing_country=account_data.billing_country,
-            billing_postal_code=account_data.billing_postal_code,
-
-            description=account_data.description,
-
-            created_by_id=current_user_id,
-        )
-
-        return self.account_repository.save(
-            account,
-        )
+        return self.account_repository.save(account)
 
     def _get_existing_account(
         self,
@@ -292,42 +313,68 @@ class ConvertLeadUseCase:
 
         contact_data = data.contact
 
-        contact = Contact.create(
-            account_id=account_id,
-            contact_owner_id=lead.owner_id,
+        # When contact data is not supplied by the frontend,
+        # create the Contact from the Lead automatically.
+        if contact_data is None:
+            contact = Contact.create(
+                account_id=account_id,
+                contact_owner_id=lead.owner_id,
+                name=lead.name,
+                email=lead.email,
+                secondary_email=None,
+                phone=lead.phone,
+                other_phone=None,
+                mobile=lead.mobile_number,
+                home_phone=None,
+                assistant_phone=None,
+                title=lead.title,
+                department=None,
+                lead_source=lead.lead_source.value,
+                vendor_name=None,
+                date_of_birth=None,
+                assistant=None,
+                email_opt_out=False,
+                reporting_to_id=None,
+                mailing_address=lead.address,
+                mailing_city=lead.city,
+                mailing_state=lead.state,
+                mailing_country=lead.country,
+                mailing_postal_code=lead.postal_code,
+                other_address=None,
+                description=lead.description,
+                created_by_id=current_user_id,
+            )
+        else:
+            contact = Contact.create(
+                account_id=account_id,
+                contact_owner_id=lead.owner_id,
+                name=contact_data.name,
+                email=contact_data.email,
+                secondary_email=contact_data.secondary_email,
+                phone=contact_data.phone,
+                other_phone=contact_data.other_phone,
+                mobile=contact_data.mobile,
+                home_phone=contact_data.home_phone,
+                assistant_phone=contact_data.assistant_phone,
+                title=contact_data.title,
+                department=contact_data.department,
+                lead_source=contact_data.lead_source,
+                vendor_name=contact_data.vendor_name,
+                date_of_birth=contact_data.date_of_birth,
+                assistant=contact_data.assistant,
+                email_opt_out=contact_data.email_opt_out,
+                reporting_to_id=contact_data.reporting_to_id,
+                mailing_address=contact_data.mailing_address,
+                mailing_city=contact_data.mailing_city,
+                mailing_state=contact_data.mailing_state,
+                mailing_country=contact_data.mailing_country,
+                mailing_postal_code=contact_data.mailing_postal_code,
+                other_address=contact_data.other_address,
+                description=contact_data.description,
+                created_by_id=current_user_id,
+            )
 
-            name=contact_data.name,
-            email=contact_data.email,
-            secondary_email=contact_data.secondary_email,
-            phone=contact_data.phone,
-            other_phone=contact_data.other_phone,
-            mobile=contact_data.mobile,
-            home_phone=contact_data.home_phone,
-            assistant_phone=contact_data.assistant_phone,
-            title=contact_data.title,
-            department=contact_data.department,
-            lead_source=contact_data.lead_source,
-            vendor_name=contact_data.vendor_name,
-            date_of_birth=contact_data.date_of_birth,
-            assistant=contact_data.assistant,
-            email_opt_out=contact_data.email_opt_out,
-            reporting_to_id=contact_data.reporting_to_id,
-
-            mailing_address=contact_data.mailing_address,
-            mailing_city=contact_data.mailing_city,
-            mailing_state=contact_data.mailing_state,
-            mailing_country=contact_data.mailing_country,
-            mailing_postal_code=contact_data.mailing_postal_code,
-
-            other_address=contact_data.other_address,
-            description=contact_data.description,
-
-            created_by_id=current_user_id,
-        )
-
-        return self.contact_repository.save(
-            contact,
-        )
+        return self.contact_repository.save(contact)
 
     def _get_existing_contact(
         self,

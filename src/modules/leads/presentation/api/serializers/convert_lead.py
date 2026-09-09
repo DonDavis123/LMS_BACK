@@ -276,7 +276,6 @@ class ConvertContactSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-
 class ConvertLeadSerializer(serializers.Serializer):
     account_action = serializers.ChoiceField(
         choices=["create_new", "use_existing"],
@@ -287,7 +286,10 @@ class ConvertLeadSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-    account = ConvertAccountSerializer()
+    account = ConvertAccountSerializer(
+        required=False,
+        allow_null=True,
+    )
 
     contact_action = serializers.ChoiceField(
         choices=["create_new", "use_existing"],
@@ -298,4 +300,36 @@ class ConvertLeadSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-    contact = ConvertContactSerializer()
+    contact = ConvertContactSerializer(
+        required=False,
+        allow_null=True,
+    )
+
+    def validate(self, attrs):
+        account_action = attrs.get("account_action")
+        account_id = attrs.get("account_id")
+
+        contact_action = attrs.get("contact_action")
+        contact_id = attrs.get("contact_id")
+
+        # -----------------------------------------
+        # Account validation
+        # -----------------------------------------
+
+        if account_action == "use_existing":
+            if account_id is None:
+                raise serializers.ValidationError({
+                    "account_id": "This field is required when using an existing Account."
+                })
+
+        # -----------------------------------------
+        # Contact validation
+        # -----------------------------------------
+
+        if contact_action == "use_existing":
+            if contact_id is None:
+                raise serializers.ValidationError({
+                    "contact_id": "This field is required when using an existing Contact."
+                })
+
+        return attrs

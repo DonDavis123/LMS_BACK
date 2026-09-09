@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 from datetime import date
 
+
 @dataclass
 class ConvertAccountDTO:
     account_name: str
@@ -64,8 +65,8 @@ class ConvertLeadDTO:
 
     account_action: str
     account_id: UUID | None
-    account: ConvertAccountDTO
+    account: ConvertAccountDTO | None
 
     contact_action: str
     contact_id: UUID | None
-    contact: ConvertContactDTO
+    contact: ConvertContactDTO | None
