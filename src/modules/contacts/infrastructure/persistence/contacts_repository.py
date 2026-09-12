@@ -43,6 +43,7 @@ class DjangoContactRepository(ContactRepository):
                 "created_at": contact.created_at,
                 "modified_by_id": contact.modified_by_id,
                 "updated_at": contact.updated_at,
+                "is_deleted": contact.is_deleted,
             },
         )
 
@@ -51,12 +52,26 @@ class DjangoContactRepository(ContactRepository):
     def get_by_id(self, contact_id: UUID) -> Contact | None:
         try:
             model = DjangoContactModel.objects.get(
-                id=contact_id,
+                
+              id=contact_id,
+              is_deleted=False,
+    
             )
         except DjangoContactModel.DoesNotExist:
             return None
 
         return self._to_domain(model)
+
+    def unlink_account_contacts(
+      self,
+      account_id: UUID,
+    ) -> None:
+      DjangoContactModel.objects.filter(
+          account_id=account_id,
+      ).update(
+          account_id=None,
+      )
+
     def get_by_id_with_relations(
     self,
     contact_id: UUID,
@@ -69,7 +84,10 @@ class DjangoContactRepository(ContactRepository):
                   "account",
                   "contact_owner",
               )
-              .get(id=contact_id)
+              .get(
+                  id=contact_id,
+                  is_deleted=False,
+              )
           )
       except DjangoContactModel.DoesNotExist:
           return None
@@ -88,7 +106,9 @@ class DjangoContactRepository(ContactRepository):
       models = DjangoContactModel.objects.select_related(
           "account",
           "contact_owner",
-      ).all()
+      ).all().filter(
+          is_deleted=False,
+         )
 
       return [
           (
@@ -106,7 +126,9 @@ class DjangoContactRepository(ContactRepository):
     mobile: str | None,
 ) -> list[Contact]:
 
-      queryset = DjangoContactModel.objects.all()
+      queryset = DjangoContactModel.objects.filter(
+         is_deleted=False,
+       )
 
       matches = queryset.filter(
           name__iexact=name,
@@ -173,4 +195,5 @@ class DjangoContactRepository(ContactRepository):
             created_at=model.created_at,
             modified_by_id=model.modified_by_id,
             updated_at=model.updated_at,
+            is_deleted=model.is_deleted,
         )

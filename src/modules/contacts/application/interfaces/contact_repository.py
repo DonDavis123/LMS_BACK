@@ -36,3 +36,7 @@ class ContactRepository(ABC):
     contact_id: UUID,
 ) -> tuple[Contact, str | None, str | None] | None:
        pass
+
+    @abstractmethod
+    def unlink_account_contacts(self, account_id: UUID) -> None:
+       pass

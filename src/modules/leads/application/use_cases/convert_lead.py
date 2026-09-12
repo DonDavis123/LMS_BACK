@@ -4,19 +4,23 @@ from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
 from src.modules.accounts.domain.entities.account import Account
+
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
 from src.modules.contacts.domain.entities.contact import Contact
+
 from src.modules.leads.application.dto.convert_lead import (
     ConvertLeadDTO,
 )
 from src.modules.leads.application.interfaces.lead_repository import (
     LeadRepository,
 )
+
 from src.modules.shared.application.interfaces.transaction_manager import (
     TransactionManager,
 )
+
 from src.modules.users.application.interfaces.user_repository import (
     UserRepository,
 )
@@ -112,20 +116,15 @@ class ConvertLeadUseCase:
                     current_user_id=current_user_id,
                 )
 
-            else:
+            elif data.account_action == "use_existing":
 
                 account = self._get_existing_account(
                     data.account_id,
                 )
 
-                self._update_existing_account(
-                    account=account,
-                    data=data,
-                    current_user_id=current_user_id,
-                )
-
-                account = self.account_repository.save(
-                    account,
+            else:
+                raise ValueError(
+                    "Invalid account_action."
                 )
 
             # ----------------------------------------------
@@ -141,20 +140,20 @@ class ConvertLeadUseCase:
                     current_user_id=current_user_id,
                 )
 
-            else:
+            elif data.contact_action == "use_existing":
 
                 contact = self._get_existing_contact(
                     data.contact_id,
                 )
 
-                self._update_existing_contact(
+                self._use_existing_contact(
                     contact=contact,
-                    data=data,
-                    account_id=account.id,
+                    account=account,
                 )
 
-                self.contact_repository.save(
-                    contact,
+            else:
+                raise ValueError(
+                    "Invalid contact_action."
                 )
 
             # ----------------------------------------------
@@ -187,6 +186,7 @@ class ConvertLeadUseCase:
         # When account data is not supplied by the frontend,
         # create the Account from the Lead automatically.
         if account_data is None:
+
             account = Account.create(
                 account_owner_id=lead.owner_id,
                 account_name=lead.company_name,
@@ -210,7 +210,9 @@ class ConvertLeadUseCase:
                 description=lead.description,
                 created_by_id=current_user_id,
             )
+
         else:
+
             account = Account.create(
                 account_owner_id=lead.owner_id,
                 account_name=account_data.account_name,
@@ -263,42 +265,6 @@ class ConvertLeadUseCase:
 
         return account
 
-    def _update_existing_account(
-        self,
-        account: Account,
-        data: ConvertLeadDTO,
-        current_user_id: UUID,
-    ) -> None:
-
-        account_data = data.account
-
-        account.account_name = account_data.account_name
-        account.account_site = account_data.account_site
-        account.account_number = account_data.account_number
-        account.account_type = account_data.account_type
-        account.industry = account_data.industry
-        account.annual_revenue = account_data.annual_revenue
-        account.rating = account_data.rating
-        account.phone = account_data.phone
-        account.website = account_data.website
-        account.ticker_symbol = account_data.ticker_symbol
-
-        if account_data.ownership is not None:
-            account.ownership = account_data.ownership
-
-        account.employees = account_data.employees
-        account.sic_code = account_data.sic_code
-
-        account.billing_address = account_data.billing_address
-        account.billing_city = account_data.billing_city
-        account.billing_state = account_data.billing_state
-        account.billing_country = account_data.billing_country
-        account.billing_postal_code = account_data.billing_postal_code
-
-        account.description = account_data.description
-
-        account.modified_by_id = current_user_id
-
     # ======================================================
     # CONTACT
     # ======================================================
@@ -316,6 +282,7 @@ class ConvertLeadUseCase:
         # When contact data is not supplied by the frontend,
         # create the Contact from the Lead automatically.
         if contact_data is None:
+
             contact = Contact.create(
                 account_id=account_id,
                 contact_owner_id=lead.owner_id,
@@ -344,7 +311,9 @@ class ConvertLeadUseCase:
                 description=lead.description,
                 created_by_id=current_user_id,
             )
+
         else:
+
             contact = Contact.create(
                 account_id=account_id,
                 contact_owner_id=lead.owner_id,
@@ -395,42 +364,31 @@ class ConvertLeadUseCase:
                 "Selected Contact not found."
             )
 
+        if contact.is_deleted:
+            raise ValueError(
+                "Cannot use a deleted Contact."
+            )
+
         return contact
 
-    def _update_existing_contact(
+    def _use_existing_contact(
         self,
         contact: Contact,
-        data: ConvertLeadDTO,
-        account_id: UUID,
+        account: Account,
     ) -> None:
 
-        contact_data = data.contact
+        # If the Contact already belongs to an Account,
+        # keep its existing Account.
+        #
+        # This follows Zoho-style lead conversion behavior:
+        # an existing Contact's Account relationship should
+        # not be silently changed during conversion.
 
-        # Link the existing Contact to the Account
-        contact.account_id = account_id
+        if contact.account_id is not None:
+            return
 
-        contact.name = contact_data.name
-        contact.email = contact_data.email
-        contact.secondary_email = contact_data.secondary_email
-        contact.phone = contact_data.phone
-        contact.other_phone = contact_data.other_phone
-        contact.mobile = contact_data.mobile
-        contact.home_phone = contact_data.home_phone
-        contact.assistant_phone = contact_data.assistant_phone
-        contact.title = contact_data.title
-        contact.department = contact_data.department
-        contact.lead_source = contact_data.lead_source
-        contact.vendor_name = contact_data.vendor_name
-        contact.date_of_birth = contact_data.date_of_birth
-        contact.assistant = contact_data.assistant
-        contact.email_opt_out = contact_data.email_opt_out
-        contact.reporting_to_id = contact_data.reporting_to_id
+        # If the existing Contact has no Account,
+        # associate it with the Account involved in conversion.
+        contact.account_id = account.id
 
-        contact.mailing_address = contact_data.mailing_address
-        contact.mailing_city = contact_data.mailing_city
-        contact.mailing_state = contact_data.mailing_state
-        contact.mailing_country = contact_data.mailing_country
-        contact.mailing_postal_code = contact_data.mailing_postal_code
-
-        contact.other_address = contact_data.other_address
-        contact.description = contact_data.description
+        self.contact_repository.save(contact)

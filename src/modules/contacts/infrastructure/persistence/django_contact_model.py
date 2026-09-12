@@ -187,6 +187,10 @@ class DjangoContactModel(models.Model):
 
     updated_at = models.DateTimeField()
 
+    is_deleted = models.BooleanField(
+    default=False,
+    )
+
     class Meta:
         db_table = "contacts"
 

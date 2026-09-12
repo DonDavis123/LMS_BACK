@@ -44,11 +44,21 @@ class LoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        return Response(
+        response = Response(
             {
                 "access_token": result.access_token,
-                "refresh_token": result.refresh_token,
                 "token_type": "Bearer",
             },
             status=status.HTTP_200_OK,
         )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=result.refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="None",
+            max_age=7 * 24 * 60 * 60,
+        )
+
+        return response

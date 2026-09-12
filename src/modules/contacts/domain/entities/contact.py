@@ -8,7 +8,7 @@ class Contact:
     id: UUID
 
     # Relationship
-    account_id: UUID
+    account_id: UUID | None
     contact_owner_id: UUID
 
     # Contact information
@@ -49,6 +49,7 @@ class Contact:
     created_at: datetime
     modified_by_id: UUID
     updated_at: datetime
+    is_deleted: bool
 
     @classmethod
     def create(
@@ -84,10 +85,8 @@ class Contact:
 
         return cls(
             id=uuid4(),
-
             account_id=account_id,
             contact_owner_id=contact_owner_id,
-
             name=name,
             email=email,
             secondary_email=secondary_email,
@@ -96,28 +95,24 @@ class Contact:
             mobile=mobile,
             home_phone=home_phone,
             assistant_phone=assistant_phone,
-
             title=title,
             department=department,
             lead_source=lead_source,
             vendor_name=vendor_name,
-
             date_of_birth=date_of_birth,
             assistant=assistant,
             email_opt_out=email_opt_out,
             reporting_to_id=reporting_to_id,
-
             mailing_address=mailing_address,
             mailing_city=mailing_city,
             mailing_state=mailing_state,
             mailing_country=mailing_country,
             mailing_postal_code=mailing_postal_code,
             other_address=other_address,
-
             description=description,
-
             created_by_id=created_by_id,
             created_at=now,
             modified_by_id=created_by_id,
             updated_at=now,
+            is_deleted=False,
         )

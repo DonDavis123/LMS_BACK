@@ -1,4 +1,4 @@
-from src.modules.leads.application.dto.lead_response import LeadResponseDTO
+from src.modules.leads.application.dto.get_leads import LeadResponseDTO
 from src.modules.leads.application.dto.owner_response import OwnerResponseDTO
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 
@@ -19,6 +19,7 @@ class GetLeadsUseCase:
                 email=lead.email,
                 mobile_number=lead.mobile_number,
                 lead_source=lead.lead_source.value,
+                lead_status=lead.lead_status.value,
                 owner=OwnerResponseDTO(
                     id=lead.owner_id,
                     name=owner_name,

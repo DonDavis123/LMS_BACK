@@ -16,7 +16,12 @@ from src.modules.contacts.application.use_cases.get_contacts import (
 from src.modules.contacts.application.use_cases.get_contact_details import (
     GetContactDetailsUseCase,
 )
-
+from src.modules.contacts.application.use_cases.update_contact import (
+    UpdateContactUseCase,
+)
+from src.modules.contacts.application.use_cases.delete_contact import (
+    DeleteContactUseCase,
+)
 
 def get_create_contact_use_case() -> CreateContactUseCase:
     contact_repository = DjangoContactRepository()
@@ -40,5 +45,22 @@ def get_contact_details_use_case() -> GetContactDetailsUseCase:
     contact_repository = DjangoContactRepository()
 
     return GetContactDetailsUseCase(
+        contact_repository=contact_repository,
+    )
+
+def get_update_contact_use_case() -> UpdateContactUseCase:
+    contact_repository = DjangoContactRepository()
+    account_repository = DjangoAccountRepository()
+    user_repository = DjangoUserRepository()
+
+    return UpdateContactUseCase(
+        contact_repository=contact_repository,
+        account_repository=account_repository,
+        user_repository=user_repository,
+    )
+def get_delete_contact_use_case() -> DeleteContactUseCase:
+    contact_repository = DjangoContactRepository()
+
+    return DeleteContactUseCase(
         contact_repository=contact_repository,
     )

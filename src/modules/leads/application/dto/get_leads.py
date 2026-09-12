@@ -14,5 +14,6 @@ class LeadResponseDTO:
     mobile_number: str
     lead_source: str
     owner: OwnerResponseDTO
+    lead_status:str
     created_at: datetime
     updated_at: datetime

@@ -2,7 +2,10 @@ from rest_framework import serializers
 
 
 class ConvertAccountSerializer(serializers.Serializer):
-    account_name = serializers.CharField(max_length=255)
+
+    account_name = serializers.CharField(
+        max_length=255,
+    )
 
     account_site = serializers.CharField(
         max_length=255,
@@ -129,7 +132,10 @@ class ConvertAccountSerializer(serializers.Serializer):
 
 
 class ConvertContactSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=255)
+
+    name = serializers.CharField(
+        max_length=255,
+    )
 
     email = serializers.EmailField(
         required=False,
@@ -276,9 +282,14 @@ class ConvertContactSerializer(serializers.Serializer):
         allow_null=True,
     )
 
+
 class ConvertLeadSerializer(serializers.Serializer):
+
     account_action = serializers.ChoiceField(
-        choices=["create_new", "use_existing"],
+        choices=[
+            "create_new",
+            "use_existing",
+        ],
     )
 
     account_id = serializers.UUIDField(
@@ -292,7 +303,10 @@ class ConvertLeadSerializer(serializers.Serializer):
     )
 
     contact_action = serializers.ChoiceField(
-        choices=["create_new", "use_existing"],
+        choices=[
+            "create_new",
+            "use_existing",
+        ],
     )
 
     contact_id = serializers.UUIDField(
@@ -306,20 +320,44 @@ class ConvertLeadSerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
+
         account_action = attrs.get("account_action")
         account_id = attrs.get("account_id")
+        account = attrs.get("account")
 
         contact_action = attrs.get("contact_action")
         contact_id = attrs.get("contact_id")
+        contact = attrs.get("contact")
 
         # -----------------------------------------
         # Account validation
         # -----------------------------------------
 
         if account_action == "use_existing":
+
             if account_id is None:
                 raise serializers.ValidationError({
-                    "account_id": "This field is required when using an existing Account."
+                    "account_id": (
+                        "This field is required when using an existing Account."
+                    )
+                })
+
+            if account is not None:
+                raise serializers.ValidationError({
+                    "account": (
+                        "Account data must not be provided when using "
+                        "an existing Account."
+                    )
+                })
+
+        elif account_action == "create_new":
+
+            if account_id is not None:
+                raise serializers.ValidationError({
+                    "account_id": (
+                        "account_id must not be provided when creating "
+                        "a new Account."
+                    )
                 })
 
         # -----------------------------------------
@@ -327,9 +365,30 @@ class ConvertLeadSerializer(serializers.Serializer):
         # -----------------------------------------
 
         if contact_action == "use_existing":
+
             if contact_id is None:
                 raise serializers.ValidationError({
-                    "contact_id": "This field is required when using an existing Contact."
+                    "contact_id": (
+                        "This field is required when using an existing Contact."
+                    )
+                })
+
+            if contact is not None:
+                raise serializers.ValidationError({
+                    "contact": (
+                        "Contact data must not be provided when using "
+                        "an existing Contact."
+                    )
+                })
+
+        elif contact_action == "create_new":
+
+            if contact_id is not None:
+                raise serializers.ValidationError({
+                    "contact_id": (
+                        "contact_id must not be provided when creating "
+                        "a new Contact."
+                    )
                 })
 
         return attrs

@@ -11,27 +11,29 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+
 from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 
+# -------------------------------------------------------------------
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+# -------------------------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
+# -------------------------------------------------------------------
+# Security
+# -------------------------------------------------------------------
 
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
 
@@ -52,9 +54,11 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
+
     "src.modules.leads.apps.LeadsConfig",
     "django.contrib.staticfiles",
     "src.modules.users.apps.UsersConfig",
@@ -99,11 +103,24 @@ CORS_ALLOWED_ORIGINS = [
     "https://snipping-foothill-nursery.ngrok-free.dev",
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
 
 from corsheaders.defaults import default_headers
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "ngrok-skip-browser-warning",
+]
+
+
+# -------------------------------------------------------------------
+# CSRF
+# -------------------------------------------------------------------
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://snipping-foothill-nursery.ngrok-free.dev",
 ]
 
 
@@ -209,11 +226,26 @@ STATIC_URL = "static/"
 # Email
 # -------------------------------------------------------------------
 
-MAILERS = {
-    "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
-    },
-}
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+
+EMAIL_PORT = int(
+    os.getenv("EMAIL_PORT", "587")
+)
+
+EMAIL_USE_TLS = (
+    os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+)
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    EMAIL_HOST_USER,
+)
 
 
 # -------------------------------------------------------------------

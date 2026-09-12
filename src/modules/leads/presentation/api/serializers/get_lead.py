@@ -16,3 +16,4 @@ class LeadSerializer(serializers.Serializer):
     owner = OwnerSerializer()
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
+    lead_status = serializers.CharField()
