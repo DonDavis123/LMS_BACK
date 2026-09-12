@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
 
+    "src.modules.authentication.apps.AuthenticationConfig",
     "src.modules.leads.apps.LeadsConfig",
     "django.contrib.staticfiles",
     "src.modules.users.apps.UsersConfig",
@@ -246,6 +247,7 @@ DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",
     EMAIL_HOST_USER,
 )
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 
 # -------------------------------------------------------------------
