@@ -49,6 +49,30 @@ class DjangoTaskRepository(TaskRepository):
             for model in models
         ]
 
+    def soft_delete_by_lead_id(self, lead_id: UUID) -> None:
+        DjangoTaskModel.objects.filter(
+            lead_id=lead_id,
+            is_deleted=False,
+        ).update(
+            is_deleted=True,
+        )
+
+    def soft_delete_by_contact_id(self, contact_id: UUID) -> None:
+        DjangoTaskModel.objects.filter(
+            contact_id=contact_id,
+            is_deleted=False,
+        ).update(
+            is_deleted=True,
+        )
+
+    def soft_delete_by_account_id(self, account_id: UUID) -> None:
+        DjangoTaskModel.objects.filter(
+            account_id=account_id,
+            is_deleted=False,
+        ).update(
+            is_deleted=True,
+        )
+
     @staticmethod
     def _to_domain(model: DjangoTaskModel) -> Task:
         return Task(

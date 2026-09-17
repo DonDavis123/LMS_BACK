@@ -32,6 +32,9 @@ from src.modules.accounts.infrastructure.persistence.django_account_repository i
 from src.modules.contacts.infrastructure.persistence.contacts_repository import (
     DjangoContactRepository,
 )
+from src.modules.tasks.infrastructure.persistence.django_task_repository import (
+    DjangoTaskRepository,
+)
 
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import (
     DjangoTransactionManager,
@@ -76,9 +79,13 @@ def get_lead_details_use_case() -> GetLeadDetailsUseCase:
 
 def get_delete_lead_use_case() -> DeleteLeadUseCase:
     lead_repository = DjangoLeadRepository()
+    task_repository = DjangoTaskRepository()
+    transaction_manager = DjangoTransactionManager()
 
     return DeleteLeadUseCase(
         lead_repository=lead_repository,
+        task_repository=task_repository,
+        transaction_manager=transaction_manager,
     )
 
 

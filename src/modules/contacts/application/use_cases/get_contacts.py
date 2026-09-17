@@ -21,6 +21,14 @@ class GetContactsUseCase:
                 "account_name": account_name,
                 "contact_owner_id": contact.contact_owner_id,
                 "contact_owner_name": contact_owner_name,
+                "next_task_due_date": next_task_due_date,
+                "next_task_status": next_task_status,
             }
-            for contact, account_name, contact_owner_name in contacts
+            for (
+                contact,
+                account_name,
+                contact_owner_name,
+                next_task_due_date,
+                next_task_status,
+            ) in contacts
         ]

@@ -19,3 +19,7 @@ class ContactSerializer(serializers.Serializer):
     contact_owner_id = serializers.UUIDField()
 
     contact_owner_name = serializers.CharField(allow_null=True)
+
+    next_task_due_date = serializers.DateField(allow_null=True)
+
+    next_task_status = serializers.CharField(allow_null=True)

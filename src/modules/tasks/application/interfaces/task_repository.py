@@ -17,3 +17,15 @@ class TaskRepository(ABC):
     @abstractmethod
     def get_all(self) -> list[Task]:
         pass
+
+    @abstractmethod
+    def soft_delete_by_lead_id(self, lead_id: UUID) -> None:
+        pass
+
+    @abstractmethod
+    def soft_delete_by_contact_id(self, contact_id: UUID) -> None:
+        pass
+
+    @abstractmethod
+    def soft_delete_by_account_id(self, account_id: UUID) -> None:
+        pass

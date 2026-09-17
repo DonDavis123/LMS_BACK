@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import date
 from uuid import UUID
 
 from src.modules.contacts.domain.entities.contact import Contact
@@ -17,7 +18,15 @@ class ContactRepository(ABC):
     @abstractmethod
     def get_all_with_relations(
         self,
-    ) -> list[tuple[Contact, str | None, str | None]]:
+    ) -> list[
+        tuple[
+            Contact,
+            str | None,
+            str | None,
+            date | None,
+            str | None,
+        ]
+    ]:
         pass
 
     @abstractmethod

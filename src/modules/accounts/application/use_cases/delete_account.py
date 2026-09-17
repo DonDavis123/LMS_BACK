@@ -11,6 +11,9 @@ from src.modules.contacts.application.interfaces.contact_repository import (
 from src.modules.shared.application.interfaces.transaction_manager import (
     TransactionManager,
 )
+from src.modules.tasks.application.interfaces.task_repository import (
+    TaskRepository,
+)
 
 
 class DeleteAccountUseCase:
@@ -19,10 +22,12 @@ class DeleteAccountUseCase:
         self,
         account_repository: AccountRepository,
         contact_repository: ContactRepository,
+        task_repository: TaskRepository,
         transaction_manager: TransactionManager,
     ):
         self.account_repository = account_repository
         self.contact_repository = contact_repository
+        self.task_repository = task_repository
         self.transaction_manager = transaction_manager
 
     def execute(
@@ -69,6 +74,14 @@ class DeleteAccountUseCase:
             # --------------------------------------------------
 
             self.account_repository.save(account)
+
+            # --------------------------------------------------
+            # 5. Soft-delete Tasks associated with the Account
+            # --------------------------------------------------
+
+            self.task_repository.soft_delete_by_account_id(
+                account.id,
+            )
 
         self.transaction_manager.execute(
             deletion,

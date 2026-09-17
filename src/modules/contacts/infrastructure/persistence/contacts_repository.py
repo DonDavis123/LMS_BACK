@@ -1,9 +1,16 @@
+from datetime import date
 from uuid import UUID
+
+from django.db.models import OuterRef, Subquery
 
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
 from src.modules.contacts.domain.entities.contact import Contact
+from src.modules.tasks.domain.enums.task_status import TaskStatus
+from src.modules.tasks.infrastructure.persistence.models import (
+    DjangoTaskModel,
+)
 
 from .django_contact_model import DjangoContactModel
 
@@ -101,20 +108,55 @@ class DjangoContactRepository(ContactRepository):
 
     def get_all_with_relations(
     self,
-) -> list[tuple[Contact, str | None, str | None]]:
+) -> list[
+        tuple[
+            Contact,
+            str | None,
+            str | None,
+            date | None,
+            str | None,
+        ]
+    ]:
+
+      # --------------------------------------------------
+      # Nearest open Task (not completed, not deleted)
+      # for each Contact, ordered so the earliest due date
+      # (and undated tasks last) comes first.
+      # --------------------------------------------------
+
+      next_task_subquery = (
+          DjangoTaskModel.objects
+          .filter(
+              contact_id=OuterRef("pk"),
+              is_deleted=False,
+          )
+          .exclude(
+              status=TaskStatus.COMPLETED.value,
+          )
+          .order_by("due_date", "created_at")
+      )
 
       models = DjangoContactModel.objects.select_related(
           "account",
           "contact_owner",
       ).all().filter(
           is_deleted=False,
-         )
+         ).annotate(
+          next_task_due_date=Subquery(
+              next_task_subquery.values("due_date")[:1],
+          ),
+          next_task_status=Subquery(
+              next_task_subquery.values("status")[:1],
+          ),
+      )
 
       return [
           (
               self._to_domain(model),
               model.account.account_name if model.account else None,
               model.contact_owner.name if model.contact_owner else None,
+              model.next_task_due_date,
+              model.next_task_status,
           )
           for model in models
     ]

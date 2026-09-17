@@ -22,6 +22,12 @@ from src.modules.contacts.application.use_cases.update_contact import (
 from src.modules.contacts.application.use_cases.delete_contact import (
     DeleteContactUseCase,
 )
+from src.modules.tasks.infrastructure.persistence.django_task_repository import (
+    DjangoTaskRepository,
+)
+from src.modules.shared.infrastructure.transactions.django_transaction_manager import (
+    DjangoTransactionManager,
+)
 
 def get_create_contact_use_case() -> CreateContactUseCase:
     contact_repository = DjangoContactRepository()
@@ -60,7 +66,11 @@ def get_update_contact_use_case() -> UpdateContactUseCase:
     )
 def get_delete_contact_use_case() -> DeleteContactUseCase:
     contact_repository = DjangoContactRepository()
+    task_repository = DjangoTaskRepository()
+    transaction_manager = DjangoTransactionManager()
 
     return DeleteContactUseCase(
         contact_repository=contact_repository,
+        task_repository=task_repository,
+        transaction_manager=transaction_manager,
     )
