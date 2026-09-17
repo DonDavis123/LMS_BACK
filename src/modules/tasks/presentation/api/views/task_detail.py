@@ -51,7 +51,7 @@ class TaskDetailView(APIView):
         )
 
         try:
-            task = get_update_task_use_case().execute(dto)
+            task = get_update_task_use_case().execute(dto, current_user_id=request.user.id)
         except ValueError as error:
             return Response(
                 {"detail": str(error)},
@@ -65,7 +65,7 @@ class TaskDetailView(APIView):
 
     def delete(self, request, task_id):
         try:
-            get_delete_task_use_case().execute(task_id)
+            get_delete_task_use_case().execute(task_id, current_user_id=request.user.id)
         except ValueError as error:
             return Response(
                 {"detail": str(error)},

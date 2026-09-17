@@ -14,6 +14,7 @@ from src.modules.users.application.interfaces.user_repository import (
     UserRepository,
 )
 from src.modules.users.domain.entities.role import UserRole
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 
 
 class UpdateContactUseCase:
@@ -22,10 +23,12 @@ class UpdateContactUseCase:
         contact_repository: ContactRepository,
         account_repository: AccountRepository,
         user_repository: UserRepository,
+        timeline_recorder: TimelineRecorder,
     ):
         self.contact_repository = contact_repository
         self.account_repository = account_repository
         self.user_repository = user_repository
+        self.timeline_recorder = timeline_recorder
 
     def execute(
         self,
@@ -40,6 +43,7 @@ class UpdateContactUseCase:
             raise ValueError("Contact not found.")
 
         fields = data.fields
+        old_values = {field: getattr(contact, field) for field in fields if hasattr(contact, field)}
 
         # --------------------------------------------------
         # Account validation
@@ -144,4 +148,13 @@ class UpdateContactUseCase:
         contact.modified_by_id = current_user_id
         contact.updated_at = datetime.now(timezone.utc)
 
-        return self.contact_repository.save(contact)
+        saved = self.contact_repository.save(contact)
+        changes = {}
+        for field, old_value in old_values.items():
+            new_value = getattr(saved, field)
+            old = str(old_value) if field.endswith("_id") and old_value is not None else old_value
+            new = str(new_value) if field.endswith("_id") and new_value is not None else new_value
+            if old != new: changes[field] = {"old": old, "new": new}
+        if changes:
+            self.timeline_recorder.record(event_type="CONTACT_UPDATED", actor_id=current_user_id, message=f"Contact {saved.name} was updated.", metadata={"changes": changes}, targets=[("CONTACT", saved.id)] + ([('ACCOUNT', saved.account_id)] if saved.account_id else []))
+        return saved

@@ -12,6 +12,8 @@ from src.modules.contacts.application.interfaces.contact_repository import (
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
+from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
 
 class CreateTaskUseCase:
@@ -23,12 +25,16 @@ class CreateTaskUseCase:
         lead_repository: LeadRepository,
         contact_repository: ContactRepository,
         account_repository: AccountRepository,
+        timeline_recorder: TimelineRecorder,
+        transaction_manager: TransactionManager,
     ):
         self.task_repository = task_repository
         self.user_repository = user_repository
         self.lead_repository = lead_repository
         self.contact_repository = contact_repository
         self.account_repository = account_repository
+        self.timeline_recorder = timeline_recorder
+        self.transaction_manager = transaction_manager
 
     def execute(
         self,
@@ -114,4 +120,13 @@ class CreateTaskUseCase:
             description=data.description,
         )
 
-        return self.task_repository.save(task)
+        def creation():
+            saved = self.task_repository.save(task)
+            targets = []
+            if saved.lead_id: targets.append(("LEAD", saved.lead_id))
+            if saved.contact_id: targets.append(("CONTACT", saved.contact_id))
+            if saved.account_id: targets.append(("ACCOUNT", saved.account_id))
+            if targets:
+                self.timeline_recorder.record(event_type="TASK_CREATED", actor_id=saved.created_by_id, message=f"Task {saved.subject} was created.", metadata={"task_id": str(saved.id), "subject": saved.subject}, targets=targets)
+            return saved
+        return self.transaction_manager.execute(creation)

@@ -5,6 +5,8 @@ from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
 from src.modules.accounts.domain.entities.account import Account
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
+from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
 
 class CreateAccountUseCase:
@@ -12,8 +14,12 @@ class CreateAccountUseCase:
     def __init__(
         self,
         account_repository: AccountRepository,
+        timeline_recorder: TimelineRecorder,
+        transaction_manager: TransactionManager,
     ):
         self.account_repository = account_repository
+        self.timeline_recorder = timeline_recorder
+        self.transaction_manager = transaction_manager
 
     def execute(
         self,
@@ -55,4 +61,8 @@ class CreateAccountUseCase:
             created_by_id=current_user_id,
         )
 
-        return self.account_repository.save(account)
+        def creation():
+            saved = self.account_repository.save(account)
+            self.timeline_recorder.record(event_type="ACCOUNT_CREATED", actor_id=current_user_id, message=f"Account {saved.account_name} was created.", metadata={"account_id": str(saved.id), "account_name": saved.account_name}, targets=[("ACCOUNT", saved.id)])
+            return saved
+        return self.transaction_manager.execute(creation)

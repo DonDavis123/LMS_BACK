@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 
@@ -34,4 +35,9 @@ urlpatterns = [
         "api/tasks/",
         include("src.modules.tasks.presentation.api.urls"),
     ),
+    path(
+        "api/timeline/",
+        include("src.modules.timeline.presentation.api.urls"),
+    ),
+
 ]

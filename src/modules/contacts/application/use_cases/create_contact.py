@@ -14,6 +14,8 @@ from src.modules.users.application.interfaces.user_repository import (
     UserRepository,
 )
 from src.modules.users.domain.entities.role import UserRole
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
+from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
 
 class CreateContactUseCase:
@@ -23,10 +25,14 @@ class CreateContactUseCase:
         contact_repository: ContactRepository,
         account_repository: AccountRepository,
         user_repository: UserRepository,
+        timeline_recorder: TimelineRecorder,
+        transaction_manager: TransactionManager,
     ):
         self.contact_repository = contact_repository
         self.account_repository = account_repository
         self.user_repository = user_repository
+        self.timeline_recorder = timeline_recorder
+        self.transaction_manager = transaction_manager
 
     def execute(
         self,
@@ -95,4 +101,9 @@ class CreateContactUseCase:
             created_by_id=current_user_id,
         )
 
-        return self.contact_repository.save(contact)
+        def creation():
+            saved = self.contact_repository.save(contact)
+            targets = [("CONTACT", saved.id)] + ([('ACCOUNT', saved.account_id)] if saved.account_id else [])
+            self.timeline_recorder.record(event_type="CONTACT_CREATED", actor_id=current_user_id, message=f"Contact {saved.name} was created.", metadata={"contact_id": str(saved.id), "name": saved.name}, targets=targets)
+            return saved
+        return self.transaction_manager.execute(creation)

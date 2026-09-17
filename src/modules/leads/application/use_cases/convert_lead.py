@@ -25,6 +25,7 @@ from src.modules.users.application.interfaces.user_repository import (
     UserRepository,
 )
 from src.modules.users.domain.entities.role import UserRole
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 
 
 class ConvertLeadUseCase:
@@ -36,12 +37,14 @@ class ConvertLeadUseCase:
         contact_repository: ContactRepository,
         user_repository: UserRepository,
         transaction_manager: TransactionManager,
+        timeline_recorder: TimelineRecorder,
     ):
         self.lead_repository = lead_repository
         self.account_repository = account_repository
         self.contact_repository = contact_repository
         self.user_repository = user_repository
         self.transaction_manager = transaction_manager
+        self.timeline_recorder = timeline_recorder
 
     def execute(
         self,
@@ -165,6 +168,10 @@ class ConvertLeadUseCase:
             self.lead_repository.save(
                 lead,
             )
+            targets = [("LEAD", lead.id)]
+            if data.contact_action == "use_existing" and data.contact_id: targets.append(("CONTACT", data.contact_id))
+            if data.account_action == "use_existing" and data.account_id: targets.append(("ACCOUNT", data.account_id))
+            self.timeline_recorder.record(event_type="LEAD_CONVERTED", actor_id=current_user_id, message=f"Lead {lead.name} was converted.", metadata={"lead_id": str(lead.id)}, targets=targets)
 
         self.transaction_manager.execute(
             conversion,

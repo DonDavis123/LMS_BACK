@@ -117,7 +117,7 @@ class UpdateLeadView(APIView):
         use_case = get_update_lead_use_case()
 
         try:
-            lead = use_case.execute(dto)
+            lead = use_case.execute(dto, current_user_id=request.user.id)
 
         except ValueError as error:
             return Response(

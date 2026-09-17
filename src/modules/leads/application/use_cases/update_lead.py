@@ -5,6 +5,7 @@ from src.modules.leads.application.dto.update_lead import (
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 
 
 class UpdateLeadUseCase:
@@ -13,16 +14,25 @@ class UpdateLeadUseCase:
         self,
         lead_repository: LeadRepository,
         user_repository: UserRepository,
+        timeline_recorder: TimelineRecorder,
     ):
         self.lead_repository = lead_repository
         self.user_repository = user_repository
+        self.timeline_recorder = timeline_recorder
 
-    def execute(self, data: UpdateLeadDTO):
+    def execute(self, data: UpdateLeadDTO, current_user_id=None):
 
         existing_lead = self.lead_repository.get_by_id(data.lead_id)
 
         if existing_lead is None:
             raise ValueError("Lead not found.")
+        old_values = {
+            "name": existing_lead.name, "company_name": existing_lead.company_name,
+            "email": existing_lead.email, "mobile_number": existing_lead.mobile_number,
+            "lead_source": existing_lead.lead_source.value, "lead_status": existing_lead.lead_status.value,
+            "industry": existing_lead.industry.value, "rating": existing_lead.rating.value,
+            "owner_id": str(existing_lead.owner_id), "description": existing_lead.description,
+        }
 
         if data.name is not _UNSET:
             existing_lead.name = data.name
@@ -102,4 +112,21 @@ class UpdateLeadUseCase:
         if data.description is not _UNSET:
             existing_lead.description = data.description
 
-        return self.lead_repository.save(existing_lead)
+        saved = self.lead_repository.save(existing_lead)
+        changes = {}
+        for field, old_value in old_values.items():
+            new_value = getattr(saved, field)
+            if hasattr(new_value, "value"): new_value = new_value.value
+            if field == "owner_id": new_value = str(new_value)
+            if old_value != new_value: changes[field] = {"old": old_value, "new": new_value}
+        if changes:
+            if "lead_status" in changes and len(changes) == 1:
+                event_type = "LEAD_STATUS_CHANGED"
+                message = f"Lead status changed from {changes['lead_status']['old']} to {changes['lead_status']['new']}."
+                metadata = {"field": "status", **changes["lead_status"]}
+            else:
+                event_type = "LEAD_UPDATED"
+                message = f"Lead {saved.name} was updated."
+                metadata = {"changes": changes}
+            self.timeline_recorder.record(event_type=event_type, actor_id=current_user_id or saved.owner_id, message=message, metadata=metadata, targets=[("LEAD", saved.id)])
+        return saved

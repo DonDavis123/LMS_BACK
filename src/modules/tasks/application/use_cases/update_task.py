@@ -11,6 +11,7 @@ from src.modules.tasks.application.interfaces.task_repository import (
 )
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 
 
 class UpdateTaskUseCase:
@@ -22,14 +23,16 @@ class UpdateTaskUseCase:
         lead_repository: LeadRepository,
         contact_repository: ContactRepository,
         account_repository: AccountRepository,
+        timeline_recorder: TimelineRecorder,
     ):
         self.task_repository = task_repository
         self.user_repository = user_repository
         self.lead_repository = lead_repository
         self.contact_repository = contact_repository
         self.account_repository = account_repository
+        self.timeline_recorder = timeline_recorder
 
-    def execute(self, data: UpdateTaskDTO):
+    def execute(self, data: UpdateTaskDTO, current_user_id=None):
         task = self.task_repository.get_by_id(data.task_id)
 
         if task is None:
@@ -39,6 +42,7 @@ class UpdateTaskUseCase:
             raise ValueError("Deleted Task cannot be updated.")
 
         fields = data.fields
+        old_values = {field: getattr(task, field) for field in fields if hasattr(task, field)}
 
         if "owner_id" in fields:
             owner_id = fields["owner_id"]
@@ -114,4 +118,21 @@ class UpdateTaskUseCase:
             if account is None or account.is_deleted:
                 raise ValueError("Selected account not found.")
 
-        return self.task_repository.save(task)
+        saved = self.task_repository.save(task)
+        changes = {}
+        for field, old_value in old_values.items():
+            new_value = getattr(saved, field)
+            old = old_value.value if hasattr(old_value, "value") else old_value
+            new = new_value.value if hasattr(new_value, "value") else new_value
+            old = str(old) if field.endswith("_id") and old is not None else old
+            new = str(new) if field.endswith("_id") and new is not None else new
+            if old != new: changes[field] = {"old": old, "new": new}
+        if changes:
+            targets = []
+            if saved.lead_id: targets.append(("LEAD", saved.lead_id))
+            if saved.contact_id: targets.append(("CONTACT", saved.contact_id))
+            if saved.account_id: targets.append(("ACCOUNT", saved.account_id))
+            if targets:
+                completed = changes.get("status", {}).get("new") == "Completed"
+                self.timeline_recorder.record(event_type="TASK_COMPLETED" if completed else "TASK_UPDATED", actor_id=current_user_id or saved.owner_id, message=f"Task {saved.subject} was completed." if completed else f"Task {saved.subject} was updated.", metadata={"task_id": str(saved.id), "changes": changes}, targets=targets)
+        return saved
