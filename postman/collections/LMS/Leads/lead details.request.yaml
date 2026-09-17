@@ -1,4 +1,8 @@
 $kind: http-request
-url: ""
+url: http://127.0.0.1:8000/api/leads/618df5f4-1896-415a-ade1-066991709c9c/
 method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_1861}}"
 order: 3591074994056234

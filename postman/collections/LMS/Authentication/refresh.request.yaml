@@ -1,4 +1,13 @@
 $kind: http-request
-url: ""
-method: GET
+url: http://127.0.0.1:8000/api/auth/refresh/
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \r
+
+    \    \"refresh_token\": \"{{json_web_token_0eha}}\"\r
+
+    }"
 order: 3643362467456126

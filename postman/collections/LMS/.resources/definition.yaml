@@ -1,1 +1,5 @@
 $kind: collection
+variables:
+  - key: supabase_service_role_api_key_0bul
+    secret: true
+    disabled: false

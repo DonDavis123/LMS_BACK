@@ -1,0 +1,20 @@
+name: leadpulse
+values:
+  - key: supabase_service_role_api_key_0hy0
+    secret: true
+  - key: json_web_token_0um6
+    secret: true
+  - key: json_web_token_0eha
+    secret: true
+  - key: supabase_service_role_api_key_0trf
+    secret: true
+  - key: supabase_service_role_api_key_1861
+    secret: true
+  - key: supabase_service_role_api_key_0wnj
+    secret: true
+  - key: supabase_service_role_api_key_0vuz
+    secret: true
+  - key: supabase_service_role_api_key_0tkf
+    secret: true
+  - key: json_web_token_0bul
+    secret: true

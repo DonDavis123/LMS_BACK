@@ -30,4 +30,8 @@ urlpatterns = [
         "api/contacts/",
         include("src.modules.contacts.presentation.api.urls"),
     ),
+    path(
+        "api/tasks/",
+        include("src.modules.tasks.presentation.api.urls"),
+    ),
 ]

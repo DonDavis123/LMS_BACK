@@ -1,4 +1,8 @@
 $kind: http-request
-url: ""
-method: GET
+url: http://127.0.0.1:8000/api/accounts/add3cecf-331a-4e79-944f-55f7a1c6c51e/delete/
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg5MTQyNjExLCJpYXQiOjE3ODkxNDE3MTEsImp0aSI6ImJkYTI4ZjQ5OGYyODQzMWY4MzMyMWM3NGJkNDI5NWFmIiwidXNlcl9pZCI6Ijc0MGE5ODU3LThmMzktNDcxMS05NzQ5LTNhMTgyNGIwMmQ3ZCJ9.EnLiuY9FGiEZP3wvC_SInbFQ1BpMJmvOuLFu6CqkcmM
 order: 4353268089046095

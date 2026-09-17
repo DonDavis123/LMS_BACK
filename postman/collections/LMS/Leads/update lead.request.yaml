@@ -1,4 +1,11 @@
 $kind: http-request
-url: ""
-method: GET
+url: http://127.0.0.1:8000/api/leads/618df5f4-1896-415a-ade1-066991709c9c/update/
+method: PATCH
+body:
+  type: json
+  content: ""
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_0hy0}}"
 order: 1788795305811

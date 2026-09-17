@@ -4,6 +4,17 @@ from uuid import UUID
 
 
 @dataclass
+class AccountContactDTO:
+    id: UUID
+    name: str
+    email: str | None
+    phone: str | None
+    mobile: str | None
+    contact_owner_id: UUID
+    contact_owner_name: str | None
+
+
+@dataclass
 class GetAccountDetailsDTO:
     id: UUID
 
@@ -37,3 +48,5 @@ class GetAccountDetailsDTO:
 
     modified_by_id: UUID
     updated_at: datetime
+
+    contacts: list[AccountContactDTO]

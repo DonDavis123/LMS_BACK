@@ -1,0 +1,8 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/tasks/7621ad2b-48f0-4a41-b319-fae6ad2f6cf7/
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 3924862694195662

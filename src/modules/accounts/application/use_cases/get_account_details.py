@@ -1,16 +1,25 @@
 from uuid import UUID
 
 from src.modules.accounts.application.dto.account_details_dto import (
+    AccountContactDTO,
     GetAccountDetailsDTO,
 )
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
+from src.modules.contacts.application.interfaces.contact_repository import (
+    ContactRepository,
+)
 
 
 class GetAccountDetailsUseCase:
-    def __init__(self, account_repository: AccountRepository):
+    def __init__(
+        self,
+        account_repository: AccountRepository,
+        contact_repository: ContactRepository,
+    ):
         self.account_repository = account_repository
+        self.contact_repository = contact_repository
 
     def execute(
         self,
@@ -25,6 +34,9 @@ class GetAccountDetailsUseCase:
             return None
 
         account, account_owner_name = result
+        contacts = self.contact_repository.get_by_account_id_with_owner(
+            account.id,
+        )
 
         return GetAccountDetailsDTO(
             id=account.id,
@@ -59,4 +71,17 @@ class GetAccountDetailsUseCase:
 
             modified_by_id=account.modified_by_id,
             updated_at=account.updated_at,
+
+            contacts=[
+                AccountContactDTO(
+                    id=contact.id,
+                    name=contact.name,
+                    email=contact.email,
+                    phone=contact.phone,
+                    mobile=contact.mobile,
+                    contact_owner_id=contact.contact_owner_id,
+                    contact_owner_name=contact_owner_name,
+                )
+                for contact, contact_owner_name in contacts
+            ],
         )

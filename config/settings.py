@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "src.modules.users.apps.UsersConfig",
     "src.modules.accounts.apps.AccountsConfig",
     "src.modules.contacts.apps.ContactsConfig",
+    "src.modules.tasks.apps.TasksConfig",
 ]
 
 

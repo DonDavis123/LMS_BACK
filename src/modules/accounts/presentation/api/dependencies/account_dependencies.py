@@ -45,9 +45,11 @@ def get_accounts_use_case() -> GetAccountsUseCase:
 
 def get_account_details_use_case() -> GetAccountDetailsUseCase:
     account_repository = DjangoAccountRepository()
+    contact_repository = DjangoContactRepository()
 
     return GetAccountDetailsUseCase(
         account_repository=account_repository,
+        contact_repository=contact_repository,
     )
 
 

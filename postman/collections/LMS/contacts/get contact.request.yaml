@@ -1,4 +1,8 @@
 $kind: http-request
-url: ""
+url: http://127.0.0.1:8000/api/contacts/
 method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_0tkf}}"
 order: 1501346288773612

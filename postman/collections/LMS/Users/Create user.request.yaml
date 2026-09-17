@@ -1,4 +1,35 @@
 $kind: http-request
-url: ""
-method: GET
+url: http://127.0.0.1:8000/api/users/
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"name\": \r
+
+    \        \"Bestwin Paul\",\r
+
+    \    \"email\": \r
+
+    \        \"bestwinpaul2003@gmail.com\"\r
+
+    \    ,\r
+
+    \    \"password\": \r
+
+    \        \"password@123\"\r
+
+    \    ,\r
+
+    \    \"role\": \r
+
+    \        \"ADMIN\"\r
+
+    \r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0um6}}"
 order: 1788801426751

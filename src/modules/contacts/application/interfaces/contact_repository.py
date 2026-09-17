@@ -21,6 +21,13 @@ class ContactRepository(ABC):
         pass
 
     @abstractmethod
+    def get_by_account_id_with_owner(
+        self,
+        account_id: UUID,
+    ) -> list[tuple[Contact, str | None]]:
+        pass
+
+    @abstractmethod
     def find_conversion_matches(
         self,
         name: str,

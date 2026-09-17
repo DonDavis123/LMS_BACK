@@ -1,0 +1,23 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/tasks/7621ad2b-48f0-4a41-b319-fae6ad2f6cf7/
+method: PATCH
+body:
+  type: json
+  content: "{\r
+
+    \    \"subject\": \"Follow up with customer - Updated\",\r
+
+    \    \"due_date\": \"2026-09-20\",\r
+
+    \    \"priority\": \"High\",\r
+
+    \    \"status\": \"In Progress\",\r
+
+    \    \"description\": \"Customer follow-up is now in progress.\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_0bul}}"
+order: 3325119437813319

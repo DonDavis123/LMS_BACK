@@ -1,6 +1,16 @@
 from rest_framework import serializers
 
 
+class AccountContactSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    email = serializers.EmailField(allow_null=True)
+    phone = serializers.CharField(allow_null=True)
+    mobile = serializers.CharField(allow_null=True)
+    contact_owner_id = serializers.UUIDField()
+    contact_owner_name = serializers.CharField(allow_null=True)
+
+
 class AccountDetailsSerializer(serializers.Serializer):
     id = serializers.UUIDField()
 
@@ -34,3 +44,5 @@ class AccountDetailsSerializer(serializers.Serializer):
 
     modified_by_id = serializers.UUIDField()
     updated_at = serializers.DateTimeField()
+
+    contacts = AccountContactSerializer(many=True)

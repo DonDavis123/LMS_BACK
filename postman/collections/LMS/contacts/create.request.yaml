@@ -1,4 +1,17 @@
 $kind: http-request
-url: ""
-method: GET
+url: http://127.0.0.1:8000/api/contacts/create/
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \   \"name\":\"sugunan\" \r
+
+    \    \r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_0vuz}}"
 order: 1788897135425

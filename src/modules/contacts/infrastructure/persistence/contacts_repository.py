@@ -118,6 +118,29 @@ class DjangoContactRepository(ContactRepository):
           )
           for model in models
     ]
+
+    def get_by_account_id_with_owner(
+        self,
+        account_id: UUID,
+    ) -> list[tuple[Contact, str | None]]:
+      models = (
+          DjangoContactModel.objects
+          .select_related("contact_owner")
+          .filter(
+              account_id=account_id,
+              is_deleted=False,
+          )
+          .order_by("name", "id")
+      )
+
+      return [
+          (
+              self._to_domain(model),
+              model.contact_owner.name if model.contact_owner else None,
+          )
+          for model in models
+      ]
+
     def find_conversion_matches(
     self,
     name: str,

@@ -40,4 +40,3 @@ class AccountRepository(ABC):
     ) -> list[Account]:
         pass
 
-  
