@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from src.modules.leads.domain.entities.lead import Lead
+from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
 
 class LeadRepository(ABC):
@@ -19,7 +20,7 @@ class LeadRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all_with_owner(self) -> list[tuple[Lead, str]]:
+    def get_all_with_owner(self, query: ListQuery) -> PaginatedResult[tuple[Lead, str]]:
         pass
     
     @abstractmethod

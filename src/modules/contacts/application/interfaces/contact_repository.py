@@ -3,6 +3,7 @@ from datetime import date
 from uuid import UUID
 
 from src.modules.contacts.domain.entities.contact import Contact
+from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
 
 class ContactRepository(ABC):
@@ -18,7 +19,8 @@ class ContactRepository(ABC):
     @abstractmethod
     def get_all_with_relations(
         self,
-    ) -> list[
+        query: ListQuery,
+    ) -> PaginatedResult[
         tuple[
             Contact,
             str | None,

@@ -6,23 +6,36 @@ from rest_framework.views import APIView
 from src.modules.contacts.presentation.api.dependencies.contact_dependency import (
     get_contacts_use_case,
 )
-from ..serializers.get_contacts import ContactSerializer
+from src.modules.contacts.presentation.api.serializers.get_contacts import (
+    ContactSerializer,
+)
+from src.modules.shared.presentation.query_params import parse_list_query
 
 
 class GetContactsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        use_case = get_contacts_use_case()
+        try:
+            query = parse_list_query(request.query_params)
+            result = get_contacts_use_case().execute(query)
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        contacts = use_case.execute()
-
-        serializer = ContactSerializer(
-            contacts,
-            many=True,
-        )
+        serializer = ContactSerializer(result.results, many=True)
 
         return Response(
-            serializer.data,
+            {
+                "results": serializer.data,
+                "pagination": {
+                    "page": result.page,
+                    "page_size": result.page_size,
+                    "total": result.total,
+                    "total_pages": result.total_pages,
+                },
+            },
             status=status.HTTP_200_OK,
         )
