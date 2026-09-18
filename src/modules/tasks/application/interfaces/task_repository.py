@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from src.modules.tasks.domain.entities.task import Task
+from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
 
 class TaskRepository(ABC):
@@ -15,7 +16,7 @@ class TaskRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all(self) -> list[Task]:
+    def get_all(self, query: ListQuery) -> PaginatedResult[Task]:
         pass
 
     @abstractmethod

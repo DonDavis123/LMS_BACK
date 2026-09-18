@@ -105,7 +105,8 @@ class TaskApiTests(APITestCase):
 
         response = self.client.get("/api/tasks/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [])
+        self.assertEqual(response.data["results"], [])
+        self.assertEqual(response.data["pagination"]["total"], 0)
 
     def test_valid_task_relationships(self):
         self.client.force_authenticate(self.user)
@@ -149,3 +150,82 @@ class TaskApiTests(APITestCase):
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+    def test_tasks_are_paginated_and_filterable(self):
+        self.client.force_authenticate(self.user)
+
+        first_task = DjangoTaskModel.objects.create(
+            subject="Alpha follow up",
+            owner=self.user,
+            contact=self.contact,
+            account=self.account,
+            priority="High",
+            status="Not Started",
+            created_by=self.user,
+        )
+        second_task = DjangoTaskModel.objects.create(
+            subject="Beta review",
+            owner=self.user,
+            lead=self.lead,
+            priority="Low",
+            status="In Progress",
+            created_by=self.user,
+        )
+        self.assertIsNotNone(first_task)
+        self.assertIsNotNone(second_task)
+
+        response = self.client.get("/api/tasks/?page=1&page_size=1")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pagination"]["total"], 2)
+        self.assertEqual(response.data["pagination"]["total_pages"], 2)
+        self.assertEqual(len(response.data["results"]), 1)
+
+        response = self.client.get(
+            "/api/tasks/?filters=[{\"field\":\"subject\",\"operator\":\"contains\",\"value\":\"Alpha\"}]"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pagination"]["total"], 1)
+        self.assertEqual(response.data["results"][0]["subject"], "Alpha follow up")
+
+        response = self.client.get(
+            "/api/tasks/?filters=[{\"field\":\"status\",\"operator\":\"equals\",\"value\":\"In Progress\"}]"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pagination"]["total"], 1)
+        self.assertEqual(response.data["results"][0]["subject"], "Beta review")
+
+        response = self.client.get(
+            f"/api/tasks/?filters=[{{\"field\":\"contact_name\",\"operator\":\"contains\",\"value\":\"Task Contact\"}}]"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pagination"]["total"], 1)
+        self.assertEqual(response.data["results"][0]["subject"], "Alpha follow up")
+
+    def test_task_related_to_filter_matches_lead_contact_or_account_name(self):
+        self.client.force_authenticate(self.user)
+        DjangoTaskModel.objects.create(
+            subject="Account task",
+            owner=self.user,
+            account=self.account,
+            priority="Normal",
+            status="Not Started",
+            created_by=self.user,
+        )
+
+        response = self.client.get(
+            "/api/tasks/?filters=[{\"field\":\"related_to\",\"operator\":\"contains\",\"value\":\"Task Account\"}]"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["pagination"]["total"], 1)
+        self.assertEqual(response.data["results"][0]["subject"], "Account task")
+
+    def test_invalid_task_filter_is_rejected(self):
+        self.client.force_authenticate(self.user)
+
+        response = self.client.get(
+            "/api/tasks/?filters=[{\"field\":\"password\",\"operator\":\"equals\",\"value\":\"secret\"}]"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

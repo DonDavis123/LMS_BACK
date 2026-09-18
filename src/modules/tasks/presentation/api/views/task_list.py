@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from src.modules.tasks.application.dto.create_task import CreateTaskDTO
 from src.modules.tasks.domain.enums.task_priority import TaskPriority
 from src.modules.tasks.domain.enums.task_status import TaskStatus
+from src.modules.shared.presentation.query_params import parse_list_query
 from src.modules.tasks.presentation.api.dependencies.task_dependencies import (
     get_create_task_use_case,
     get_tasks_use_case,
@@ -19,12 +20,27 @@ class TaskListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        tasks = get_tasks_use_case().execute()
+        try:
+            query = parse_list_query(request.query_params)
+            result = get_tasks_use_case().execute(query)
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        serializer = TaskSerializer(tasks, many=True)
+        serializer = TaskSerializer(result.results, many=True)
 
         return Response(
-            serializer.data,
+            {
+                "results": serializer.data,
+                "pagination": {
+                    "page": result.page,
+                    "page_size": result.page_size,
+                    "total": result.total,
+                    "total_pages": result.total_pages,
+                },
+            },
             status=status.HTTP_200_OK,
         )
 

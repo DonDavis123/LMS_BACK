@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from src.modules.accounts.domain.entities.account import Account
+from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
 
 class AccountRepository(ABC):
@@ -28,7 +29,8 @@ class AccountRepository(ABC):
     @abstractmethod
     def get_all_with_owner(
         self,
-    ) -> list[tuple[Account, str | None]]:
+        query: ListQuery,
+    ) -> PaginatedResult[tuple[Account, str | None]]:
         pass
 
     @abstractmethod
