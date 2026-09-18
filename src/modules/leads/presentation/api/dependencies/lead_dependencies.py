@@ -24,8 +24,12 @@ def get_create_lead_use_case() -> CreateLeadUseCase:
 
 
 def get_update_lead_use_case() -> UpdateLeadUseCase:
-    return UpdateLeadUseCase(DjangoLeadRepository(), DjangoUserRepository(), recorder())
-
+    return UpdateLeadUseCase(
+        DjangoLeadRepository(),
+        DjangoUserRepository(),
+        recorder(),
+        DjangoTransactionManager(),
+    )
 
 def get_leads_use_case() -> GetLeadsUseCase:
     return GetLeadsUseCase(DjangoLeadRepository())

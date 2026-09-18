@@ -28,8 +28,10 @@ def get_account_details_use_case() -> GetAccountDetailsUseCase:
 
 
 def get_update_account_use_case() -> UpdateAccountUseCase:
-    return UpdateAccountUseCase(DjangoAccountRepository(), recorder())
-
-
+    return UpdateAccountUseCase(
+        DjangoAccountRepository(),
+        recorder(),
+        DjangoTransactionManager(),
+    )
 def get_delete_account_use_case() -> DeleteAccountUseCase:
     return DeleteAccountUseCase(DjangoAccountRepository(), DjangoContactRepository(), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())

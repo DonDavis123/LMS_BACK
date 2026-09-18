@@ -29,8 +29,13 @@ def get_contact_details_use_case() -> GetContactDetailsUseCase:
 
 
 def get_update_contact_use_case() -> UpdateContactUseCase:
-    return UpdateContactUseCase(DjangoContactRepository(), DjangoAccountRepository(), DjangoUserRepository(), recorder())
-
+    return UpdateContactUseCase(
+        DjangoContactRepository(),
+        DjangoAccountRepository(),
+        DjangoUserRepository(),
+        recorder(),
+        DjangoTransactionManager(),
+    )
 
 def get_delete_contact_use_case() -> DeleteContactUseCase:
     return DeleteContactUseCase(DjangoContactRepository(), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())
