@@ -66,11 +66,26 @@ class DjangoTaskRepository(TaskRepository):
         )
 
     def soft_delete_by_account_id(self, account_id: UUID) -> None:
+        # Account-only tasks are not valid in the current Task business rules.
+        # Keep this repository operation defensive for any legacy/invalid rows.
         DjangoTaskModel.objects.filter(
             account_id=account_id,
+            contact_id__isnull=True,
+            lead_id__isnull=True,
             is_deleted=False,
         ).update(
             is_deleted=True,
+        )
+
+    def unlink_account_from_contact_tasks(self, account_id: UUID) -> None:
+        # Account is optional when a Task is associated with a Contact.
+        # Deleting the Account must not destroy that Contact task.
+        DjangoTaskModel.objects.filter(
+            account_id=account_id,
+            contact_id__isnull=False,
+            is_deleted=False,
+        ).update(
+            account_id=None,
         )
 
     @staticmethod

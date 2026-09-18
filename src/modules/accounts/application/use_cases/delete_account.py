@@ -14,6 +14,9 @@ from src.modules.shared.application.interfaces.transaction_manager import (
 from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
+from src.modules.timeline.application.interfaces.timeline_repository import (
+    TimelineRepository,
+)
 
 
 class DeleteAccountUseCase:
@@ -23,11 +26,13 @@ class DeleteAccountUseCase:
         account_repository: AccountRepository,
         contact_repository: ContactRepository,
         task_repository: TaskRepository,
+        timeline_repository: TimelineRepository,
         transaction_manager: TransactionManager,
     ):
         self.account_repository = account_repository
         self.contact_repository = contact_repository
         self.task_repository = task_repository
+        self.timeline_repository = timeline_repository
         self.transaction_manager = transaction_manager
 
     def execute(
@@ -76,10 +81,26 @@ class DeleteAccountUseCase:
             self.account_repository.save(account)
 
             # --------------------------------------------------
-            # 5. Soft-delete Tasks associated with the Account
+            # 5. Handle Tasks associated with the Account
             # --------------------------------------------------
 
+            # The current Task rules require an Account to be paired with a
+            # Contact. Such a Task remains a Contact task after Account deletion,
+            # so remove only the optional Account relationship. Any legacy/invalid
+            # Account-only task is still soft-deleted by the repository.
             self.task_repository.soft_delete_by_account_id(
+                account.id,
+            )
+            self.task_repository.unlink_account_from_contact_tasks(
+                account.id,
+            )
+
+            # --------------------------------------------------
+            # 6. Soft-delete Timeline events for the Account
+            # --------------------------------------------------
+
+            self.timeline_repository.soft_delete_by_entity(
+                "ACCOUNT",
                 account.id,
             )
 

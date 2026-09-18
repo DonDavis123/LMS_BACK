@@ -10,6 +10,9 @@ from src.modules.shared.application.interfaces.transaction_manager import (
 from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
+from src.modules.timeline.application.interfaces.timeline_repository import (
+    TimelineRepository,
+)
 
 
 class DeleteContactUseCase:
@@ -17,10 +20,12 @@ class DeleteContactUseCase:
         self,
         contact_repository: ContactRepository,
         task_repository: TaskRepository,
+        timeline_repository: TimelineRepository,
         transaction_manager: TransactionManager,
     ):
         self.contact_repository = contact_repository
         self.task_repository = task_repository
+        self.timeline_repository = timeline_repository
         self.transaction_manager = transaction_manager
 
     def execute(
@@ -48,6 +53,15 @@ class DeleteContactUseCase:
             # --------------------------------------------------
 
             self.task_repository.soft_delete_by_contact_id(
+                data.contact_id,
+            )
+
+            # --------------------------------------------------
+            # Soft-delete Timeline events for the Contact
+            # --------------------------------------------------
+
+            self.timeline_repository.soft_delete_by_entity(
+                "CONTACT",
                 data.contact_id,
             )
 

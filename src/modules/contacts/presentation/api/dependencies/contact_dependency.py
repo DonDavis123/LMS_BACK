@@ -33,4 +33,4 @@ def get_update_contact_use_case() -> UpdateContactUseCase:
 
 
 def get_delete_contact_use_case() -> DeleteContactUseCase:
-    return DeleteContactUseCase(DjangoContactRepository(), DjangoTaskRepository(), DjangoTransactionManager())
+    return DeleteContactUseCase(DjangoContactRepository(), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())

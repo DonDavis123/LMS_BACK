@@ -32,4 +32,4 @@ def get_update_account_use_case() -> UpdateAccountUseCase:
 
 
 def get_delete_account_use_case() -> DeleteAccountUseCase:
-    return DeleteAccountUseCase(DjangoAccountRepository(), DjangoContactRepository(), DjangoTaskRepository(), DjangoTransactionManager())
+    return DeleteAccountUseCase(DjangoAccountRepository(), DjangoContactRepository(), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())

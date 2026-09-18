@@ -34,7 +34,7 @@ def get_tasks_use_case() -> GetTasksUseCase:
 
 
 def get_update_task_use_case() -> UpdateTaskUseCase:
-    return UpdateTaskUseCase(DjangoTaskRepository(), DjangoUserRepository(), DjangoLeadRepository(), DjangoContactRepository(), DjangoAccountRepository(), recorder())
+    return UpdateTaskUseCase(DjangoTaskRepository(), DjangoUserRepository(), DjangoLeadRepository(), DjangoContactRepository(), DjangoAccountRepository(), recorder(), transaction_manager())
 
 
 def get_delete_task_use_case() -> DeleteTaskUseCase:

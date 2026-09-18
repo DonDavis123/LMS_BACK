@@ -29,3 +29,7 @@ class TaskRepository(ABC):
     @abstractmethod
     def soft_delete_by_account_id(self, account_id: UUID) -> None:
         pass
+
+    @abstractmethod
+    def unlink_account_from_contact_tasks(self, account_id: UUID) -> None:
+        pass

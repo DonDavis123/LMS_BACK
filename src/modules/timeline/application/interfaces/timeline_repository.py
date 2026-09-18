@@ -32,3 +32,10 @@ class TimelineRepository(ABC):
         entity_id: UUID,
     ) -> bool:
         pass
+    @abstractmethod
+    def soft_delete_by_entity(
+        self,
+        entity_type: str,
+        entity_id: UUID,
+    ) -> None:
+        pass

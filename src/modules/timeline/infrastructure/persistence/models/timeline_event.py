@@ -15,6 +15,7 @@ class TimelineEvent(models.Model):
     message = models.CharField(max_length=500)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "timeline_events"

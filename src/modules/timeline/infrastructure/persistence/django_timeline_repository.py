@@ -1,8 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Prefetch
 
 from src.modules.accounts.infrastructure.persistence.django_account_model import DjangoAccountModel
 from src.modules.contacts.infrastructure.persistence.django_contact_model import DjangoContactModel
@@ -45,9 +45,19 @@ class DjangoTimelineRepository(TimelineRepository):
     def get_for_entity(self, entity_type: str, entity_id: UUID) -> list[dict]:
         rows = (
             TimelineEventTarget.objects
-            .filter(entity_type=entity_type, entity_id=entity_id)
+            .filter(
+                entity_type=entity_type,
+                entity_id=entity_id,
+                is_deleted=False,
+                event__is_deleted=False,
+            )
             .select_related("event", "event__actor")
-            .prefetch_related("event__targets")
+            .prefetch_related(
+                Prefetch(
+                    "event__targets",
+                    queryset=TimelineEventTarget.objects.filter(is_deleted=False),
+                )
+            )
             .order_by("-event__created_at", "-event__id")
         )
         result = []
@@ -73,6 +83,39 @@ class DjangoTimelineRepository(TimelineRepository):
                 ],
             })
         return result
+
+    def soft_delete_by_entity(
+        self,
+        entity_type: str,
+        entity_id: UUID,
+    ) -> None:
+        # Soft-delete only the target belonging to the deleted entity.
+        # A TimelineEvent can legitimately target multiple entities (for example,
+        # a Task linked to both a Contact and an Account), so the event itself
+        # must remain active while it still has another active target.
+        target_qs = TimelineEventTarget.objects.filter(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            is_deleted=False,
+        )
+        event_ids = list(target_qs.values_list("event_id", flat=True))
+        target_qs.update(is_deleted=True)
+
+        if not event_ids:
+            return
+
+        active_event_ids = TimelineEventTarget.objects.filter(
+            event_id__in=event_ids,
+            is_deleted=False,
+        ).values_list("event_id", flat=True).distinct()
+
+        TimelineEvent.objects.filter(
+            id__in=event_ids,
+        ).exclude(
+            id__in=active_event_ids,
+        ).update(
+            is_deleted=True,
+        )
 
     def entity_exists(self, entity_type: str, entity_id: UUID) -> bool:
         models = {

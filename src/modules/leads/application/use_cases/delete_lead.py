@@ -9,6 +9,9 @@ from src.modules.shared.application.interfaces.transaction_manager import (
 from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
+from src.modules.timeline.application.interfaces.timeline_repository import (
+    TimelineRepository,
+)
 
 
 class DeleteLeadUseCase:
@@ -17,10 +20,12 @@ class DeleteLeadUseCase:
         self,
         lead_repository: LeadRepository,
         task_repository: TaskRepository,
+        timeline_repository: TimelineRepository,
         transaction_manager: TransactionManager,
     ):
         self.lead_repository = lead_repository
         self.task_repository = task_repository
+        self.timeline_repository = timeline_repository
         self.transaction_manager = transaction_manager
 
     def execute(self, lead_id: UUID) -> None:
@@ -45,6 +50,15 @@ class DeleteLeadUseCase:
             # --------------------------------------------------
 
             self.task_repository.soft_delete_by_lead_id(
+                lead_id,
+            )
+
+            # --------------------------------------------------
+            # 3. Soft-delete Timeline events for the Lead
+            # --------------------------------------------------
+
+            self.timeline_repository.soft_delete_by_entity(
+                "LEAD",
                 lead_id,
             )
 

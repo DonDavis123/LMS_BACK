@@ -36,7 +36,7 @@ def get_lead_details_use_case() -> GetLeadDetailsUseCase:
 
 
 def get_delete_lead_use_case() -> DeleteLeadUseCase:
-    return DeleteLeadUseCase(DjangoLeadRepository(), DjangoTaskRepository(), DjangoTransactionManager())
+    return DeleteLeadUseCase(DjangoLeadRepository(), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())
 
 
 def get_convert_lead_use_case() -> ConvertLeadUseCase:
