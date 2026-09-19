@@ -39,5 +39,9 @@ urlpatterns = [
         "api/timeline/",
         include("src.modules.timeline.presentation.api.urls"),
     ),
+    path(
+        "api/meetings/",
+        include("src.modules.meetings.presentation.api.urls"),
+    ),
 
 ]
