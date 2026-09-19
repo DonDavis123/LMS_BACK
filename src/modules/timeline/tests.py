@@ -149,6 +149,7 @@ class TimelineCascadeDeletionTests(TestCase):
             DjangoContactRepository(),
             DjangoTaskRepository(),
             DjangoTimelineRepository(),
+            DjangoTransactionManager(),
         ).execute(
             DeleteAccountDTO(account_id=self.account.id),
             self.user.id,
@@ -194,6 +195,7 @@ class TimelineCascadeDeletionTests(TestCase):
             DjangoContactRepository(),
             DjangoTaskRepository(),
             DjangoTimelineRepository(),
+            DjangoTransactionManager(),
         ).execute(
             DeleteAccountDTO(account_id=self.account.id),
             self.user.id,

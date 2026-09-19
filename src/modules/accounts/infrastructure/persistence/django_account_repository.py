@@ -195,7 +195,9 @@ class DjangoAccountRepository(AccountRepository):
         if operator == "not_in":
             return queryset.exclude(**lookup)
 
-        lookup = {f"{db_field}__gte" if operator == "after" else f"{db_field}__lte": number}
+        lookup = {
+    f"{db_field}__gt" if operator == "after" else f"{db_field}__lt": number
+}
         return queryset.filter(**lookup)
 
     @staticmethod
