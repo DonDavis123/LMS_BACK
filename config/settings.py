@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "src.modules.contacts.apps.ContactsConfig",
     "src.modules.tasks.apps.TasksConfig",
     "src.modules.timeline.apps.TimelineConfig",
+    "src.modules.meetings.apps.MeetingsConfig",
 ]
 
 
