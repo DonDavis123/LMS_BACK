@@ -6,6 +6,10 @@ from src.modules.authentication.application.use_cases.refreshtoken import (
     RefreshTokenUseCase,
 )
 
+from src.modules.authentication.application.use_cases.logout_user import (
+    LogoutUserUseCase,
+)
+
 from src.modules.authentication.application.use_cases.forgot_password import (
     ForgotPasswordUseCase,
 )
@@ -51,6 +55,14 @@ def get_refresh_token_use_case() -> RefreshTokenUseCase:
     token_service = JWTTokenService()
 
     return RefreshTokenUseCase(
+        token_service=token_service,
+    )
+
+
+def get_logout_user_use_case() -> LogoutUserUseCase:
+    token_service = JWTTokenService()
+
+    return LogoutUserUseCase(
         token_service=token_service,
     )
 

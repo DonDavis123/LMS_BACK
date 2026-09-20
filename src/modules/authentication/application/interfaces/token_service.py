@@ -10,3 +10,7 @@ class TokenService(ABC):
     @abstractmethod
     def refresh_access_token(self, refresh_token: str) -> dict:
         pass
+
+    @abstractmethod
+    def blacklist_refresh_token(self, refresh_token: str) -> bool:
+        pass

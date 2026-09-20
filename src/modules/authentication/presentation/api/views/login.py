@@ -6,7 +6,9 @@ from src.modules.authentication.domain.exceptions import (
     InvalidCredentialsError,
     InactiveUserError,
 )
-
+from src.modules.authentication.presentation.api.cookies import (
+    set_refresh_token_cookie,
+)
 from src.modules.authentication.presentation.api.dependencies.authentication_dependencies import (
     get_login_user_use_case,
 )
@@ -52,13 +54,11 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=result.refresh_token,
-            httponly=True,
-            secure=True,
-            samesite="None",
-            max_age=7 * 24 * 60 * 60,
+        # Refresh tokens stay in an HttpOnly cookie and are never
+        # exposed in the JSON response.
+        set_refresh_token_cookie(
+            response,
+            result.refresh_token,
         )
 
         return response

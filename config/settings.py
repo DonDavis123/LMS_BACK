@@ -264,3 +264,39 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": False,
 }
+
+# -------------------------------------------------------------------
+# Refresh token cookie
+# -------------------------------------------------------------------
+# The refresh token is intentionally kept out of JavaScript and JSON.
+# Configure these through environment variables per deployment.
+REFRESH_COOKIE_NAME = os.getenv(
+    "REFRESH_COOKIE_NAME",
+    "refresh_token",
+)
+
+REFRESH_COOKIE_SECURE = (
+    os.getenv(
+        "REFRESH_COOKIE_SECURE",
+        "False" if DEBUG else "True",
+    ).lower()
+    == "true"
+)
+
+REFRESH_COOKIE_SAMESITE = os.getenv(
+    "REFRESH_COOKIE_SAMESITE",
+    "Lax",
+)
+
+REFRESH_COOKIE_PATH = os.getenv(
+    "REFRESH_COOKIE_PATH",
+    "/",
+)
+
+REFRESH_COOKIE_DOMAIN = os.getenv(
+    "REFRESH_COOKIE_DOMAIN",
+) or None
+
+REFRESH_COOKIE_MAX_AGE = int(
+    SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
+)

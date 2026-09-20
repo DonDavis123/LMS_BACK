@@ -1,0 +1,63 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/meetings/
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"title\": \"Client Discussion Meeting\",\r
+
+    \  \"description\": \"Discussion about the new project requirements\",\r
+
+    \  \"location\": \"Kochi Office\",\r
+
+    \  \"is_all_day\": false,\r
+
+    \  \"start_at\": \"2026-09-20T10:00:00+05:30\",\r
+
+    \  \"end_at\": \"2026-09-20T11:00:00+05:30\",\r
+
+    \  \"host_id\": \"2a076244-5caa-43e5-939b-4ae953ca8248\",\r
+
+    \  \"related_to\": {\r
+
+    \    \"type\": \"LEAD\",\r
+
+    \    \"ids\": [\r
+
+    \      \"4eeda311-8b56-47fb-9b62-ec0e3c719281\",\r
+
+    \      \"620a194a-67cb-4ec9-8630-a9aba02d9541\"\r
+
+    \    ]\r
+
+    \  },\r
+
+    \  \"participants\": {\r
+
+    \    \"leads\": [\r
+
+    \    \"620a194a-67cb-4ec9-8630-a9aba02d9541\"\r
+
+    \    ],\r
+
+    \    \"users\": [\r
+
+    \      \"2a076244-5caa-43e5-939b-4ae953ca8248\"\r
+
+    \    ],\r
+
+    \    \"contacts\": [\r
+
+    \      \"b1891f41-4595-4061-9348-0647d11b013d\"\r
+
+    \    ]\r
+
+    \  }\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_1dx2}}"
+order: 1789814530803

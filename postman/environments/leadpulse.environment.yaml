@@ -18,3 +18,5 @@ values:
     secret: true
   - key: json_web_token_0bul
     secret: true
+  - key: json_web_token_1dx2
+    secret: true

@@ -2,14 +2,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from src.modules.authentication.application.use_cases.refreshtoken import (
-    RefreshTokenUseCase,
+from src.modules.authentication.domain.exceptions import (
+    InvalidRefreshTokenError,
 )
-from src.modules.authentication.infrastructure.security.jwt_token_service import (
-    JWTTokenService,
+from src.modules.authentication.presentation.api.cookies import (
+    get_refresh_token,
+    set_refresh_token_cookie,
 )
-
-from ..serializer.refresh_token import RefreshTokenSerializer
 from src.modules.authentication.presentation.api.dependencies.authentication_dependencies import (
     get_refresh_token_use_case,
 )
@@ -18,23 +17,38 @@ from src.modules.authentication.presentation.api.dependencies.authentication_dep
 class RefreshTokenView(APIView):
 
     def post(self, request):
-        serializer = RefreshTokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        refresh_token = get_refresh_token(request)
 
-        refresh_token = serializer.validated_data["refresh_token"]
+        if not refresh_token:
+            return Response(
+                {"detail": "Refresh token is missing."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         use_case = get_refresh_token_use_case()
 
         try:
             tokens = use_case.execute(refresh_token)
 
-        except Exception:
+        except InvalidRefreshTokenError:
             return Response(
                 {"detail": "Invalid or expired refresh token."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        return Response(
-            tokens,
+        response = Response(
+            {
+                "access_token": tokens["access_token"],
+                "token_type": "Bearer",
+            },
             status=status.HTTP_200_OK,
         )
+
+        # The refresh token is never returned to JavaScript.
+        # Rotation replaces the old HttpOnly cookie with the new one.
+        set_refresh_token_cookie(
+            response,
+            tokens["refresh_token"],
+        )
+
+        return response
