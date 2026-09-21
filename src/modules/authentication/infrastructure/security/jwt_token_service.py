@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -21,14 +22,17 @@ class JWTTokenService(TokenService):
         }
 
     def refresh_access_token(self, refresh_token: str) -> dict:
+        User = get_user_model()
+
         try:
             old_refresh = RefreshToken(refresh_token)
 
             user_id = old_refresh["user_id"]
-            User = get_user_model()
+
             user = User.objects.get(id=user_id)
 
-            # Rotate the refresh token. The old token becomes unusable.
+            # Rotate the refresh token.
+            # The old token becomes unusable.
             old_refresh.blacklist()
 
             new_refresh = RefreshToken.for_user(user)
@@ -51,6 +55,7 @@ class JWTTokenService(TokenService):
         try:
             RefreshToken(refresh_token).blacklist()
             return True
+
         except (
             TokenError,
             TypeError,
