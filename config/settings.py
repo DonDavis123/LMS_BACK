@@ -288,6 +288,9 @@ REFRESH_COOKIE_SAMESITE = os.getenv(
     "Lax",
 )
 
+if REFRESH_COOKIE_SAMESITE == "None":
+    REFRESH_COOKIE_SECURE = True
+
 REFRESH_COOKIE_PATH = os.getenv(
     "REFRESH_COOKIE_PATH",
     "/",
