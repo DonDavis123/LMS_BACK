@@ -7,7 +7,10 @@ from src.modules.contacts.application.interfaces.contact_repository import Conta
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
-from src.modules.timeline.application.services.change_tracker import build_field_changes
+from src.modules.timeline.application.services.change_tracker import (
+    build_field_changes,
+    format_field_changes,
+)
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
 
@@ -79,13 +82,46 @@ class UpdateContactUseCase:
             changes = build_field_changes(old_values, new_values)
 
             if changes:
+                change_summary = format_field_changes(
+                    changes,
+                    field_labels={
+                        "account_id": "Account",
+                        "contact_owner_id": "Contact Owner",
+                        "name": "Name",
+                        "email": "Email",
+                        "secondary_email": "Secondary Email",
+                        "phone": "Phone",
+                        "other_phone": "Other Phone",
+                        "mobile": "Mobile",
+                        "home_phone": "Home Phone",
+                        "assistant_phone": "Assistant Phone",
+                        "title": "Title",
+                        "department": "Department",
+                        "lead_source": "Lead Source",
+                        "vendor_name": "Vendor Name",
+                        "date_of_birth": "Date of Birth",
+                        "assistant": "Assistant",
+                        "email_opt_out": "Email Opt Out",
+                        "reporting_to_id": "Reporting To",
+                        "mailing_address": "Mailing Address",
+                        "mailing_city": "Mailing City",
+                        "mailing_state": "Mailing State",
+                        "mailing_country": "Mailing Country",
+                        "mailing_postal_code": "Mailing Postal Code",
+                        "other_address": "Other Address",
+                        "description": "Description",
+                    },
+                )
                 targets = [("CONTACT", saved.id)]
                 if saved.account_id:
                     targets.append(("ACCOUNT", saved.account_id))
                 self.timeline_recorder.record(
                     event_type="CONTACT_UPDATED",
                     actor_id=current_user_id,
-                    message=f"Contact {saved.name} was updated.",
+                    message=(
+                        f"Contact {saved.name} was updated. "
+                        f"Changes: {change_summary}"
+                    ),
                     metadata={"changes": changes},
                     targets=targets,
                 )

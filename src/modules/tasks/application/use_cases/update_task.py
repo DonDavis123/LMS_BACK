@@ -6,7 +6,10 @@ from src.modules.tasks.application.interfaces.task_repository import TaskReposit
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
-from src.modules.timeline.application.services.change_tracker import build_field_changes
+from src.modules.timeline.application.services.change_tracker import (
+    build_field_changes,
+    format_field_changes,
+)
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
 
@@ -96,6 +99,21 @@ class UpdateTaskUseCase:
                     targets.append(("ACCOUNT", saved.account_id))
 
                 if targets:
+                    change_summary = format_field_changes(
+                        changes,
+                        field_labels={
+                            "subject": "Subject",
+                            "due_date": "Due Date",
+                            "priority": "Priority",
+                            "owner_id": "Task Owner",
+                            "reminder_at": "Reminder",
+                            "lead_id": "Lead",
+                            "contact_id": "Contact",
+                            "account_id": "Account",
+                            "status": "Status",
+                            "description": "Description",
+                        },
+                    )
                     completed = (
                         "status" in changes
                         and changes["status"]["new_value"] == "Completed"
@@ -105,11 +123,19 @@ class UpdateTaskUseCase:
                         event_type="TASK_COMPLETED" if completed else "TASK_UPDATED",
                         actor_id=current_user_id or saved.owner_id,
                         message=(
-                            f"Task {saved.subject} was completed."
+                            f"Task {saved.subject} was completed. "
+                            f"Changes: {change_summary}"
                             if completed
-                            else f"Task {saved.subject} was updated."
+                            else (
+                                f"Task {saved.subject} was updated. "
+                                f"Changes: {change_summary}"
+                            )
                         ),
-                        metadata={"task_id": str(saved.id), "changes": changes},
+                        metadata={
+                            "task_id": str(saved.id),
+                            "subject": saved.subject,
+                            "changes": changes,
+                        },
                         targets=targets,
                     )
             return saved

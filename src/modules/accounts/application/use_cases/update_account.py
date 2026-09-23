@@ -4,7 +4,10 @@ from uuid import UUID
 from src.modules.accounts.application.dto.update_account import UpdateAccountDTO
 from src.modules.accounts.application.interfaces.account_repository import AccountRepository
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
-from src.modules.timeline.application.services.change_tracker import build_field_changes
+from src.modules.timeline.application.services.change_tracker import (
+    build_field_changes,
+    format_field_changes,
+)
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
 
@@ -45,10 +48,37 @@ class UpdateAccountUseCase:
             changes = build_field_changes(old_values, new_values)
 
             if changes:
+                change_summary = format_field_changes(
+                    changes,
+                    field_labels={
+                        "account_name": "Account Name",
+                        "account_site": "Account Site",
+                        "account_number": "Account Number",
+                        "account_type": "Account Type",
+                        "industry": "Industry",
+                        "annual_revenue": "Annual Revenue",
+                        "rating": "Rating",
+                        "phone": "Phone",
+                        "website": "Website",
+                        "ticker_symbol": "Ticker Symbol",
+                        "ownership": "Ownership",
+                        "employees": "Employees",
+                        "sic_code": "SIC Code",
+                        "billing_address": "Billing Address",
+                        "billing_city": "Billing City",
+                        "billing_state": "Billing State",
+                        "billing_country": "Billing Country",
+                        "billing_postal_code": "Billing Postal Code",
+                        "description": "Description",
+                    },
+                )
                 self.timeline_recorder.record(
                     event_type="ACCOUNT_UPDATED",
                     actor_id=current_user_id,
-                    message=f"Account {saved.account_name} was updated.",
+                    message=(
+                        f"Account {saved.account_name} was updated. "
+                        f"Changes: {change_summary}"
+                    ),
                     metadata={"changes": changes},
                     targets=[("ACCOUNT", saved.id)],
                 )

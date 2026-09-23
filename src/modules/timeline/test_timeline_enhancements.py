@@ -12,6 +12,8 @@ from src.modules.leads.domain.entities.lead_industry import LeadIndustry
 from src.modules.leads.domain.entities.lead_rating import LeadRating
 from src.modules.leads.domain.entities.lead_source import LeadSource
 from src.modules.leads.domain.entities.lead_status import LeadStatus
+from src.modules.accounts.domain.entities.account import Account
+from src.modules.contacts.domain.entities.contact import Contact
 from src.modules.timeline.application.services.change_tracker import (
     build_field_changes,
     format_field_changes,
