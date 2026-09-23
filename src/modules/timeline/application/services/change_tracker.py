@@ -34,3 +34,24 @@ def build_field_changes(old_values: dict[str, object], new_values: dict[str, obj
             }
 
     return changes
+
+
+def format_field_changes(
+    changes: dict[str, dict[str, object]],
+    field_labels: dict[str, str] | None = None,
+) -> str:
+    """Format structured field changes into a concise human-readable summary."""
+    labels = field_labels or {}
+    parts = []
+
+    for field, change in changes.items():
+        label = labels.get(field, field.replace("_", " ").title())
+        old_value = change.get("old_value")
+        new_value = change.get("new_value")
+
+        old_display = "None" if old_value is None else str(old_value)
+        new_display = "None" if new_value is None else str(new_value)
+
+        parts.append(f"{label}: {old_display} → {new_display}")
+
+    return "; ".join(parts)

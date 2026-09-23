@@ -171,7 +171,18 @@ class ConvertLeadUseCase:
             targets = [("LEAD", lead.id)]
             if data.contact_action == "use_existing" and data.contact_id: targets.append(("CONTACT", data.contact_id))
             if data.account_action == "use_existing" and data.account_id: targets.append(("ACCOUNT", data.account_id))
-            self.timeline_recorder.record(event_type="LEAD_CONVERTED", actor_id=current_user_id, message=f"Lead {lead.name} was converted.", metadata={"lead_id": str(lead.id)}, targets=targets)
+            self.timeline_recorder.record(
+                event_type="LEAD_CONVERTED",
+                actor_id=current_user_id,
+                message=f"Lead {lead.name} was converted.",
+                metadata={
+                    "lead_id": str(lead.id),
+                    "source": "LEAD_CONVERSION",
+                    "source_lead_id": str(lead.id),
+                    "source_lead_name": lead.name,
+                },
+                targets=targets,
+            )
 
         self.transaction_manager.execute(
             conversion,
@@ -244,7 +255,25 @@ class ConvertLeadUseCase:
                 created_by_id=current_user_id,
             )
 
-        return self.account_repository.save(account)
+        saved = self.account_repository.save(account)
+
+        self.timeline_recorder.record(
+            event_type="ACCOUNT_CREATED",
+            actor_id=current_user_id,
+            message=(
+                f"Account created by converting the Lead {lead.name}"
+            ),
+            metadata={
+                "account_id": str(saved.id),
+                "account_name": saved.account_name,
+                "source": "LEAD_CONVERSION",
+                "source_lead_id": str(lead.id),
+                "source_lead_name": lead.name,
+            },
+            targets=[("ACCOUNT", saved.id)],
+        )
+
+        return saved
 
     def _get_existing_account(
         self,
@@ -350,7 +379,25 @@ class ConvertLeadUseCase:
                 created_by_id=current_user_id,
             )
 
-        return self.contact_repository.save(contact)
+        saved = self.contact_repository.save(contact)
+
+        self.timeline_recorder.record(
+            event_type="CONTACT_CREATED",
+            actor_id=current_user_id,
+            message=(
+                f"Contact created by converting the Lead {lead.name}"
+            ),
+            metadata={
+                "contact_id": str(saved.id),
+                "contact_name": saved.name,
+                "source": "LEAD_CONVERSION",
+                "source_lead_id": str(lead.id),
+                "source_lead_name": lead.name,
+            },
+            targets=[("CONTACT", saved.id)],
+        )
+
+        return saved
 
     def _get_existing_contact(
         self,

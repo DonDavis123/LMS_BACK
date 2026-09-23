@@ -21,6 +21,6 @@ class LogoutView(APIView):
 
         response = Response(status=status.HTTP_204_NO_CONTENT)
 
-        clear_refresh_token_cookie(response)
+        clear_refresh_token_cookie(request, response)
 
         return response

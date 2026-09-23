@@ -36,6 +36,11 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
+# Ngrok terminates HTTPS before forwarding the request to Django.
+# This allows request.is_secure() to correctly detect HTTPS for
+# automatic refresh-cookie configuration.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -265,31 +270,24 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": False,
 }
 
+
 # -------------------------------------------------------------------
 # Refresh token cookie
 # -------------------------------------------------------------------
 # The refresh token is intentionally kept out of JavaScript and JSON.
-# Configure these through environment variables per deployment.
+# Cookie security attributes are selected at request time in
+# authentication/presentation/api/cookies.py:
+#
+#   HTTP  -> Secure=False, SameSite=Lax
+#   HTTPS -> Secure=True,  SameSite=None
+#
+# This allows the same backend code to work locally and through ngrok
+# without changing cookie settings between environments.
+
 REFRESH_COOKIE_NAME = os.getenv(
     "REFRESH_COOKIE_NAME",
     "refresh_token",
 )
-
-REFRESH_COOKIE_SECURE = (
-    os.getenv(
-        "REFRESH_COOKIE_SECURE",
-        "False" if DEBUG else "True",
-    ).lower()
-    == "true"
-)
-
-REFRESH_COOKIE_SAMESITE = os.getenv(
-    "REFRESH_COOKIE_SAMESITE",
-    "Lax",
-)
-
-if REFRESH_COOKIE_SAMESITE == "None":
-    REFRESH_COOKIE_SECURE = True
 
 REFRESH_COOKIE_PATH = os.getenv(
     "REFRESH_COOKIE_PATH",

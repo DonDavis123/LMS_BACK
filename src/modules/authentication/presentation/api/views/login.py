@@ -55,8 +55,10 @@ class LoginView(APIView):
         )
 
         # Refresh tokens stay in an HttpOnly cookie and are never
-        # exposed in the JSON response.
+        # exposed in the JSON response. Cookie security is selected
+        # automatically from the current request scheme.
         set_refresh_token_cookie(
+            request,
             response,
             result.refresh_token,
         )

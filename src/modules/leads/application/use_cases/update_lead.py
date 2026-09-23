@@ -3,7 +3,10 @@ from src.modules.leads.application.interfaces.lead_repository import LeadReposit
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
-from src.modules.timeline.application.services.change_tracker import build_field_changes
+from src.modules.timeline.application.services.change_tracker import (
+    build_field_changes,
+    format_field_changes,
+)
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
 
@@ -98,7 +101,35 @@ class UpdateLeadUseCase:
                     )
                 else:
                     event_type = "LEAD_UPDATED"
-                    message = f"Lead {saved.name} was updated."
+                    change_summary = format_field_changes(
+                        changes,
+                        field_labels={
+                            "name": "Name",
+                            "title": "Title",
+                            "company_name": "Company Name",
+                            "email": "Email",
+                            "mobile_number": "Mobile Number",
+                            "phone": "Phone",
+                            "lead_source": "Lead Source",
+                            "lead_status": "Lead Status",
+                            "industry": "Industry",
+                            "rating": "Rating",
+                            "website": "Website",
+                            "number_of_employees": "Number of Employees",
+                            "annual_revenue": "Annual Revenue",
+                            "owner_id": "Owner",
+                            "address": "Address",
+                            "city": "City",
+                            "state": "State",
+                            "country": "Country",
+                            "postal_code": "Postal Code",
+                            "description": "Description",
+                        },
+                    )
+                    message = (
+                        f"Lead {saved.name} was updated. "
+                        f"Changes: {change_summary}"
+                    )
 
                 self.timeline_recorder.record(
                     event_type=event_type,

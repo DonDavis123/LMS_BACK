@@ -46,7 +46,9 @@ class RefreshTokenView(APIView):
 
         # The refresh token is never returned to JavaScript.
         # Rotation replaces the old HttpOnly cookie with the new one.
+        # Cookie security is selected automatically from the request.
         set_refresh_token_cookie(
+            request,
             response,
             tokens["refresh_token"],
         )
