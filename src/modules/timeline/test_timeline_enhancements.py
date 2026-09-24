@@ -17,6 +17,7 @@ from src.modules.contacts.domain.entities.contact import Contact
 from src.modules.timeline.application.services.change_tracker import (
     build_field_changes,
     format_field_changes,
+    resolve_relationship_changes,
 )
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.users.domain.entities.user import User
@@ -159,6 +160,78 @@ class TimelineEnhancementTests(TestCase):
         self.assertIn(
             "Lead Status: Attempted to Contact → Contacted",
             event["message"],
+        )
+
+    def test_lead_owner_change_uses_user_name_not_uuid(self):
+        new_owner = User(
+            id=uuid4(),
+            name="Jane Owner",
+            email="jane@example.com",
+            role=UserRole.ADMIN,
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+
+        class MultiUserRepository:
+            def __init__(self, users):
+                self.users = {user.id: user for user in users}
+
+            def get_by_id(self, user_id):
+                return self.users.get(user_id)
+
+        recorder = RecordingTimelineRecorder()
+        use_case = UpdateLeadUseCase(
+            lead_repository=InMemoryLeadRepository(self.lead),
+            user_repository=MultiUserRepository([self.user, new_owner]),
+            timeline_recorder=recorder,
+            transaction_manager=ImmediateTransactionManager(),
+        )
+
+        use_case.execute(
+            UpdateLeadDTO(lead_id=self.lead.id, owner_id=new_owner.id),
+            current_user_id=self.user_id,
+        )
+
+        event = recorder.events[0]
+        self.assertEqual(
+            event["metadata"]["changes"]["owner_id"],
+            {"old_value": self.user.name, "new_value": new_owner.name},
+        )
+        self.assertIn("Owner: Don Davis → Jane Owner", event["message"])
+        self.assertNotIn(str(self.user_id), event["message"])
+        self.assertNotIn(str(new_owner.id), event["message"])
+
+    def test_relationship_change_resolver_preserves_null_and_resolves_names(self):
+        old_id = uuid4()
+        new_id = uuid4()
+        changes = {
+            "owner_id": {
+                "old_value": str(old_id),
+                "new_value": str(new_id),
+            }
+        }
+
+        resolved = resolve_relationship_changes(
+            changes,
+            {"owner_id": lambda value: "Old Owner" if value == old_id else "New Owner"},
+        )
+
+        self.assertEqual(
+            resolved["owner_id"],
+            {"old_value": "Old Owner", "new_value": "New Owner"},
+        )
+
+        null_changes = {
+            "owner_id": {"old_value": None, "new_value": str(new_id)}
+        }
+        resolved_null = resolve_relationship_changes(
+            null_changes,
+            {"owner_id": lambda value: "New Owner"},
+        )
+        self.assertEqual(
+            resolved_null["owner_id"],
+            {"old_value": None, "new_value": "New Owner"},
         )
 
     def test_lead_noop_update_does_not_create_timeline_event(self):

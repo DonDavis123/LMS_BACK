@@ -42,6 +42,18 @@ class InMemoryRepository:
         return item
 
 
+class InMemoryCollectionRepository:
+    def __init__(self, items):
+        self.items = {item.id: item for item in items}
+
+    def get_by_id(self, item_id):
+        return self.items.get(item_id)
+
+    def save(self, item):
+        self.items[item.id] = item
+        return item
+
+
 class InMemoryUserRepository:
     def __init__(self, user):
         self.user = user
@@ -184,6 +196,55 @@ class ContactAccountTaskTimelineTests(TestCase):
         self.assertIn("Email: old@example.com → new@example.com", event["message"])
         self.assertNotIn("Name:", event["message"])
 
+    def test_contact_relationship_changes_use_names_not_uuids(self):
+        contact = self._contact()
+        account = self._account()
+        reporting_contact = self._contact()
+        reporting_contact.name = "Reporting Contact"
+        contact_repository = InMemoryCollectionRepository([contact, reporting_contact])
+        account_repository = InMemoryRepository(account)
+        owner = User(
+            id=uuid4(),
+            name="Jane Owner",
+            email="jane@example.com",
+            role=UserRole.ADMIN,
+            is_active=True,
+            created_at=None,
+            updated_at=None,
+        )
+        user_repository = InMemoryCollectionRepository([self.user, owner])
+        recorder = RecordingTimelineRecorder()
+
+        use_case = UpdateContactUseCase(
+            contact_repository=contact_repository,
+            account_repository=account_repository,
+            user_repository=user_repository,
+            timeline_recorder=recorder,
+            transaction_manager=ImmediateTransactionManager(),
+        )
+
+        use_case.execute(
+            UpdateContactDTO(
+                contact_id=contact.id,
+                fields={
+                    "account_id": account.id,
+                    "contact_owner_id": owner.id,
+                    "reporting_to_id": reporting_contact.id,
+                },
+            ),
+            current_user_id=self.user_id,
+        )
+
+        event = recorder.events[0]
+        changes = event["metadata"]["changes"]
+        self.assertEqual(changes["account_id"], {"old_value": None, "new_value": account.account_name})
+        self.assertEqual(changes["contact_owner_id"], {"old_value": self.user.name, "new_value": owner.name})
+        self.assertEqual(changes["reporting_to_id"], {"old_value": None, "new_value": reporting_contact.name})
+        self.assertIn(f"Account: None → {account.account_name}", event["message"])
+        self.assertNotIn(str(account.id), event["message"])
+        self.assertNotIn(str(owner.id), event["message"])
+        self.assertNotIn(str(reporting_contact.id), event["message"])
+
     def test_account_update_timeline_contains_only_changed_fields(self):
         account = self._account()
         recorder = RecordingTimelineRecorder()
@@ -211,6 +272,140 @@ class ContactAccountTaskTimelineTests(TestCase):
         )
         self.assertIn("Phone: 1111111111 → 2222222222", event["message"])
         self.assertNotIn("Billing City:", event["message"])
+
+    def test_task_owner_change_uses_user_name_not_uuid(self):
+        task = SimpleNamespace(
+            id=uuid4(),
+            subject="Prepare business proposal",
+            due_date=None,
+            priority=TaskPriority.NORMAL,
+            owner_id=self.user_id,
+            reminder_at=None,
+            lead_id=None,
+            contact_id=None,
+            account_id=None,
+            status=TaskStatus.NOT_STARTED,
+            description=None,
+            is_deleted=False,
+        )
+        new_owner = User(
+            id=uuid4(),
+            name="Jane Owner",
+            email="jane@example.com",
+            role=UserRole.ADMIN,
+            is_active=True,
+            created_at=None,
+            updated_at=None,
+        )
+        recorder = RecordingTimelineRecorder()
+
+        use_case = UpdateTaskUseCase(
+            task_repository=InMemoryRepository(task),
+            user_repository=InMemoryCollectionRepository([self.user, new_owner]),
+            lead_repository=InMemoryRepository(None),
+            contact_repository=InMemoryRepository(None),
+            account_repository=InMemoryRepository(None),
+            timeline_recorder=recorder,
+            transaction_manager=ImmediateTransactionManager(),
+        )
+
+        use_case.execute(
+            UpdateTaskDTO(task_id=task.id, fields={"owner_id": new_owner.id}),
+            current_user_id=self.user_id,
+        )
+
+        event = recorder.events[0]
+        self.assertEqual(
+            event["metadata"]["changes"]["owner_id"],
+            {"old_value": self.user.name, "new_value": new_owner.name},
+        )
+        self.assertIn("Task Owner: Don Davis → Jane Owner", event["message"])
+        self.assertNotIn(str(new_owner.id), event["message"])
+
+    def test_task_lead_relationship_change_uses_lead_name_not_uuid(self):
+        task = SimpleNamespace(
+            id=uuid4(),
+            subject="Prepare business proposal",
+            due_date=None,
+            priority=TaskPriority.NORMAL,
+            owner_id=self.user_id,
+            reminder_at=None,
+            lead_id=None,
+            contact_id=None,
+            account_id=None,
+            status=TaskStatus.NOT_STARTED,
+            description=None,
+            is_deleted=False,
+        )
+        lead = SimpleNamespace(id=uuid4(), name="AAthish", is_deleted=False)
+        recorder = RecordingTimelineRecorder()
+
+        use_case = UpdateTaskUseCase(
+            task_repository=InMemoryRepository(task),
+            user_repository=InMemoryUserRepository(self.user),
+            lead_repository=InMemoryRepository(lead),
+            contact_repository=InMemoryRepository(None),
+            account_repository=InMemoryRepository(None),
+            timeline_recorder=recorder,
+            transaction_manager=ImmediateTransactionManager(),
+        )
+
+        use_case.execute(
+            UpdateTaskDTO(task_id=task.id, fields={"lead_id": lead.id}),
+            current_user_id=self.user_id,
+        )
+
+        event = recorder.events[0]
+        self.assertEqual(
+            event["metadata"]["changes"]["lead_id"],
+            {"old_value": None, "new_value": "AAthish"},
+        )
+        self.assertIn("Lead: None → AAthish", event["message"])
+        self.assertNotIn(str(lead.id), event["message"])
+
+    def test_task_contact_and_account_relationship_changes_use_names_not_uuids(self):
+        task = SimpleNamespace(
+            id=uuid4(),
+            subject="Prepare business proposal",
+            due_date=None,
+            priority=TaskPriority.NORMAL,
+            owner_id=self.user_id,
+            reminder_at=None,
+            lead_id=None,
+            contact_id=None,
+            account_id=None,
+            status=TaskStatus.NOT_STARTED,
+            description=None,
+            is_deleted=False,
+        )
+        contact = SimpleNamespace(id=uuid4(), name="John Doe", is_deleted=False)
+        account = SimpleNamespace(id=uuid4(), account_name="ABC Pvt Ltd", is_deleted=False)
+        recorder = RecordingTimelineRecorder()
+
+        use_case = UpdateTaskUseCase(
+            task_repository=InMemoryRepository(task),
+            user_repository=InMemoryUserRepository(self.user),
+            lead_repository=InMemoryRepository(None),
+            contact_repository=InMemoryRepository(contact),
+            account_repository=InMemoryRepository(account),
+            timeline_recorder=recorder,
+            transaction_manager=ImmediateTransactionManager(),
+        )
+
+        use_case.execute(
+            UpdateTaskDTO(
+                task_id=task.id,
+                fields={"contact_id": contact.id, "account_id": account.id},
+            ),
+            current_user_id=self.user_id,
+        )
+
+        event = recorder.events[0]
+        changes = event["metadata"]["changes"]
+        self.assertEqual(changes["contact_id"], {"old_value": None, "new_value": contact.name})
+        self.assertEqual(changes["account_id"], {"old_value": None, "new_value": account.account_name})
+        self.assertNotIn(str(contact.id), event["message"])
+        self.assertNotIn(str(account.id), event["message"])
 
     def test_task_update_timeline_contains_subject_task_id_and_changed_fields(self):
         task = SimpleNamespace(

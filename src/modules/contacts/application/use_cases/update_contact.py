@@ -10,6 +10,7 @@ from src.modules.timeline.application.interfaces.timeline_recorder import Timeli
 from src.modules.timeline.application.services.change_tracker import (
     build_field_changes,
     format_field_changes,
+    resolve_relationship_changes,
 )
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
@@ -80,6 +81,26 @@ class UpdateContactUseCase:
             saved = self.contact_repository.save(contact)
             new_values = {field: getattr(saved, field) for field in updateable_fields}
             changes = build_field_changes(old_values, new_values)
+            changes = resolve_relationship_changes(
+                changes,
+                {
+                    "account_id": lambda account_id: (
+                        account.account_name
+                        if (account := self.account_repository.get_by_id(account_id))
+                        else None
+                    ),
+                    "contact_owner_id": lambda user_id: (
+                        user.name
+                        if (user := self.user_repository.get_by_id(user_id))
+                        else None
+                    ),
+                    "reporting_to_id": lambda contact_id: (
+                        contact.name
+                        if (contact := self.contact_repository.get_by_id(contact_id))
+                        else None
+                    ),
+                },
+            )
 
             if changes:
                 change_summary = format_field_changes(

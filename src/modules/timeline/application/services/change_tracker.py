@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
+from typing import Callable
 from uuid import UUID
 
 
@@ -55,3 +56,40 @@ def format_field_changes(
         parts.append(f"{label}: {old_display} → {new_display}")
 
     return "; ".join(parts)
+
+
+def resolve_relationship_changes(
+    changes: dict[str, dict[str, object]],
+    resolvers: dict[str, Callable[[UUID], str | None]],
+    fallback: str = "Unknown",
+) -> dict[str, dict[str, object]]:
+    """Resolve UUID relationship change values to human-readable names.
+
+    ``build_field_changes`` intentionally remains responsible only for
+    serialization. This helper is an application-level enrichment step that
+    uses repository-backed resolver callables supplied by the use case.
+    Technical/navigation IDs outside ``changes`` are left untouched.
+    """
+    resolved = {
+        field: dict(change)
+        for field, change in changes.items()
+    }
+
+    for field, resolver in resolvers.items():
+        if field not in resolved:
+            continue
+
+        for key in ("old_value", "new_value"):
+            value = resolved[field].get(key)
+            if value is None:
+                continue
+
+            try:
+                relationship_id = UUID(str(value))
+            except (TypeError, ValueError):
+                continue
+
+            display_value = resolver(relationship_id)
+            resolved[field][key] = display_value if display_value else fallback
+
+    return resolved

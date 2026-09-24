@@ -6,6 +6,7 @@ from src.modules.timeline.application.interfaces.timeline_recorder import Timeli
 from src.modules.timeline.application.services.change_tracker import (
     build_field_changes,
     format_field_changes,
+    resolve_relationship_changes,
 )
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
@@ -90,6 +91,16 @@ class UpdateLeadUseCase:
             saved = self.lead_repository.save(existing_lead)
             new_values = {field: getattr(saved, field) for field in updateable_fields}
             changes = build_field_changes(old_values, new_values)
+            changes = resolve_relationship_changes(
+                changes,
+                {
+                    "owner_id": lambda user_id: (
+                        user.name
+                        if (user := self.user_repository.get_by_id(user_id))
+                        else None
+                    ),
+                },
+            )
 
             if changes:
                 if set(changes) == {"lead_status"}:
