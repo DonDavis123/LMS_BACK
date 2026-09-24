@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import sys
 
 from datetime import timedelta
 from pathlib import Path
@@ -167,16 +168,34 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # -------------------------------------------------------------------
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
+# -------------------------------------------------------------------
+# Database
+# -------------------------------------------------------------------
+
+IS_TESTING = "test" in sys.argv
+
+if IS_TESTING:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("TEST_DB_NAME"),
+            "USER": os.getenv("TEST_DB_USER"),
+            "PASSWORD": os.getenv("TEST_DB_PASSWORD"),
+            "HOST": os.getenv("TEST_DB_HOST", "localhost"),
+            "PORT": os.getenv("TEST_DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER"),
+            "PASSWORD": os.getenv("DB_PASSWORD"),
+            "HOST": os.getenv("DB_HOST"),
+            "PORT": os.getenv("DB_PORT"),
+        }
+    }
 
 
 # -------------------------------------------------------------------
