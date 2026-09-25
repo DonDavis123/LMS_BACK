@@ -1,9 +1,7 @@
 from uuid import UUID
 
-from src.modules.tasks.application.interfaces.task_repository import (
-    TaskRepository,
-)
-from src.modules.tasks.domain.entities.task import Task
+from src.modules.tasks.application.dto.get_task import GetTaskDTO
+from src.modules.tasks.application.interfaces.task_repository import TaskRepository
 
 
 class GetTaskUseCase:
@@ -14,10 +12,5 @@ class GetTaskUseCase:
     ):
         self.task_repository = task_repository
 
-    def execute(self, task_id: UUID) -> Task | None:
-        task = self.task_repository.get_by_id(task_id)
-
-        if task is None or task.is_deleted:
-            return None
-
-        return task
+    def execute(self, task_id: UUID) -> GetTaskDTO | None:
+        return self.task_repository.get_by_id_with_relations(task_id)

@@ -14,6 +14,7 @@ from src.modules.tasks.presentation.api.dependencies.task_dependencies import (
 
 from ..serializers.create_task import CreateTaskSerializer
 from ..serializers.task import TaskSerializer
+from ..serializers.task_read import TaskReadSerializer
 
 
 class TaskListView(APIView):
@@ -29,7 +30,7 @@ class TaskListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = TaskSerializer(result.results, many=True)
+        serializer = TaskReadSerializer(result.results, many=True)
 
         return Response(
             {

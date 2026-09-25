@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from src.modules.tasks.application.dto.get_task import GetTaskDTO
 from src.modules.tasks.domain.entities.task import Task
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
@@ -16,7 +17,15 @@ class TaskRepository(ABC):
         pass
 
     @abstractmethod
+    def get_by_id_with_relations(self, task_id: UUID) -> GetTaskDTO | None:
+        pass
+
+    @abstractmethod
     def get_all(self, query: ListQuery) -> PaginatedResult[Task]:
+        pass
+
+    @abstractmethod
+    def get_all_with_relations(self, query: ListQuery) -> PaginatedResult[GetTaskDTO]:
         pass
 
     @abstractmethod
