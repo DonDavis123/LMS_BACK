@@ -189,22 +189,18 @@ class UpdateTaskUseCase:
             # present. Owner-only, subject-only, priority-only, etc. updates
             # must still create a Task timeline event.
             if changes:
-                targets = []
+                # A Task is always its own primary timeline target. Related
+                # Lead/Contact/Account targets are optional secondary links.
+                targets = [("TASK", saved.id)]
 
                 if saved.lead_id:
-                    targets.append(
-                        ("LEAD", saved.lead_id)
-                    )
+                    targets.append(("LEAD", saved.lead_id))
 
                 if saved.contact_id:
-                    targets.append(
-                        ("CONTACT", saved.contact_id)
-                    )
+                    targets.append(("CONTACT", saved.contact_id))
 
                 if saved.account_id:
-                    targets.append(
-                        ("ACCOUNT", saved.account_id)
-                    )
+                    targets.append(("ACCOUNT", saved.account_id))
 
                 change_summary = format_field_changes(
                     changes,

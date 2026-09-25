@@ -8,6 +8,7 @@ from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 from src.modules.users.application.interfaces.user_repository import UserRepository
 
 
@@ -18,12 +19,14 @@ class CreateMeetingUseCase:
         user_repository: UserRepository,
         lead_repository: LeadRepository,
         contact_repository: ContactRepository,
+        timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
     ):
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
         self.lead_repository = lead_repository
         self.contact_repository = contact_repository
+        self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
 
     def execute(self, data: CreateMeetingDTO) -> Meeting:
@@ -42,14 +45,36 @@ class CreateMeetingUseCase:
             is_all_day=data.is_all_day,
         )
 
-        return self.transaction_manager.execute(
-            lambda: self.meeting_repository.save_with_relationships(
+        def creation() -> Meeting:
+            saved = self.meeting_repository.save_with_relationships(
                 meeting,
                 data.related_record_type,
                 tuple(data.related_record_ids),
                 tuple(data.participant_groups),
             )
-        )
+
+            targets = [("MEETING", saved.id)]
+            targets.extend(self._related_targets(data.related_record_type, data.related_record_ids))
+
+            self.timeline_recorder.record(
+                event_type="MEETING_CREATED",
+                actor_id=saved.created_by_id,
+                message=f"Meeting {saved.title} was created.",
+                metadata={
+                    "meeting_id": str(saved.id),
+                    "title": saved.title,
+                },
+                targets=targets,
+            )
+            return saved
+
+        return self.transaction_manager.execute(creation)
+
+    @staticmethod
+    def _related_targets(record_type, record_ids) -> list[tuple[str, UUID]]:
+        if record_type is None:
+            return []
+        return [(record_type.value, record_id) for record_id in record_ids]
 
     def _validate_users(self, host_id: UUID, created_by_id: UUID) -> None:
         host = self.user_repository.get_by_id(host_id)
