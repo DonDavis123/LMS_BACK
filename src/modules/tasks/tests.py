@@ -108,6 +108,30 @@ class TaskApiTests(APITestCase):
         self.assertEqual(response.data["results"], [])
         self.assertEqual(response.data["pagination"]["total"], 0)
 
+    def test_task_read_response_contains_related_record_names(self):
+        self.client.force_authenticate(self.user)
+
+        response = self.client.post(
+            "/api/tasks/",
+            self._task_payload(
+                lead_id=str(self.lead.id),
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        task_id = response.data["id"]
+
+        detail_response = self.client.get(f"/api/tasks/{task_id}/")
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.data["lead_id"], str(self.lead.id))
+        self.assertEqual(detail_response.data["lead_name"], "Task Lead")
+        self.assertIsNone(detail_response.data["contact_name"])
+        self.assertIsNone(detail_response.data["account_name"])
+
+        list_response = self.client.get("/api/tasks/")
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data["results"][0]["lead_name"], "Task Lead")
+
     def test_valid_task_relationships(self):
         self.client.force_authenticate(self.user)
 

@@ -13,6 +13,7 @@ from src.modules.tasks.presentation.api.dependencies.task_dependencies import (
 )
 
 from ..serializers.task import TaskSerializer
+from ..serializers.task_read import TaskReadSerializer
 from ..serializers.update_task import UpdateTaskSerializer
 
 
@@ -29,7 +30,7 @@ class TaskDetailView(APIView):
             )
 
         return Response(
-            TaskSerializer(task).data,
+            TaskReadSerializer(task).data,
             status=status.HTTP_200_OK,
         )
 

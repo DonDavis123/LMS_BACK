@@ -3,6 +3,7 @@ from uuid import UUID
 
 from django.db.models import Q
 
+from src.modules.tasks.application.dto.get_task import GetTaskDTO
 from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
@@ -45,6 +46,23 @@ class DjangoTaskRepository(TaskRepository):
 
         return self._to_domain(model)
 
+    def get_by_id_with_relations(self, task_id: UUID) -> GetTaskDTO | None:
+        try:
+            model = (
+                DjangoTaskModel.objects
+                .select_related("lead", "contact", "account")
+                .get(id=task_id, is_deleted=False)
+            )
+        except DjangoTaskModel.DoesNotExist:
+            return None
+
+        return GetTaskDTO(
+            task=self._to_domain(model),
+            lead_name=model.lead.name if model.lead else None,
+            contact_name=model.contact.name if model.contact else None,
+            account_name=model.account.account_name if model.account else None,
+        )
+
     def get_all(self, query: ListQuery) -> PaginatedResult[Task]:
         queryset = (
             DjangoTaskModel.objects
@@ -67,6 +85,35 @@ class DjangoTaskRepository(TaskRepository):
 
         return PaginatedResult(
             results=[self._to_domain(model) for model in models],
+            page=query.page,
+            page_size=query.page_size,
+            total=total,
+        )
+
+    def get_all_with_relations(self, query: ListQuery) -> PaginatedResult[GetTaskDTO]:
+        queryset = (
+            DjangoTaskModel.objects
+            .select_related("lead", "contact", "account")
+            .filter(is_deleted=False)
+        )
+
+        queryset = self._apply_filters(queryset, query.filters)
+        total = queryset.count()
+        queryset = queryset.order_by("due_date", "created_at", "id")
+
+        offset = (query.page - 1) * query.page_size
+        models = queryset[offset:offset + query.page_size]
+
+        return PaginatedResult(
+            results=[
+                GetTaskDTO(
+                    task=self._to_domain(model),
+                    lead_name=model.lead.name if model.lead else None,
+                    contact_name=model.contact.name if model.contact else None,
+                    account_name=model.account.account_name if model.account else None,
+                )
+                for model in models
+            ],
             page=query.page,
             page_size=query.page_size,
             total=total,
