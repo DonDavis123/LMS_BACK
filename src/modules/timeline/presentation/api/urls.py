@@ -24,4 +24,16 @@ urlpatterns = [
         {"entity_type": TimelineEntityType.ACCOUNT.value},
         name="account-timeline",
     ),
+    path(
+        "tasks/<uuid:entity_id>/",
+        TimelineView.as_view(),
+        {"entity_type": TimelineEntityType.TASK.value},
+        name="task-timeline",
+    ),
+    path(
+        "meetings/<uuid:entity_id>/",
+        TimelineView.as_view(),
+        {"entity_type": TimelineEntityType.MEETING.value},
+        name="meeting-timeline",
+    ),
 ]

@@ -122,11 +122,23 @@ class CreateTaskUseCase:
 
         def creation():
             saved = self.task_repository.save(task)
-            targets = []
-            if saved.lead_id: targets.append(("LEAD", saved.lead_id))
-            if saved.contact_id: targets.append(("CONTACT", saved.contact_id))
-            if saved.account_id: targets.append(("ACCOUNT", saved.account_id))
-            if targets:
-                self.timeline_recorder.record(event_type="TASK_CREATED", actor_id=saved.created_by_id, message=f"Task {saved.subject} was created.", metadata={"task_id": str(saved.id), "subject": saved.subject}, targets=targets)
+            targets = [("TASK", saved.id)]
+            if saved.lead_id:
+                targets.append(("LEAD", saved.lead_id))
+            if saved.contact_id:
+                targets.append(("CONTACT", saved.contact_id))
+            if saved.account_id:
+                targets.append(("ACCOUNT", saved.account_id))
+
+            self.timeline_recorder.record(
+                event_type="TASK_CREATED",
+                actor_id=saved.created_by_id,
+                message=f"Task {saved.subject} was created.",
+                metadata={
+                    "task_id": str(saved.id),
+                    "subject": saved.subject,
+                },
+                targets=targets,
+            )
             return saved
         return self.transaction_manager.execute(creation)

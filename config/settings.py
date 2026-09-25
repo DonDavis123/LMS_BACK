@@ -114,7 +114,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://snipping-foothill-nursery.ngrok-free.dev",
-       "https://crm-sage-psi-73.vercel.app",
+    "https://crm-sage-psi-73.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

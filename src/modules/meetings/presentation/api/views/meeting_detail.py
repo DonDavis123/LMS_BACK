@@ -74,7 +74,7 @@ class MeetingDetailView(APIView):
         )
 
         try:
-            meeting = get_update_meeting_use_case().execute(dto)
+            meeting = get_update_meeting_use_case().execute(dto, current_user_id=request.user.id)
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -85,7 +85,7 @@ class MeetingDetailView(APIView):
 
     def delete(self, request, meeting_id):
         try:
-            get_delete_meeting_use_case().execute(meeting_id)
+            get_delete_meeting_use_case().execute(meeting_id, current_user_id=request.user.id)
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
