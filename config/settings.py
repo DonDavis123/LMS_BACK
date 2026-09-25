@@ -46,7 +46,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "dorinda-accentuable-shellie.ngrok-free.dev",
+    ".onrender.com",
 ]
 
 
