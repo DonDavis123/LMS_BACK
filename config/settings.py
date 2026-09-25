@@ -28,6 +28,9 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 
 # -------------------------------------------------------------------
 # Security
@@ -35,7 +38,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
-DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
+DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "False"
 
 # Ngrok terminates HTTPS before forwarding the request to Django.
 # This allows request.is_secure() to correctly detect HTTPS for
