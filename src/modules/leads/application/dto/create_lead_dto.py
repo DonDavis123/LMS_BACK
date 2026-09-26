@@ -11,7 +11,7 @@ from src.modules.leads.domain.entities.lead_status import LeadStatus
 class CreateLeadDTO:
     name: str
     title: str | None
-    company_name: str
+    company_name: str | None
     email: str | None
     mobile_number: str | None
     phone: str | None

@@ -13,7 +13,7 @@ class Lead:
     id: UUID
     name: str
     title: str | None
-    company_name: str
+    company_name: str | None
     email: str | None
     mobile_number: str | None
     phone: str | None
@@ -41,7 +41,7 @@ class Lead:
         cls,
         name: str,
         title: str | None,
-        company_name: str,
+        company_name: str | None,
         email: str | None,
         mobile_number: str | None,
         phone: str | None,

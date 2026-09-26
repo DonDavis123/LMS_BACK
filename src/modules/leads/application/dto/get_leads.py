@@ -9,7 +9,7 @@ from .owner_response import OwnerResponseDTO
 class LeadResponseDTO:
     id: UUID
     name: str
-    company_name: str
+    company_name: str | None
     email: str | None
     mobile_number: str
     lead_source: str

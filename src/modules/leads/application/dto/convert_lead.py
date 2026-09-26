@@ -63,7 +63,7 @@ class ConvertContactDTO:
 class ConvertLeadDTO:
     lead_id: UUID
 
-    account_action: str
+    account_action: str | None
     account_id: UUID | None
     account: ConvertAccountDTO | None
 
