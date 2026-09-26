@@ -36,6 +36,8 @@ class UpdateLeadSerializer(serializers.Serializer):
     mobile_number = serializers.CharField(
         max_length=20,
         required=False,
+        allow_blank=True,
+        allow_null=True,
     )
 
     phone = serializers.CharField(
