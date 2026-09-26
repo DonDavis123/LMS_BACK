@@ -148,7 +148,7 @@ class ConvertLeadView(APIView):
         dto = ConvertLeadDTO(
             lead_id=UUID(str(lead_id)),
 
-            account_action=data["account_action"],
+            account_action=data.get("account_action"),
             account_id=data.get("account_id"),
             account=account_dto,
 

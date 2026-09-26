@@ -9,7 +9,7 @@ class OwnerSerializer(serializers.Serializer):
 class LeadSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     name = serializers.CharField()
-    company_name = serializers.CharField()
+    company_name = serializers.CharField(allow_null=True, allow_blank=True)
     email = serializers.EmailField(allow_null=True)
     mobile_number = serializers.CharField()
     lead_source = serializers.CharField()

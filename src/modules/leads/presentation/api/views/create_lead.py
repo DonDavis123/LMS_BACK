@@ -34,7 +34,7 @@ class CreateLeadView(APIView):
             name=data["name"],
             title=data.get("title"),
 
-            company_name=data["company_name"],
+            company_name=data.get("company_name"),
             email=data.get("email"),
             mobile_number=data.get("mobile_number"),
             phone=data.get("phone"),

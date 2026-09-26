@@ -13,7 +13,7 @@ class LeadDetailResponseDTO:
     name: str
     title: str | None
 
-    company_name: str
+    company_name: str | None
     email: str | None
     mobile_number: str
     phone: str | None

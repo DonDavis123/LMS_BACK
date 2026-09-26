@@ -21,6 +21,9 @@ class CreateLeadSerializer(serializers.Serializer):
 
     company_name = serializers.CharField(
         max_length=255,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
     )
 
     email = serializers.EmailField(

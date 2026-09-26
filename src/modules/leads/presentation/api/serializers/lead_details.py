@@ -14,7 +14,7 @@ class LeadDetailSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-    company_name = serializers.CharField()
+    company_name = serializers.CharField(allow_null=True, allow_blank=True)
 
     email = serializers.EmailField(
         allow_null=True,
