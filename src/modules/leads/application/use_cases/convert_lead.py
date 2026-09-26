@@ -111,7 +111,20 @@ class ConvertLeadUseCase:
             # Account
             # ----------------------------------------------
 
-            if data.account_action == "create_new":
+            # A lead without a company may be converted as a
+            # Contact only. In that case no Account is created
+            # or selected.
+            account = None
+
+            if data.account_action in {None, "skip"}:
+
+                if self._has_company_name(lead.company_name):
+                    raise ValueError(
+                        "A company is required for normal lead conversion. "
+                        "Create or select an Account."
+                    )
+
+            elif data.account_action == "create_new":
 
                 account = self._create_account(
                     lead=lead,
@@ -138,7 +151,7 @@ class ConvertLeadUseCase:
 
                 self._create_contact(
                     lead=lead,
-                    account_id=account.id,
+                    account_id=account.id if account else None,
                     data=data,
                     current_user_id=current_user_id,
                 )
@@ -202,8 +215,15 @@ class ConvertLeadUseCase:
         account_data = data.account
 
         # When account data is not supplied by the frontend,
-        # create the Account from the Lead automatically.
+        # create the Account from the Lead automatically. This is
+        # valid only when the Lead already has a company name.
         if account_data is None:
+
+            if not self._has_company_name(lead.company_name):
+                raise ValueError(
+                    "account.account_name is required when adding a company "
+                    "during conversion."
+                )
 
             account = Account.create(
                 account_owner_id=lead.owner_id,
@@ -275,6 +295,14 @@ class ConvertLeadUseCase:
 
         return saved
 
+    @staticmethod
+    def _has_company_name(company_name: str | None) -> bool:
+        return bool(company_name and company_name.strip())
+
+    # ======================================================
+    # EXISTING ACCOUNT
+    # ======================================================
+
     def _get_existing_account(
         self,
         account_id: UUID | None,
@@ -308,7 +336,7 @@ class ConvertLeadUseCase:
     def _create_contact(
         self,
         lead,
-        account_id: UUID,
+        account_id: UUID | None,
         data: ConvertLeadDTO,
         current_user_id: UUID,
     ) -> Contact:
@@ -428,7 +456,7 @@ class ConvertLeadUseCase:
     def _use_existing_contact(
         self,
         contact: Contact,
-        account: Account,
+        account: Account | None,
     ) -> None:
 
         # If the Contact already belongs to an Account,
@@ -441,8 +469,12 @@ class ConvertLeadUseCase:
         if contact.account_id is not None:
             return
 
-        # If the existing Contact has no Account,
-        # associate it with the Account involved in conversion.
+        # Contact-only conversion must not attach the Contact to an
+        # Account. If an Account is part of the conversion, associate
+        # an unlinked existing Contact with that Account.
+        if account is None:
+            return
+
         contact.account_id = account.id
 
         self.contact_repository.save(contact)

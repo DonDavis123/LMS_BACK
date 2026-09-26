@@ -289,7 +289,10 @@ class ConvertLeadSerializer(serializers.Serializer):
         choices=[
             "create_new",
             "use_existing",
+            "skip",
         ],
+        required=False,
+        allow_null=True,
     )
 
     account_id = serializers.UUIDField(
@@ -357,6 +360,24 @@ class ConvertLeadSerializer(serializers.Serializer):
                     "account_id": (
                         "account_id must not be provided when creating "
                         "a new Account."
+                    )
+                })
+
+        elif account_action in {"skip", None}:
+
+            if account_id is not None:
+                raise serializers.ValidationError({
+                    "account_id": (
+                        "account_id must not be provided when no Account "
+                        "is selected."
+                    )
+                })
+
+            if account is not None:
+                raise serializers.ValidationError({
+                    "account": (
+                        "Account data must not be provided when no Account "
+                        "is selected."
                     )
                 })
 
