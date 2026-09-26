@@ -44,4 +44,9 @@ urlpatterns = [
         include("src.modules.meetings.presentation.api.urls"),
     ),
 
+    path(
+        "api/reminders/",
+        include("src.modules.reminders.presentation.api.urls"),
+    ),
+
 ]
