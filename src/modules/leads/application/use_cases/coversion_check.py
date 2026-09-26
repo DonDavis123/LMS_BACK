@@ -50,13 +50,20 @@ class ConversionCheckUseCase:
                 "Lead is already converted."
             )
 
-        account_matches = (
-            self.account_repository.find_conversion_matches(
-                account_name=lead.company_name,
-                website=lead.website,
-                phone=lead.phone,
+        # Account matching is meaningful only when the Lead has a
+        # company name. A company-less Lead can be converted as a
+        # Contact only, so do not perform an Account lookup with a
+        # null/blank company name.
+        if lead.company_name and lead.company_name.strip():
+            account_matches = (
+                self.account_repository.find_conversion_matches(
+                    account_name=lead.company_name,
+                    website=lead.website,
+                    phone=lead.phone,
+                )
             )
-        )
+        else:
+            account_matches = []
 
         contact_matches = (
             self.contact_repository.find_conversion_matches(
