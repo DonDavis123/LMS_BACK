@@ -3,6 +3,7 @@ from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
 from src.modules.tasks.domain.entities.task import Task
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
@@ -27,6 +28,7 @@ class CreateTaskUseCase:
         account_repository: AccountRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        reminder_sync_service: ReminderSyncService | None = None,
     ):
         self.task_repository = task_repository
         self.user_repository = user_repository
@@ -35,6 +37,7 @@ class CreateTaskUseCase:
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        self.reminder_sync_service = reminder_sync_service
 
     def execute(
         self,
@@ -122,6 +125,10 @@ class CreateTaskUseCase:
 
         def creation():
             saved = self.task_repository.save(task)
+
+            if self.reminder_sync_service is not None:
+                self.reminder_sync_service.sync_task(saved)
+
             targets = [("TASK", saved.id)]
             if saved.lead_id:
                 targets.append(("LEAD", saved.lead_id))

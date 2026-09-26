@@ -79,6 +79,7 @@ class MeetingListView(APIView):
             description=data.get("description"),
             location=data.get("location"),
             is_all_day=data.get("is_all_day", False),
+            reminder_at=data.get("reminder_at"),
             related_record_type=related_record_type,
             related_record_ids=related_record_ids,
             participant_groups=_participant_groups(participants),

@@ -11,6 +11,7 @@ class GetMeetingsDTO:
     title: str
     start_at: datetime
     end_at: datetime
+    reminder_at: datetime | None
     related_to_type: MeetingRelatedRecordType | None
     related_to_names: tuple[str, ...]
     contact_names: tuple[str, ...]

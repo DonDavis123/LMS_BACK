@@ -3,6 +3,7 @@ from uuid import UUID
 from src.modules.contacts.application.interfaces.contact_repository import ContactRepository
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.meetings.application.dto.update_meeting import UpdateMeetingDTO, _UNSET
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
@@ -26,6 +27,7 @@ class UpdateMeetingUseCase:
         contact_repository: ContactRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        reminder_sync_service: ReminderSyncService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
@@ -33,6 +35,7 @@ class UpdateMeetingUseCase:
         self.contact_repository = contact_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        self.reminder_sync_service = reminder_sync_service
 
     def execute(self, data: UpdateMeetingDTO, current_user_id: UUID | None = None):
         meeting = self.meeting_repository.get_by_id(data.meeting_id)
@@ -42,7 +45,7 @@ class UpdateMeetingUseCase:
             raise ValueError("Deleted Meeting cannot be updated.")
 
         fields = data.fields
-        allowed = {"title", "description", "location", "is_all_day", "start_at", "end_at", "host_id"}
+        allowed = {"title", "description", "location", "is_all_day", "start_at", "end_at", "host_id", "reminder_at"}
         unknown = set(fields) - allowed
         if unknown:
             raise ValueError(f"Unsupported Meeting fields: {', '.join(sorted(unknown))}.")
@@ -78,6 +81,7 @@ class UpdateMeetingUseCase:
             "start_at",
             "end_at",
             "host_id",
+            "reminder_at",
         )
         old_values = {field: getattr(meeting, field) for field in updateable_fields}
 
@@ -91,6 +95,9 @@ class UpdateMeetingUseCase:
                 raise ValueError("Meeting end time cannot be earlier than start time.")
 
             saved = self.meeting_repository.save(meeting)
+
+            if self.reminder_sync_service is not None:
+                self.reminder_sync_service.sync_meeting(saved)
 
             if related_changed or participants_changed:
                 current_related_type = related_type
@@ -166,6 +173,7 @@ class UpdateMeetingUseCase:
                                 "start_at": "Start Time",
                                 "end_at": "End Time",
                                 "host_id": "Host",
+                                "reminder_at": "Reminder",
                             },
                         )
                     )

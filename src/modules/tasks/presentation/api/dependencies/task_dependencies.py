@@ -2,6 +2,8 @@ from src.modules.accounts.infrastructure.persistence.django_account_repository i
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
 from src.modules.tasks.application.use_cases.create_task import CreateTaskUseCase
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
+from src.modules.reminders.infrastructure.persistence.django_reminder_repository import DjangoReminderRepository
 from src.modules.tasks.application.use_cases.delete_task import DeleteTaskUseCase
 from src.modules.tasks.application.use_cases.get_task import GetTaskUseCase
 from src.modules.tasks.application.use_cases.get_tasks import GetTasksUseCase
@@ -21,8 +23,21 @@ def transaction_manager():
     return DjangoTransactionManager()
 
 
+def reminder_sync_service():
+    return ReminderSyncService(DjangoReminderRepository())
+
+
 def get_create_task_use_case() -> CreateTaskUseCase:
-    return CreateTaskUseCase(DjangoTaskRepository(), DjangoUserRepository(), DjangoLeadRepository(), DjangoContactRepository(), DjangoAccountRepository(), recorder(), transaction_manager())
+    return CreateTaskUseCase(
+        DjangoTaskRepository(),
+        DjangoUserRepository(),
+        DjangoLeadRepository(),
+        DjangoContactRepository(),
+        DjangoAccountRepository(),
+        recorder(),
+        transaction_manager(),
+        reminder_sync_service(),
+    )
 
 
 def get_task_use_case() -> GetTaskUseCase:
@@ -34,7 +49,16 @@ def get_tasks_use_case() -> GetTasksUseCase:
 
 
 def get_update_task_use_case() -> UpdateTaskUseCase:
-    return UpdateTaskUseCase(DjangoTaskRepository(), DjangoUserRepository(), DjangoLeadRepository(), DjangoContactRepository(), DjangoAccountRepository(), recorder(), transaction_manager())
+    return UpdateTaskUseCase(
+        DjangoTaskRepository(),
+        DjangoUserRepository(),
+        DjangoLeadRepository(),
+        DjangoContactRepository(),
+        DjangoAccountRepository(),
+        recorder(),
+        transaction_manager(),
+        reminder_sync_service(),
+    )
 
 
 def get_delete_task_use_case() -> DeleteTaskUseCase:
@@ -42,4 +66,5 @@ def get_delete_task_use_case() -> DeleteTaskUseCase:
         DjangoTaskRepository(),
         recorder(),
         transaction_manager(),
+        reminder_sync_service(),
     )

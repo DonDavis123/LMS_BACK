@@ -3,6 +3,7 @@ from uuid import UUID
 from src.modules.contacts.application.interfaces.contact_repository import ContactRepository
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 from src.modules.meetings.application.dto.create_meeting import CreateMeetingDTO
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
@@ -21,6 +22,7 @@ class CreateMeetingUseCase:
         contact_repository: ContactRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        reminder_sync_service: ReminderSyncService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
@@ -28,6 +30,7 @@ class CreateMeetingUseCase:
         self.contact_repository = contact_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        self.reminder_sync_service = reminder_sync_service
 
     def execute(self, data: CreateMeetingDTO) -> Meeting:
         self._validate_users(data.host_id, data.created_by_id)
@@ -43,6 +46,7 @@ class CreateMeetingUseCase:
             description=data.description,
             location=data.location,
             is_all_day=data.is_all_day,
+            reminder_at=data.reminder_at,
         )
 
         def creation() -> Meeting:
@@ -52,6 +56,9 @@ class CreateMeetingUseCase:
                 tuple(data.related_record_ids),
                 tuple(data.participant_groups),
             )
+
+            if self.reminder_sync_service is not None:
+                self.reminder_sync_service.sync_meeting(saved)
 
             targets = [("MEETING", saved.id)]
             targets.extend(self._related_targets(data.related_record_type, data.related_record_ids))

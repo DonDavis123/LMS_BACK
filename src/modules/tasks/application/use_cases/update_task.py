@@ -12,6 +12,7 @@ from src.modules.timeline.application.services.change_tracker import (
     resolve_relationship_changes,
 )
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 
 
 class UpdateTaskUseCase:
@@ -24,6 +25,7 @@ class UpdateTaskUseCase:
         account_repository: AccountRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        reminder_sync_service: ReminderSyncService | None = None,
     ):
         self.task_repository = task_repository
         self.user_repository = user_repository
@@ -32,6 +34,7 @@ class UpdateTaskUseCase:
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        self.reminder_sync_service = reminder_sync_service
 
     def execute(self, data: UpdateTaskDTO, current_user_id=None):
         task = self.task_repository.get_by_id(data.task_id)
@@ -130,6 +133,9 @@ class UpdateTaskUseCase:
 
             # Persist the Task.
             saved = self.task_repository.save(task)
+
+            if self.reminder_sync_service is not None:
+                self.reminder_sync_service.sync_task(saved)
 
             new_values = {
                 field: getattr(saved, field)

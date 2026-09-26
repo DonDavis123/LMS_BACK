@@ -3,6 +3,7 @@ from uuid import UUID
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 from src.modules.tasks.application.interfaces.task_repository import TaskRepository
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 
 
 class DeleteTaskUseCase:
@@ -12,10 +13,12 @@ class DeleteTaskUseCase:
         task_repository: TaskRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        reminder_sync_service: ReminderSyncService | None = None,
     ):
         self.task_repository = task_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        self.reminder_sync_service = reminder_sync_service
 
     def execute(self, task_id: UUID, current_user_id=None) -> None:
         task = self.task_repository.get_by_id(task_id)
@@ -35,6 +38,9 @@ class DeleteTaskUseCase:
 
             task.soft_delete()
             self.task_repository.save(task)
+
+            if self.reminder_sync_service is not None:
+                self.reminder_sync_service.delete_for_task(task.id)
 
             self.timeline_recorder.record(
                 event_type="TASK_DELETED",
