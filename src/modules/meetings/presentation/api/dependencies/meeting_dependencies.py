@@ -1,6 +1,8 @@
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
 from src.modules.meetings.application.use_cases.create_meeting import CreateMeetingUseCase
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
+from src.modules.reminders.infrastructure.persistence.django_reminder_repository import DjangoReminderRepository
 from src.modules.meetings.application.use_cases.delete_meeting import DeleteMeetingUseCase
 from src.modules.meetings.application.use_cases.get_meeting import GetMeetingUseCase
 from src.modules.meetings.application.use_cases.get_meetings import GetMeetingsUseCase
@@ -20,6 +22,10 @@ def transaction_manager():
     return DjangoTransactionManager()
 
 
+def reminder_sync_service():
+    return ReminderSyncService(DjangoReminderRepository())
+
+
 def get_create_meeting_use_case() -> CreateMeetingUseCase:
     return CreateMeetingUseCase(
         DjangoMeetingRepository(),
@@ -28,6 +34,7 @@ def get_create_meeting_use_case() -> CreateMeetingUseCase:
         DjangoContactRepository(),
         recorder(),
         transaction_manager(),
+        reminder_sync_service(),
     )
 
 
@@ -47,6 +54,7 @@ def get_update_meeting_use_case() -> UpdateMeetingUseCase:
         DjangoContactRepository(),
         recorder(),
         transaction_manager(),
+        reminder_sync_service(),
     )
 
 
@@ -55,4 +63,5 @@ def get_delete_meeting_use_case() -> DeleteMeetingUseCase:
         DjangoMeetingRepository(),
         recorder(),
         transaction_manager(),
+        reminder_sync_service(),
     )

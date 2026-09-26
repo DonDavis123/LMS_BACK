@@ -52,6 +52,28 @@ class Reminder:
             updated_at=now,
         )
 
+    def synchronize(
+        self,
+        *,
+        subject: str,
+        remind_at: datetime,
+        user_id: UUID,
+    ) -> None:
+        """Synchronize an automatically managed reminder with its source record."""
+        if not isinstance(subject, str) or not subject.strip():
+            raise ValueError("Reminder subject cannot be empty.")
+
+        if not isinstance(remind_at, datetime):
+            raise ValueError("Reminder time must be a datetime.")
+
+        if not user_id:
+            raise ValueError("Reminder user is required.")
+
+        self.subject = subject.strip()
+        self.remind_at = remind_at
+        self.user_id = user_id
+        self.updated_at = datetime.now(timezone.utc)
+
     def update(
         self,
         *,

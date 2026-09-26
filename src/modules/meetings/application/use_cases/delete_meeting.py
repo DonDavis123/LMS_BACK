@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
+from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 
@@ -11,10 +12,12 @@ class DeleteMeetingUseCase:
         meeting_repository: MeetingRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        reminder_sync_service: ReminderSyncService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        self.reminder_sync_service = reminder_sync_service
 
     def execute(self, meeting_id: UUID, current_user_id=None) -> None:
         meeting = self.meeting_repository.get_by_id(meeting_id)
@@ -39,6 +42,9 @@ class DeleteMeetingUseCase:
             deleted = self.meeting_repository.soft_delete_by_id(meeting_id)
             if deleted is None:
                 raise ValueError("Meeting not found.")
+
+            if self.reminder_sync_service is not None:
+                self.reminder_sync_service.delete_for_meeting(meeting_id)
 
             self.timeline_recorder.record(
                 event_type="MEETING_DELETED",

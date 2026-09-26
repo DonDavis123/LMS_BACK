@@ -18,6 +18,7 @@ class CreateMeetingDTO:
     description: str | None = None
     location: str | None = None
     is_all_day: bool = False
+    reminder_at: datetime | None = None
     related_record_type: MeetingRelatedRecordType | None = None
     related_record_ids: tuple[UUID, ...] = ()
     participant_groups: tuple[ParticipantGroup, ...] = ()

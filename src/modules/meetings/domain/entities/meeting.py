@@ -12,6 +12,7 @@ class Meeting:
     is_all_day: bool
     start_at: datetime
     end_at: datetime
+    reminder_at: datetime | None
     host_id: UUID
     created_by_id: UUID
     created_at: datetime
@@ -29,6 +30,7 @@ class Meeting:
         description: str | None = None,
         location: str | None = None,
         is_all_day: bool = False,
+        reminder_at: datetime | None = None,
     ) -> "Meeting":
         if not title or not title.strip():
             raise ValueError("Meeting title cannot be empty.")
@@ -42,6 +44,9 @@ class Meeting:
         if not created_by_id:
             raise ValueError("Meeting creator is required.")
 
+        if reminder_at is not None and not isinstance(reminder_at, datetime):
+            raise ValueError("Meeting reminder time must be a datetime.")
+
         now = datetime.now(timezone.utc)
 
         return cls(
@@ -52,6 +57,7 @@ class Meeting:
             is_all_day=is_all_day,
             start_at=start_at,
             end_at=end_at,
+            reminder_at=reminder_at,
             host_id=host_id,
             created_by_id=created_by_id,
             created_at=now,

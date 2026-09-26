@@ -34,6 +34,11 @@ class DjangoMeetingModel(models.Model):
 
     end_at = models.DateTimeField()
 
+    reminder_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
     host = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

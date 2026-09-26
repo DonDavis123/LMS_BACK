@@ -38,6 +38,7 @@ class UpdateMeetingSerializer(serializers.Serializer):
     is_all_day = serializers.BooleanField(required=False)
     start_at = serializers.DateTimeField(required=False)
     end_at = serializers.DateTimeField(required=False)
+    reminder_at = serializers.DateTimeField(required=False, allow_null=True)
     host_id = serializers.UUIDField(required=False)
     related_to = RelatedToUpdateSerializer(required=False, allow_null=True)
     participants = ParticipantsUpdateSerializer(required=False, allow_null=True)
