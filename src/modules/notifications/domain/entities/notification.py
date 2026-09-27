@@ -24,6 +24,7 @@ class Notification:
     read_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    dismissed_at: datetime | None
 
     @classmethod
     def create(
