@@ -48,5 +48,9 @@ urlpatterns = [
         "api/reminders/",
         include("src.modules.reminders.presentation.api.urls"),
     ),
+    path(
+        "api/notifications/",
+        include("src.modules.notifications.presentation.api.urls"),
+    ),
 
 ]

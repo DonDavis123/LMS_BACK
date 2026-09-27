@@ -81,7 +81,15 @@ class Notification:
             read_at=None,
             created_at=now,
             updated_at=now,
+            dismissed_at=None,
         )
+
+    def dismiss(self, dismissed_at: datetime | None = None) -> None:
+        timestamp = dismissed_at or datetime.now(timezone.utc)
+        self._validate_datetime(timestamp, "Notification dismissal time")
+        self.dismissed_at = timestamp
+        self.expires_at = timestamp
+        self.updated_at = timestamp
 
     def mark_as_read(self, read_at: datetime | None = None) -> None:
         if self.is_read:

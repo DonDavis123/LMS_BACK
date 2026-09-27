@@ -57,20 +57,29 @@ class DjangoReminderModel(models.Model):
     class Meta:
         db_table = "reminders"
         indexes = [
-            models.Index(fields=["user", "remind_at"]),
-            models.Index(fields=["remind_at"]),
-            models.Index(fields=["task"]),
-            models.Index(fields=["meeting"]),
-        ]
+    models.Index(
+        fields=["user", "remind_at"],
+        name="reminders_user_id_1c0e7f_idx",
+    ),
+    models.Index(
+        fields=["remind_at"],
+        name="reminders_remind_8eeb0a_idx",
+    ),
+    models.Index(
+        fields=["task"],
+        name="reminders_task_id_6d6f2f_idx",
+    ),
+    models.Index(
+        fields=["meeting"],
+        name="reminders_meetin_1d5a4b_idx",
+    ),
+]
         constraints = [
-            models.CheckConstraint(
-                condition=(
-                    models.Q(task__isnull=True)
-                    | models.Q(meeting__isnull=True)
-                ),
-                name="reminder_single_target",
-            ),
-        ]
+    models.CheckConstraint(
+        condition=models.Q(meeting__isnull=True) | models.Q(task__isnull=True),
+        name="reminder_single_target",
+    ),
+]
 
     def __str__(self):
         return self.subject

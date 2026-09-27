@@ -88,6 +88,11 @@ class DjangoNotificationModel(models.Model):
         auto_now=True,
     )
 
+    dismissed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
     class Meta:
         db_table = "notifications"
         indexes = [
@@ -113,6 +118,21 @@ class DjangoNotificationModel(models.Model):
                     | (models.Q(is_read=True) & models.Q(read_at__isnull=False))
                 ),
                 name="notification_read_state_match",
+            ),
+            models.UniqueConstraint(
+                fields=["notification_type", "scheduled_for", "reminder"],
+                condition=models.Q(reminder__isnull=False),
+                name="notification_reminder_event_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["notification_type", "scheduled_for", "task"],
+                condition=models.Q(task__isnull=False),
+                name="notification_task_event_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["notification_type", "scheduled_for", "meeting"],
+                condition=models.Q(meeting__isnull=False),
+                name="notification_meeting_event_unique",
             ),
         ]
 

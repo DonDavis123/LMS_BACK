@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from uuid import UUID
+from datetime import datetime
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -186,6 +187,18 @@ class DjangoMeetingRepository(MeetingRepository):
             )
 
         return PaginatedResult(results=results, page=query.page, page_size=query.page_size, total=total)
+
+    def get_by_start_at_range(self, start_at: datetime, end_at: datetime) -> list[Meeting]:
+        models = (
+            DjangoMeetingModel.objects
+            .filter(
+                is_deleted=False,
+                start_at__gte=start_at,
+                start_at__lt=end_at,
+            )
+            .order_by("start_at", "id")
+        )
+        return [self._to_domain(model) for model in models]
 
     def replace_relationships(
         self,

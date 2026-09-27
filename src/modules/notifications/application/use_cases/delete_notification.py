@@ -25,7 +25,7 @@ class DeleteNotificationUseCase:
             raise ValueError("Notification not found.")
 
         def deletion():
-            if not self.notification_repository.delete_by_id(notification_id):
-                raise ValueError("Notification not found.")
+            notification.dismiss()
+            self.notification_repository.save(notification)
 
         self.transaction_manager.execute(deletion)
