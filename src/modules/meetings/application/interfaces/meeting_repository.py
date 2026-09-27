@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from src.modules.meetings.application.dto.get_meeting import GetMeetingDTO
@@ -35,6 +36,11 @@ class MeetingRepository(ABC):
 
     @abstractmethod
     def get_all(self, query: ListQuery) -> PaginatedResult[GetMeetingsDTO]:
+        pass
+
+    @abstractmethod
+    def get_by_start_at_range(self, start_at: datetime, end_at: datetime) -> list[Meeting]:
+        """Return active meetings whose start_at is within the half-open range."""
         pass
 
     @abstractmethod

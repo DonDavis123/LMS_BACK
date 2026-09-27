@@ -63,6 +63,18 @@ class DjangoTaskRepository(TaskRepository):
             account_name=model.account.account_name if model.account else None,
         )
 
+    def get_by_due_date_range(self, start_date: date, end_date: date) -> list[Task]:
+        models = (
+            DjangoTaskModel.objects
+            .filter(
+                is_deleted=False,
+                due_date__gte=start_date,
+                due_date__lte=end_date,
+            )
+            .order_by("due_date", "id")
+        )
+        return [self._to_domain(model) for model in models]
+
     def get_all(self, query: ListQuery) -> PaginatedResult[Task]:
         queryset = (
             DjangoTaskModel.objects

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
+from datetime import date
 
 from src.modules.tasks.application.dto.get_task import GetTaskDTO
 from src.modules.tasks.domain.entities.task import Task
@@ -26,6 +27,11 @@ class TaskRepository(ABC):
 
     @abstractmethod
     def get_all_with_relations(self, query: ListQuery) -> PaginatedResult[GetTaskDTO]:
+        pass
+
+    @abstractmethod
+    def get_by_due_date_range(self, start_date: date, end_date: date) -> list[Task]:
+        """Return active tasks whose due_date is within the inclusive range."""
         pass
 
     @abstractmethod

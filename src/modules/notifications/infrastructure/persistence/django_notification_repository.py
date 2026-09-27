@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
-from django.db.models import Q
+from django.db import IntegrityError
 
 from src.modules.notifications.application.interfaces.notification_repository import (
     NotificationRepository,
@@ -22,22 +22,35 @@ class DjangoNotificationRepository(NotificationRepository):
                 "A Notification cannot be associated with both a Task and a Meeting."
             )
 
-        model, _ = DjangoNotificationModel.objects.update_or_create(
-            id=notification.id,
-            defaults={
-                "notification_type": notification.notification_type.value,
-                "title": notification.title,
-                "message": notification.message,
-                "user_id": notification.user_id,
-                "task_id": notification.task_id,
-                "meeting_id": notification.meeting_id,
-                "reminder_id": notification.reminder_id,
-                "scheduled_for": notification.scheduled_for,
-                "expires_at": notification.expires_at,
-                "is_read": notification.is_read,
-                "read_at": notification.read_at,
-            },
-        )
+        try:
+            model, _ = DjangoNotificationModel.objects.update_or_create(
+                id=notification.id,
+                defaults={
+                    "notification_type": notification.notification_type.value,
+                    "title": notification.title,
+                    "message": notification.message,
+                    "user_id": notification.user_id,
+                    "task_id": notification.task_id,
+                    "meeting_id": notification.meeting_id,
+                    "reminder_id": notification.reminder_id,
+                    "scheduled_for": notification.scheduled_for,
+                    "expires_at": notification.expires_at,
+                    "is_read": notification.is_read,
+                    "read_at": notification.read_at,
+                "dismissed_at": notification.dismissed_at,
+                },
+            )
+        except IntegrityError:
+            existing = self.get_existing_for_source(
+                notification_type=notification.notification_type,
+                scheduled_for=notification.scheduled_for,
+                task_id=notification.task_id,
+                meeting_id=notification.meeting_id,
+                reminder_id=notification.reminder_id,
+            )
+            if existing is None:
+                raise
+            return existing
         return self._to_domain(model)
 
     def get_by_id(self, notification_id: UUID) -> Notification | None:
@@ -128,10 +141,17 @@ class DjangoNotificationRepository(NotificationRepository):
         return deleted > 0
 
     def delete_expired(self, as_of: datetime) -> int:
-        deleted, _ = DjangoNotificationModel.objects.filter(
+        natural_expired = DjangoNotificationModel.objects.filter(
             expires_at__lte=as_of,
-        ).delete()
-        return deleted
+            dismissed_at__isnull=True,
+        )
+        dismissed_expired = DjangoNotificationModel.objects.filter(
+            dismissed_at__isnull=False,
+            dismissed_at__lte=as_of - timedelta(days=15),
+        )
+        deleted_natural, _ = natural_expired.delete()
+        deleted_dismissed, _ = dismissed_expired.delete()
+        return deleted_natural + deleted_dismissed
 
     @staticmethod
     def _to_domain(model: DjangoNotificationModel) -> Notification:
@@ -150,6 +170,7 @@ class DjangoNotificationRepository(NotificationRepository):
             read_at=model.read_at,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            dismissed_at=model.dismissed_at,
         )
         notification.validate_state()
         return notification

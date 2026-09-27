@@ -16,9 +16,10 @@ class GetNotificationsUseCase:
         as_of,
         unread_only: bool = False,
     ):
-        if unread_only:
-            return self.notification_repository.get_unread_by_user(current_user_id)
-        return self.notification_repository.get_active_by_user(
+        notifications = self.notification_repository.get_active_by_user(
             current_user_id,
             as_of,
         )
+        if unread_only:
+            return [notification for notification in notifications if not notification.is_read]
+        return notifications

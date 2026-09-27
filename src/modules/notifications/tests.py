@@ -212,8 +212,12 @@ class NotificationRepositoryTests(TestCase):
             message="Expired notification",
             scheduled_for=timezone.now() - timedelta(hours=2),
         )
-        expired.expires_at = timezone.now() - timedelta(minutes=1)
-        self.repository.save(expired)
+        expired = self.repository.save(expired)
+        expired_time = timezone.now() - timedelta(minutes=1)
+        DjangoNotificationModel.objects.filter(id=expired.id).update(
+            expires_at=expired_time,
+            created_at=expired_time - timedelta(days=1),
+        )
 
         ids = [
             item.id
@@ -277,10 +281,23 @@ class NotificationRepositoryTests(TestCase):
             DjangoNotificationModel.objects.filter(id=notification.id).exists()
         )
 
+    def test_dismissed_notification_is_not_recreated_by_source_lookup(self):
+        notification = self.repository.save(self._notification())
+        notification.dismiss()
+        self.repository.save(notification)
+        found = self.repository.get_existing_for_source(
+            notification_type=notification.notification_type,
+            scheduled_for=notification.scheduled_for,
+        )
+        self.assertEqual(found.id, notification.id)
+
     def test_delete_expired(self):
-        expired = self._notification()
-        expired.expires_at = timezone.now() - timedelta(minutes=1)
-        self.repository.save(expired)
+        expired = self.repository.save(self._notification())
+        expired_time = timezone.now() - timedelta(minutes=1)
+        DjangoNotificationModel.objects.filter(id=expired.id).update(
+            expires_at=expired_time,
+            created_at=expired_time - timedelta(days=1),
+        )
         self.assertEqual(
             self.repository.delete_expired(timezone.now()),
             1,
