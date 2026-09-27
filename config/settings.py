@@ -283,6 +283,10 @@ DEFAULT_FROM_EMAIL = os.getenv(
 )
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 
+# Secret used exclusively by the external scheduler for internal notification processing.
+# Keep the real value in the deployment environment; never commit it to source control.
+NOTIFICATION_CRON_SECRET = os.getenv("NOTIFICATION_CRON_SECRET")
+
 
 # -------------------------------------------------------------------
 # Simple JWT

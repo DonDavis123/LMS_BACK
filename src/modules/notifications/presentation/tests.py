@@ -2,9 +2,12 @@ from datetime import timedelta
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
+from unittest.mock import patch
+
+from src.modules.reminders.infrastructure.persistence.models.django_reminder_model import DjangoReminderModel
 
 from src.modules.notifications.domain.entities.notification import Notification
 from src.modules.notifications.domain.enums.notification_type import NotificationType
@@ -105,3 +108,121 @@ class NotificationAPITests(TestCase):
         other = self._create(self.other_user.id)
         response = self.client.delete(f"/api/notifications/{other.id}/")
         self.assertEqual(response.status_code, 404)
+
+class NotificationCronEndpointTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            email=f"notification-cron-{uuid4()}@example.com",
+            password="test-password",
+            name="Notification Cron User",
+        )
+        self.secret = "test-cron-secret"
+        self.cron_url = "/api/internal/notifications/process/"
+        self.repository = DjangoNotificationRepository()
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_valid_cron_secret_processes_notifications(self):
+        reminder = DjangoReminderModel.objects.create(
+            subject="Call customer",
+            remind_at=timezone.now() - timedelta(minutes=1),
+            user=self.user,
+        )
+
+        response = self.client.post(
+            self.cron_url,
+            HTTP_X_CRON_SECRET=self.secret,
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["status"], "processed")
+        self.assertEqual(response.data["reminders_processed"], 1)
+        self.assertEqual(response.data["failures"], 0)
+
+        notification = self.repository.get_by_user(self.user.id)[0]
+        self.assertEqual(notification.reminder_id, reminder.id)
+        self.assertEqual(notification.user_id, self.user.id)
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_repeated_cron_processing_does_not_create_duplicate_reminder_notification(self):
+        DjangoReminderModel.objects.create(
+            subject="Call customer",
+            remind_at=timezone.now() - timedelta(minutes=1),
+            user=self.user,
+        )
+
+        first = self.client.post(
+            self.cron_url,
+            HTTP_X_CRON_SECRET=self.secret,
+        )
+        second = self.client.post(
+            self.cron_url,
+            HTTP_X_CRON_SECRET=self.secret,
+        )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.data["duplicates_skipped"], 1)
+        self.assertEqual(len(self.repository.get_by_user(self.user.id)), 1)
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_missing_cron_secret_is_rejected(self):
+        response = self.client.post(self.cron_url)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.data["detail"], "Invalid cron credentials.")
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_invalid_cron_secret_is_rejected(self):
+        response = self.client.post(
+            self.cron_url,
+            HTTP_X_CRON_SECRET="wrong-secret",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.data["detail"], "Invalid cron credentials.")
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_jwt_authentication_without_cron_secret_is_rejected(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(self.cron_url)
+
+        self.assertEqual(response.status_code, 401)
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_get_is_rejected(self):
+        response = self.client.get(
+            self.cron_url,
+            HTTP_X_CRON_SECRET=self.secret,
+        )
+
+        self.assertEqual(response.status_code, 405)
+
+    @override_settings(NOTIFICATION_CRON_SECRET=None)
+    def test_missing_server_secret_fails_closed(self):
+        response = self.client.post(
+            self.cron_url,
+            HTTP_X_CRON_SECRET=self.secret,
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.data["detail"], "Invalid cron credentials.")
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_processing_exception_returns_generic_500(self):
+        with patch(
+            "src.modules.notifications.presentation.api.views.notification_cron.ProcessNotificationsUseCase.execute",
+            side_effect=RuntimeError("database credentials leaked if returned"),
+        ):
+            response = self.client.post(
+                self.cron_url,
+                HTTP_X_CRON_SECRET=self.secret,
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.data["detail"],
+            "Notification processing failed.",
+        )
+        self.assertNotIn("database credentials", str(response.data))
