@@ -35,6 +35,8 @@ class NotificationAPITests(TestCase):
             user_id=user_id,
             scheduled_for=timezone.now() - timedelta(minutes=1),
         )
+        if is_read:
+            notification.mark_as_read()
         saved = self.repository.save(notification)
         if expires_at is not None:
             from src.modules.notifications.infrastructure.persistence.models import DjangoNotificationModel
