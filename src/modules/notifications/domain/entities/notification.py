@@ -94,8 +94,8 @@ class Notification:
         self.updated_at = timestamp
 
     def validate_state(self) -> None:
-        if self.expires_at <= self.scheduled_for:
-            raise ValueError("Notification expiry must be later than scheduled time.")
+        if self.expires_at <= self.created_at:
+            raise ValueError("Notification expiry must be later than creation time.")
 
         if self.is_read and self.read_at is None:
             raise ValueError("Read notifications must have a read time.")

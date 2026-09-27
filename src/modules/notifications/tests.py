@@ -210,7 +210,7 @@ class NotificationRepositoryTests(TestCase):
         expired = self._notification(
             title="Expired",
             message="Expired notification",
-            scheduled_for=timezone.now() + timedelta(hours=2),
+            scheduled_for=timezone.now() - timedelta(hours=2),
         )
         expired.expires_at = timezone.now() - timedelta(minutes=1)
         self.repository.save(expired)
@@ -262,13 +262,11 @@ class NotificationRepositoryTests(TestCase):
             self._notification(
                 notification_type=NotificationType.TASK_DUE_TODAY,
                 scheduled_for=scheduled_for,
-                task_id=uuid4(),
             )
         )
         found = self.repository.get_existing_for_source(
             notification_type=NotificationType.TASK_DUE_ONE_DAY,
             scheduled_for=scheduled_for,
-            task_id=first.task_id,
         )
         self.assertIsNone(found)
 
@@ -678,7 +676,7 @@ class NotificationApplicationTests(TestCase):
                 title="Expired",
                 message="Expired message",
                 user_id=self.user_id,
-                scheduled_for=timezone.now(),
+                scheduled_for=timezone.now() - timedelta(hours=2),
             )
         )
         notification.expires_at = timezone.now() - timedelta(minutes=1)

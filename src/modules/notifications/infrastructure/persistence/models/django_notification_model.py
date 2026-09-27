@@ -91,19 +91,19 @@ class DjangoNotificationModel(models.Model):
     class Meta:
         db_table = "notifications"
         indexes = [
-            models.Index(fields=["user", "scheduled_for"]),
-            models.Index(fields=["user", "is_read"]),
-            models.Index(fields=["expires_at"]),
-            models.Index(fields=["scheduled_for"]),
-            models.Index(fields=["task"]),
-            models.Index(fields=["meeting"]),
-            models.Index(fields=["reminder"]),
+            models.Index(fields=["user", "scheduled_for"], name="notif_user_sched_idx"),
+            models.Index(fields=["user", "is_read"], name="notif_user_read_idx"),
+            models.Index(fields=["expires_at"], name="notif_expires_idx"),
+            models.Index(fields=["scheduled_for"], name="notif_sched_idx"),
+            models.Index(fields=["task"], name="notif_task_idx"),
+            models.Index(fields=["meeting"], name="notif_meeting_idx"),
+            models.Index(fields=["reminder"], name="notif_reminder_idx"),
         ]
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    models.Q(task__isnull=True)
-                    | models.Q(meeting__isnull=True)
+                    models.Q(meeting__isnull=True)
+                    | models.Q(task__isnull=True)
                 ),
                 name="notification_single_target",
             ),
