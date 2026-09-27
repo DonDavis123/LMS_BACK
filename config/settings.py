@@ -117,6 +117,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "https://snipping-foothill-nursery.ngrok-free.dev",
     "https://crm-sage-psi-73.vercel.app",
+    "https://lms-front-delta.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

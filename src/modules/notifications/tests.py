@@ -665,9 +665,9 @@ class NotificationApplicationTests(TestCase):
             self.notification_repository,
             self.transaction_manager,
         ).execute(notification.id, self.user_id)
-        self.assertIsNone(
-            self.notification_repository.get_by_id(notification.id)
-        )
+        deleted = self.notification_repository.get_by_id(notification.id)
+        self.assertIsNotNone(deleted)
+        self.assertIsNotNone(deleted.dismissed_at)
 
     def test_delete_other_user_rejected(self):
         notification = self.create.execute(
