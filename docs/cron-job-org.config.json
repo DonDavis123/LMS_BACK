@@ -1,0 +1,15 @@
+{
+  "name": "LMS notification processor",
+  "url": "https://<your-backend-domain>/api/internal/notifications/process/",
+  "method": "POST",
+  "schedule": "every minute",
+  "headers": {
+    "X-Cron-Secret": "<same-value-as-NOTIFICATION_CRON_SECRET>"
+  },
+  "body": "",
+  "notes": [
+    "Do not commit the real secret.",
+    "Use HTTPS.",
+    "Use cron-job.org Test run before enabling the schedule."
+  ]
+}
