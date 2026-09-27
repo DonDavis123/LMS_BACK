@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from src.modules.notifications.presentation.api.views.notification_cron import (
+    NotificationCronProcessView,
+)
+
 
 
 urlpatterns = [
@@ -48,6 +52,12 @@ urlpatterns = [
         "api/reminders/",
         include("src.modules.reminders.presentation.api.urls"),
     ),
+    path(
+        "api/internal/notifications/process/",
+        NotificationCronProcessView.as_view(),
+        name="notification-cron-process",
+    ),
+
     path(
         "api/notifications/",
         include("src.modules.notifications.presentation.api.urls"),
