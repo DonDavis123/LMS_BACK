@@ -51,20 +51,16 @@ class NotificationCronProcessView(APIView):
         provided_secret = request.headers.get(CRON_SECRET_HEADER)
 
         if not configured_secret or not provided_secret:
-            response = Response(
+            return Response(
                 {"detail": "Invalid cron credentials."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-            response["Cache-Control"] = "no-store"
-            return response
 
         if not hmac.compare_digest(provided_secret, configured_secret):
-            response = Response(
+            return Response(
                 {"detail": "Invalid cron credentials."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-            response["Cache-Control"] = "no-store"
-            return response
 
         now = timezone.now()
 
@@ -79,19 +75,18 @@ class NotificationCronProcessView(APIView):
             ).execute(now, timezone.localtime(now))
         except Exception:
             logger.exception("Notification cron processing failed")
-            response = Response(
+            return Response(
                 {"detail": "Notification processing failed."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-            response["Cache-Control"] = "no-store"
-            return response
 
         logger.info("Notification cron processing completed")
 
-        response = Response(
+        return Response(
             {
                 "status": "processed",
                 "reminders_processed": result.reminders_processed,
+                "reminders_deleted": result.reminders_deleted,
                 "task_notifications_created": result.task_notifications_created,
                 "meeting_notifications_created": result.meeting_notifications_created,
                 "duplicates_skipped": result.duplicates_skipped,
@@ -100,6 +95,3 @@ class NotificationCronProcessView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-        # Cron responses contain processing metadata and must not be cached.
-        response["Cache-Control"] = "no-store"
-        return response
