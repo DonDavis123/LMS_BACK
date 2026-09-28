@@ -36,6 +36,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("Notification processing completed."))
         self.stdout.write(f"Reminders processed: {result.reminders_processed}")
+        self.stdout.write(f"Reminders deleted: {result.reminders_deleted}")
         self.stdout.write(f"Task notifications created: {result.task_notifications_created}")
         self.stdout.write(f"Meeting notifications created: {result.meeting_notifications_created}")
         self.stdout.write(f"Duplicates skipped: {result.duplicates_skipped}")

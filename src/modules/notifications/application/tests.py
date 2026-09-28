@@ -82,6 +82,11 @@ class _ReminderRepository:
     def get_by_id(self, reminder_id):
         return next((r for r in self.reminders if r.id == reminder_id), None)
 
+    def delete_by_id(self, reminder_id):
+        before = len(self.reminders)
+        self.reminders[:] = [r for r in self.reminders if r.id != reminder_id]
+        return len(self.reminders) < before
+
 
 class _NotificationRepository:
     def __init__(self):
@@ -152,15 +157,53 @@ class ProcessNotificationsUseCaseTests(SimpleTestCase):
         self.assertEqual(result.task_notifications_created, 1)
         self.assertEqual(next(iter(self.notification_repository.items.values())).notification_type, NotificationType.TASK_DUE_ONE_DAY)
 
-    def test_standalone_reminder_creates_notification(self):
+    def test_standalone_reminder_creates_notification_and_is_consumed(self):
         now = datetime(2026, 9, 27, 10, tzinfo=timezone.utc)
-        self.reminder_repository.reminders.append(_Reminder(uuid4(), self.user.id, now - timedelta(minutes=1)))
+        reminder = _Reminder(
+            uuid4(),
+            self.user.id,
+            now - timedelta(minutes=1),
+        )
+        self.reminder_repository.reminders.append(reminder)
 
         result = self.use_case.execute(now)
 
         self.assertEqual(result.reminders_processed, 1)
+        self.assertEqual(result.reminders_deleted, 1)
+        self.assertEqual(len(self.reminder_repository.reminders), 0)
         self.assertEqual(len(self.notification_repository.items), 1)
-        self.assertEqual(next(iter(self.notification_repository.items.values())).notification_type, NotificationType.REMINDER)
+        self.assertEqual(
+            next(iter(self.notification_repository.items.values())).notification_type,
+            NotificationType.REMINDER,
+        )
+
+    def test_failed_reminder_processing_keeps_reminder_for_retry(self):
+        now = datetime(2026, 9, 27, 10, tzinfo=timezone.utc)
+        inactive_user = _User(uuid4(), is_active=False)
+        self.user_repository = _UserRepository([inactive_user])
+        self.reminder_repository.reminders.append(
+            _Reminder(
+                uuid4(),
+                inactive_user.id,
+                now - timedelta(minutes=1),
+            )
+        )
+        self.use_case = ProcessNotificationsUseCase(
+            self.notification_repository,
+            self.reminder_repository,
+            self.task_repository,
+            self.meeting_repository,
+            self.user_repository,
+            _TransactionManager(),
+        )
+
+        result = self.use_case.execute(now)
+
+        self.assertEqual(result.reminders_processed, 1)
+        self.assertEqual(result.reminders_deleted, 0)
+        self.assertEqual(result.failures, 1)
+        self.assertEqual(len(self.reminder_repository.reminders), 1)
+        self.assertEqual(len(self.notification_repository.items), 0)
 
     def test_meeting_today_creates_notification_for_host(self):
         now = datetime(2026, 9, 27, 10, tzinfo=timezone.utc)

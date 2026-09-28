@@ -137,15 +137,20 @@ class NotificationCronEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["status"], "processed")
         self.assertEqual(response.data["reminders_processed"], 1)
+        self.assertEqual(response.data["reminders_deleted"], 1)
         self.assertEqual(response.data["failures"], 0)
 
+        self.assertFalse(
+            DjangoReminderModel.objects.filter(id=reminder.id).exists()
+        )
+
         notification = self.repository.get_by_user(self.user.id)[0]
-        self.assertEqual(notification.reminder_id, reminder.id)
+        self.assertIsNone(notification.reminder_id)
         self.assertEqual(notification.user_id, self.user.id)
 
     @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
-    def test_repeated_cron_processing_does_not_create_duplicate_reminder_notification(self):
-        DjangoReminderModel.objects.create(
+    def test_repeated_cron_processing_consumes_reminder_only_once(self):
+        reminder = DjangoReminderModel.objects.create(
             subject="Call customer",
             remind_at=timezone.now() - timedelta(minutes=1),
             user=self.user,
@@ -161,9 +166,37 @@ class NotificationCronEndpointTests(TestCase):
         )
 
         self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.data["reminders_processed"], 1)
+        self.assertEqual(first.data["reminders_deleted"], 1)
         self.assertEqual(second.status_code, 200)
-        self.assertEqual(second.data["duplicates_skipped"], 1)
+        self.assertEqual(second.data["reminders_processed"], 0)
+        self.assertEqual(second.data["reminders_deleted"], 0)
         self.assertEqual(len(self.repository.get_by_user(self.user.id)), 1)
+        self.assertFalse(
+            DjangoReminderModel.objects.filter(id=reminder.id).exists()
+        )
+
+    @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
+    def test_processing_failure_keeps_due_reminder(self):
+        reminder = DjangoReminderModel.objects.create(
+            subject="Call customer",
+            remind_at=timezone.now() - timedelta(minutes=1),
+            user=self.user,
+        )
+
+        with patch(
+            "src.modules.notifications.presentation.api.views.notification_cron.ProcessNotificationsUseCase.execute",
+            side_effect=RuntimeError("processing failed"),
+        ):
+            response = self.client.post(
+                self.cron_url,
+                HTTP_X_CRON_SECRET=self.secret,
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertTrue(
+            DjangoReminderModel.objects.filter(id=reminder.id).exists()
+        )
 
     @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
     def test_missing_cron_secret_is_rejected(self):

@@ -55,6 +55,7 @@ class ProcessNotificationsUseCase:
         tomorrow = today + timedelta(days=1)
 
         reminders_processed = 0
+        reminders_deleted = 0
         task_created = 0
         meeting_created = 0
         duplicates = 0
@@ -63,9 +64,24 @@ class ProcessNotificationsUseCase:
         for reminder in self.reminder_repository.get_due(now):
             reminders_processed += 1
             try:
-                created, duplicate = self._create_reminder_notification(reminder)
+                def process_reminder():
+                    _, duplicate = self._create_reminder_notification(reminder)
+
+                    # A reminder is a one-time scheduling record. Once its
+                    # notification has been successfully created (or an
+                    # existing notification proves it was already created),
+                    # consume the reminder in the same transaction.
+                    deleted = self.reminder_repository.delete_by_id(reminder.id)
+                    if not deleted:
+                        raise ValueError("Due reminder could not be deleted.")
+
+                    return duplicate
+
+                duplicate = self.transaction_manager.execute(process_reminder)
+
                 if duplicate:
                     duplicates += 1
+                reminders_deleted += 1
             except ValueError:
                 failures += 1
 
@@ -125,6 +141,7 @@ class ProcessNotificationsUseCase:
 
         return ProcessNotificationsResult(
             reminders_processed=reminders_processed,
+            reminders_deleted=reminders_deleted,
             task_notifications_created=task_created,
             meeting_notifications_created=meeting_created,
             duplicates_skipped=duplicates,

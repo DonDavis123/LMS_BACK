@@ -45,6 +45,7 @@ A successful request returns HTTP 200 with the real processing counts from `Proc
 {
   "status": "processed",
   "reminders_processed": 2,
+  "reminders_deleted": 2,
   "task_notifications_created": 1,
   "meeting_notifications_created": 0,
   "duplicates_skipped": 1,
@@ -69,7 +70,7 @@ NotificationCronProcessView
        v
 ProcessNotificationsUseCase
        |
-       +--> due reminders
+       +--> due reminders (one-time; consumed after successful processing)
        +--> task notifications
        +--> meeting notifications
        +--> duplicate protection
