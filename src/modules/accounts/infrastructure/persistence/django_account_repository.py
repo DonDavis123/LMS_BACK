@@ -1,8 +1,5 @@
 from uuid import UUID
 
-from django.db import IntegrityError, transaction
-from django.db.models.functions import Lower, Trim
-
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
@@ -14,29 +11,7 @@ from .django_account_model import DjangoAccountModel
 
 class DjangoAccountRepository(AccountRepository):
 
-    # Name of the partial unique index enforced by the database on
-    # lower(trim(account_name)) for non-deleted accounts.
-    _UNIQUE_NAME_INDEX = "uniq_active_account_normalized_name"
-
     def save(self, account: Account) -> Account:
-        # The savepoint keeps the surrounding transaction usable if the
-        # database rejects the row, so the failure can be translated into
-        # a domain error instead of surfacing as an HTTP 500.
-        try:
-            with transaction.atomic():
-                model = self._persist(account)
-        except IntegrityError as exc:
-            if self._UNIQUE_NAME_INDEX in str(exc):
-                raise ValueError(
-                    f"An Account named '{account.account_name.strip()}' "
-                    "already exists. Select the existing Account instead."
-                ) from exc
-            raise
-
-        return self._to_domain(model)
-
-    @staticmethod
-    def _persist(account: Account) -> DjangoAccountModel:
         model, created = DjangoAccountModel.objects.update_or_create(
             id=account.id,
             defaults={
@@ -75,7 +50,7 @@ class DjangoAccountRepository(AccountRepository):
             },
         )
 
-        return model
+        return self._to_domain(model)
 
     def get_by_id(
         self,
@@ -282,17 +257,12 @@ class DjangoAccountRepository(AccountRepository):
         phone: str | None,
     ) -> list[Account]:
 
-        # Compare names the same way the database uniqueness rule does
-        # (case-insensitive, surrounding whitespace ignored) so an Account
-        # that would collide on creation is always offered as a match.
         queryset = DjangoAccountModel.objects.filter(
             is_deleted=False,
-        ).annotate(
-            normalized_name=Lower(Trim("account_name")),
         )
 
         matches = queryset.filter(
-            normalized_name=account_name.strip().lower(),
+            account_name__iexact=account_name,
         )
 
         if website:
