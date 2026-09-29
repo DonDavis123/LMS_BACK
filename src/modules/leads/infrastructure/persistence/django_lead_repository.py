@@ -1,6 +1,15 @@
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from uuid import UUID
 
+from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
+
+from src.modules.accounts.infrastructure.persistence.django_account_model import (
+    DjangoAccountModel,
+)
+from src.modules.contacts.infrastructure.persistence.django_contact_model import (
+    DjangoContactModel,
+)
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
 
 from src.modules.leads.application.interfaces.lead_repository import (
@@ -170,6 +179,10 @@ class DjangoLeadRepository(LeadRepository):
         boolean_fields = {
             "is_converted": "is_converted",
         }
+        # Virtual fields: a Lead has no FK to Account/Contact, so these are
+        # resolved through the same matching rules used by the conversion
+        # check (see _apply_related_name_filter).
+        related_name_fields = {"account_name", "contact_name"}
 
         for condition in filters:
             field = condition.field
@@ -199,6 +212,10 @@ class DjangoLeadRepository(LeadRepository):
             elif field in boolean_fields:
                 queryset = DjangoLeadRepository._apply_boolean_filter(
                     queryset, boolean_fields[field], operator, value, field
+                )
+            elif field in related_name_fields:
+                queryset = DjangoLeadRepository._apply_related_name_filter(
+                    queryset, operator, value, field
                 )
             else:
                 raise ValueError(f"Filtering is not supported for field '{field}'.")
@@ -278,35 +295,113 @@ class DjangoLeadRepository(LeadRepository):
 
     @staticmethod
     def _apply_datetime_filter(queryset, db_field, operator, value, field):
+        """
+        Date-only values ("YYYY-MM-DD") are treated as whole calendar days in
+        the project's configured time zone; full ISO datetimes are treated as
+        exact instants. Ranges are inclusive of both ends, so "on/before" and
+        "between" include every record on the last day.
+        """
+        parse = DjangoLeadRepository._parse_datetime
+
         if operator == "between":
             if not isinstance(value, dict) or "from" not in value or "to" not in value:
                 raise ValueError(f"Value for '{field}' must contain 'from' and 'to'.")
-            start = DjangoLeadRepository._parse_datetime(value["from"], field)
-            end = DjangoLeadRepository._parse_datetime(value["to"], field)
-            if start > end:
+            start, _ = parse(value["from"], field)
+            end, end_is_day = parse(value["to"], field)
+            if end_is_day:
+                end = DjangoLeadRepository._next_day_start(end)
+            if start > end or (end_is_day and start == end):
                 raise ValueError(f"'from' must not be after 'to' for '{field}'.")
-            return queryset.filter(**{f"{db_field}__range": (start, end)})
-        parsed = DjangoLeadRepository._parse_datetime(value, field)
+            upper = f"{db_field}__lt" if end_is_day else f"{db_field}__lte"
+            return queryset.filter(**{f"{db_field}__gte": start, upper: end})
+
+        parsed, is_day = parse(value, field)
         if operator == "equals":
+            if is_day:
+                return queryset.filter(**{
+                    f"{db_field}__gte": parsed,
+                    f"{db_field}__lt": DjangoLeadRepository._next_day_start(parsed),
+                })
             return queryset.filter(**{db_field: parsed})
-        if operator == "before":
-            return queryset.filter(**{f"{db_field}__lt": parsed})
         if operator == "after":
-            return queryset.filter(**{f"{db_field}__gt": parsed})
+            return queryset.filter(**{f"{db_field}__gte": parsed})
+        if operator == "before":
+            if is_day:
+                return queryset.filter(
+                    **{f"{db_field}__lt": DjangoLeadRepository._next_day_start(parsed)}
+                )
+            return queryset.filter(**{f"{db_field}__lte": parsed})
         raise ValueError(f"Operator '{operator}' is not supported for date/datetime field '{field}'.")
 
     @staticmethod
-    def _parse_datetime(value, field):
+    def _next_day_start(day_start: datetime) -> datetime:
+        next_day = day_start.astimezone(timezone.get_current_timezone()).date() + timedelta(days=1)
+        return timezone.make_aware(datetime.combine(next_day, time.min))
+
+    @staticmethod
+    def _parse_datetime(value, field) -> tuple[datetime, bool]:
+        """Returns (timezone-aware datetime, is_date_only)."""
         if not isinstance(value, str):
             raise ValueError(f"Value for '{field}' must be an ISO date/datetime string.")
         try:
+            day = date.fromisoformat(value)
+        except ValueError:
+            pass
+        else:
+            return timezone.make_aware(datetime.combine(day, time.min)), True
+        try:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
-            try:
-                parsed = date.fromisoformat(value)
-            except ValueError:
-                raise ValueError(f"Invalid date/datetime value for '{field}'.")
-        return parsed
+            raise ValueError(f"Invalid date/datetime value for '{field}'.")
+        if timezone.is_naive(parsed):
+            parsed = timezone.make_aware(parsed)
+        return parsed, False
+
+    @staticmethod
+    def _apply_related_name_filter(queryset, operator, value, field):
+        """
+        Filters leads by the name of an existing, non-deleted Account/Contact
+        that the lead corresponds to. A Lead stores no FK to either, so the
+        correspondence uses the same rules as the conversion check:
+          - Account: account_name equals the lead's company_name (iexact)
+          - Contact: name equals lead name, or email / phone / mobile equal
+            the lead's (blank values never match).
+        Uses correlated EXISTS subqueries: one SQL query, no N+1, leads with
+        no company / no match are handled by the (NOT) EXISTS semantics.
+        """
+        value = DjangoLeadRepository._require_string(value, field)
+        lookups = {
+            "contains": "icontains",
+            "not_contains": "icontains",
+            "equals": "iexact",
+            "not_equals": "iexact",
+            "starts_with": "istartswith",
+            "ends_with": "iendswith",
+        }
+        if operator not in lookups:
+            raise ValueError(f"Operator '{operator}' is not supported for field '{field}'.")
+        lookup = lookups[operator]
+
+        if field == "account_name":
+            related = DjangoAccountModel.objects.filter(
+                is_deleted=False,
+                account_name__iexact=OuterRef("company_name"),
+            ).filter(**{f"account_name__{lookup}": value})
+        else:
+            corresponds = (
+                Q(name__iexact=OuterRef("name"))
+                | (Q(email__iexact=OuterRef("email")) & ~Q(email=""))
+                | (Q(phone=OuterRef("phone")) & ~Q(phone=""))
+                | (Q(mobile=OuterRef("mobile_number")) & ~Q(mobile=""))
+            )
+            related = DjangoContactModel.objects.filter(
+                corresponds,
+                is_deleted=False,
+            ).filter(**{f"name__{lookup}": value})
+
+        if operator in {"not_contains", "not_equals"}:
+            return queryset.filter(~Exists(related))
+        return queryset.filter(Exists(related))
 
     @staticmethod
     def _apply_uuid_filter(queryset, db_field, operator, value, field):
