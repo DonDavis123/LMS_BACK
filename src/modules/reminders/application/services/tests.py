@@ -147,3 +147,63 @@ class ReminderSyncServiceTests(SimpleTestCase):
         self.service.sync_meeting(meeting)
 
         self.assertEqual(self.repository.get_by_meeting(meeting.id), [])
+
+    def test_does_not_recreate_consumed_task_reminder_when_unchanged(self):
+        # A fired reminder is deleted while task.reminder_at stays set. Saving
+        # the task again without touching the reminder must not re-arm it.
+        task = FakeTask(
+            uuid4(),
+            "Call customer",
+            self.user_id,
+            timezone.now() - timedelta(hours=1),
+        )
+
+        self.service.sync_task(task, create_if_missing=False)
+
+        self.assertEqual(self.repository.get_by_task(task.id), [])
+
+    def test_creates_task_reminder_when_reminder_time_changed(self):
+        task = FakeTask(
+            uuid4(),
+            "Call customer",
+            self.user_id,
+            timezone.now() + timedelta(hours=3),
+        )
+
+        self.service.sync_task(task, create_if_missing=True)
+
+        self.assertEqual(len(self.repository.get_by_task(task.id)), 1)
+
+    def test_still_updates_existing_task_reminder_when_create_disabled(self):
+        task = FakeTask(
+            uuid4(),
+            "Call customer",
+            self.user_id,
+            timezone.now() + timedelta(hours=1),
+        )
+        existing = Reminder.create(
+            subject="Old subject",
+            remind_at=task.reminder_at,
+            user_id=self.user_id,
+            task_id=task.id,
+        )
+        self.repository.save(existing)
+
+        task.subject = "New subject"
+        self.service.sync_task(task, create_if_missing=False)
+
+        reminders = self.repository.get_by_task(task.id)
+        self.assertEqual(len(reminders), 1)
+        self.assertEqual(reminders[0].subject, "New subject")
+
+    def test_does_not_recreate_consumed_meeting_reminder_when_unchanged(self):
+        meeting = FakeMeeting(
+            uuid4(),
+            "Client meeting",
+            self.user_id,
+            timezone.now() - timedelta(hours=1),
+        )
+
+        self.service.sync_meeting(meeting, create_if_missing=False)
+
+        self.assertEqual(self.repository.get_by_meeting(meeting.id), [])

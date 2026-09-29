@@ -10,7 +10,15 @@ class ReminderSyncService:
     def __init__(self, reminder_repository: ReminderRepository):
         self.reminder_repository = reminder_repository
 
-    def sync_task(self, task) -> None:
+    def sync_task(self, task, *, create_if_missing: bool = True) -> None:
+        """Mirror ``task.reminder_at`` into a Reminder row.
+
+        A Reminder is consumed (deleted) once its notification has been
+        generated, while ``task.reminder_at`` stays set. ``create_if_missing``
+        must therefore be False when the caller is saving a task whose
+        reminder time did not change; otherwise the consumed reminder is
+        re-created in the past and fires again on every unrelated save.
+        """
         reminders = self.reminder_repository.get_by_task(task.id)
 
         if task.is_deleted or task.reminder_at is None:
@@ -34,6 +42,9 @@ class ReminderSyncService:
             self.reminder_repository.save(reminder)
             return
 
+        if not create_if_missing:
+            return
+
         reminder = Reminder.create(
             subject=task.subject,
             remind_at=task.reminder_at,
@@ -42,7 +53,11 @@ class ReminderSyncService:
         )
         self.reminder_repository.save(reminder)
 
-    def sync_meeting(self, meeting) -> None:
+    def sync_meeting(self, meeting, *, create_if_missing: bool = True) -> None:
+        """Mirror ``meeting.reminder_at`` into a Reminder row.
+
+        See ``sync_task`` for the meaning of ``create_if_missing``.
+        """
         reminders = self.reminder_repository.get_by_meeting(meeting.id)
 
         if meeting.is_deleted or meeting.reminder_at is None:
@@ -64,6 +79,9 @@ class ReminderSyncService:
                 user_id=meeting.host_id,
             )
             self.reminder_repository.save(reminder)
+            return
+
+        if not create_if_missing:
             return
 
         reminder = Reminder.create(
