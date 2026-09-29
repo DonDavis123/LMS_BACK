@@ -45,6 +45,7 @@ class CreateReminderUseCase:
             user_id=data.user_id,
             task_id=data.task_id,
             meeting_id=data.meeting_id,
+            is_enabled=data.is_enabled,
         )
 
         return self.transaction_manager.execute(

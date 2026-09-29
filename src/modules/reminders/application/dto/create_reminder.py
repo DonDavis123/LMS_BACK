@@ -10,3 +10,4 @@ class CreateReminderDTO:
     user_id: UUID
     task_id: UUID | None = None
     meeting_id: UUID | None = None
+    is_enabled: bool = True

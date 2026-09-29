@@ -32,7 +32,7 @@ class UpdateReminderUseCase:
             raise ValueError("Reminder not found.")
 
         fields = dict(data.fields)
-        allowed_fields = {"subject", "remind_at", "task_id", "meeting_id"}
+        allowed_fields = {"subject", "remind_at", "task_id", "meeting_id", "is_enabled"}
         unknown_fields = set(fields) - allowed_fields
         if unknown_fields:
             raise ValueError("Unsupported reminder field.")
@@ -59,6 +59,7 @@ class UpdateReminderUseCase:
                 remind_at=fields.get("remind_at"),
                 task_id=task_id,
                 meeting_id=meeting_id,
+                is_enabled=fields.get("is_enabled"),
                 task_id_provided=task_id_provided,
                 meeting_id_provided=meeting_id_provided,
             )

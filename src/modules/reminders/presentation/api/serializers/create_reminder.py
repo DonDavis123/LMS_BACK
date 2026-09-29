@@ -6,3 +6,4 @@ class CreateReminderSerializer(serializers.Serializer):
     remind_at = serializers.DateTimeField()
     task_id = serializers.UUIDField(required=False, allow_null=True)
     meeting_id = serializers.UUIDField(required=False, allow_null=True)
+    is_enabled = serializers.BooleanField(required=False)
