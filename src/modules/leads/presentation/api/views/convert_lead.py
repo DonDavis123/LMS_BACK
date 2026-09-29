@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from rest_framework import status
@@ -16,6 +17,8 @@ from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
 )
 
 from ..serializers.convert_lead import ConvertLeadSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class ConvertLeadView(APIView):
@@ -171,6 +174,25 @@ class ConvertLeadView(APIView):
             return Response(
                 {"detail": str(error)},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except Exception:
+
+            # Unexpected failure (typically a database error). The
+            # transaction has already rolled back. Log the full
+            # traceback: with DEBUG off and no LOGGING config, Django
+            # would otherwise swallow it and the cause stays hidden.
+            logger.exception(
+                "Lead conversion failed: lead_id=%s account_action=%s "
+                "contact_action=%s",
+                lead_id,
+                dto.account_action,
+                dto.contact_action,
+            )
+
+            return Response(
+                {"detail": "Lead conversion failed unexpectedly."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         return Response(
