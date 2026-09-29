@@ -97,7 +97,14 @@ class UpdateMeetingUseCase:
             saved = self.meeting_repository.save(meeting)
 
             if self.reminder_sync_service is not None:
-                self.reminder_sync_service.sync_meeting(saved)
+                # See UpdateTaskUseCase: do not re-create a consumed reminder
+                # unless the reminder time actually changed.
+                self.reminder_sync_service.sync_meeting(
+                    saved,
+                    create_if_missing=(
+                        old_values["reminder_at"] != saved.reminder_at
+                    ),
+                )
 
             if related_changed or participants_changed:
                 current_related_type = related_type

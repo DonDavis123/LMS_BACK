@@ -243,7 +243,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+# Timezone used to interpret naive datetimes sent by clients (e.g. the value of
+# an <input type="datetime-local">), to decide what "today" / "tomorrow" mean
+# for task and meeting notifications, and to render API datetimes. The database
+# still stores UTC (USE_TZ = True). Override per deployment with APP_TIME_ZONE.
+TIME_ZONE = os.getenv("APP_TIME_ZONE", "Asia/Kolkata")
 
 USE_I18N = True
 

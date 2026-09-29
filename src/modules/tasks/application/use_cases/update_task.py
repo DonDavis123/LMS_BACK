@@ -135,7 +135,15 @@ class UpdateTaskUseCase:
             saved = self.task_repository.save(task)
 
             if self.reminder_sync_service is not None:
-                self.reminder_sync_service.sync_task(saved)
+                # Only (re)arm a missing reminder when the reminder time itself
+                # changed. A fired reminder is deleted, and re-creating it on
+                # every unrelated edit would fire it again.
+                self.reminder_sync_service.sync_task(
+                    saved,
+                    create_if_missing=(
+                        old_values["reminder_at"] != saved.reminder_at
+                    ),
+                )
 
             new_values = {
                 field: getattr(saved, field)
