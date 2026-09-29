@@ -24,6 +24,10 @@ class DjangoReminderModel(models.Model):
 
     remind_at = models.DateTimeField()
 
+    is_enabled = models.BooleanField(
+        default=True,
+    )
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

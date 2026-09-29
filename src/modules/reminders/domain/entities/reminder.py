@@ -13,6 +13,8 @@ class Reminder:
     meeting_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    # A disabled reminder is kept but never turned into a notification.
+    is_enabled: bool = True
 
     @classmethod
     def create(
@@ -22,6 +24,7 @@ class Reminder:
         user_id: UUID,
         task_id: UUID | None = None,
         meeting_id: UUID | None = None,
+        is_enabled: bool = True,
     ) -> "Reminder":
         if not isinstance(subject, str) or not subject.strip():
             raise ValueError("Reminder subject cannot be empty.")
@@ -50,6 +53,7 @@ class Reminder:
             meeting_id=meeting_id,
             created_at=now,
             updated_at=now,
+            is_enabled=is_enabled,
         )
 
     def synchronize(
@@ -81,6 +85,7 @@ class Reminder:
         remind_at: datetime | None = None,
         task_id: UUID | None = None,
         meeting_id: UUID | None = None,
+        is_enabled: bool | None = None,
         task_id_provided: bool = False,
         meeting_id_provided: bool = False,
     ) -> None:
@@ -104,4 +109,8 @@ class Reminder:
         self.remind_at = new_remind_at
         self.task_id = new_task_id
         self.meeting_id = new_meeting_id
+        if is_enabled is not None:
+            if not isinstance(is_enabled, bool):
+                raise ValueError("Reminder enabled state must be a boolean.")
+            self.is_enabled = is_enabled
         self.updated_at = datetime.now(timezone.utc)

@@ -55,8 +55,9 @@ class ReminderDomainTests(TestCase):
 class ReminderRepositoryTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
-            username=f"reminder-{uuid4()}",
+            email=f"reminder-{uuid4()}@example.com",
             password="test-password",
+            name="Reminder Repository User",
         )
         self.repository = DjangoReminderRepository()
 
@@ -594,3 +595,94 @@ class ReminderAPITests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("detail", response.data)
+
+
+class ReminderEnabledStateTests(TestCase):
+    """Custom reminders can be switched off without deleting them."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            email=f"enabled-reminder-{uuid4()}@example.com",
+            password="test-password",
+            name="Enabled Reminder User",
+        )
+        self.client.force_authenticate(user=self.user)
+        self.repository = DjangoReminderRepository()
+
+    def test_reminders_are_enabled_by_default(self):
+        reminder = Reminder.create(
+            subject="Default enabled",
+            remind_at=timezone.now() + timedelta(hours=1),
+            user_id=self.user.id,
+        )
+        self.assertTrue(reminder.is_enabled)
+
+        saved = self.repository.save(reminder)
+        self.assertTrue(self.repository.get_by_id(saved.id).is_enabled)
+
+    def test_get_due_skips_disabled_reminders(self):
+        enabled = Reminder.create(
+            subject="Enabled and due",
+            remind_at=timezone.now() - timedelta(minutes=1),
+            user_id=self.user.id,
+        )
+        disabled = Reminder.create(
+            subject="Disabled and due",
+            remind_at=timezone.now() - timedelta(minutes=1),
+            user_id=self.user.id,
+            is_enabled=False,
+        )
+        self.repository.save(enabled)
+        self.repository.save(disabled)
+
+        due = self.repository.get_due(timezone.now())
+
+        self.assertEqual([item.id for item in due], [enabled.id])
+        # The disabled reminder is kept, not consumed.
+        self.assertIsNotNone(self.repository.get_by_id(disabled.id))
+
+    def test_api_exposes_and_persists_enabled_state(self):
+        create_response = self.client.post(
+            "/api/reminders/",
+            {
+                "subject": "Toggle me",
+                "remind_at": (timezone.now() + timedelta(hours=2)).isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 201)
+        self.assertTrue(create_response.data["is_enabled"])
+        reminder_id = create_response.data["id"]
+
+        off = self.client.patch(
+            f"/api/reminders/{reminder_id}/",
+            {"is_enabled": False},
+            format="json",
+        )
+        self.assertEqual(off.status_code, 200)
+        self.assertFalse(off.data["is_enabled"])
+        self.assertFalse(self.client.get(f"/api/reminders/{reminder_id}/").data["is_enabled"])
+
+        on = self.client.patch(
+            f"/api/reminders/{reminder_id}/",
+            {"is_enabled": True},
+            format="json",
+        )
+        self.assertEqual(on.status_code, 200)
+        self.assertTrue(on.data["is_enabled"])
+
+    def test_api_can_create_disabled_reminder(self):
+        response = self.client.post(
+            "/api/reminders/",
+            {
+                "subject": "Created off",
+                "remind_at": (timezone.now() + timedelta(hours=2)).isoformat(),
+                "is_enabled": False,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(response.data["is_enabled"])

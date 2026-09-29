@@ -53,6 +53,7 @@ class ReminderListView(APIView):
             user_id=request.user.id,
             task_id=data.get("task_id"),
             meeting_id=data.get("meeting_id"),
+            is_enabled=data.get("is_enabled", True),
         )
 
         try:

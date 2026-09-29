@@ -25,6 +25,7 @@ class DjangoReminderRepository(ReminderRepository):
                 "user_id": reminder.user_id,
                 "task_id": reminder.task_id,
                 "meeting_id": reminder.meeting_id,
+                "is_enabled": reminder.is_enabled,
             },
         )
         return self._to_domain(model)
@@ -57,6 +58,7 @@ class DjangoReminderRepository(ReminderRepository):
     def get_due(self, as_of: datetime) -> list[Reminder]:
         models = DjangoReminderModel.objects.filter(
             remind_at__lte=as_of,
+            is_enabled=True,
         ).order_by("remind_at", "id")
         return [self._to_domain(model) for model in models]
 
@@ -75,4 +77,5 @@ class DjangoReminderRepository(ReminderRepository):
             meeting_id=model.meeting_id,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            is_enabled=model.is_enabled,
         )
