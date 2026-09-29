@@ -11,6 +11,10 @@ from src.modules.contacts.infrastructure.persistence.django_contact_model import
     DjangoContactModel,
 )
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.persistence.ordering import (
+    SortableField,
+    apply_ordering,
+)
 
 from src.modules.leads.application.interfaces.lead_repository import (
     LeadRepository,
@@ -25,6 +29,16 @@ from .django_lead_model import DjangoLeadModel
 
 
 class DjangoLeadRepository(LeadRepository):
+
+    SORTABLE_FIELDS = {
+        "name": SortableField("name", is_text=True),
+        "company_name": SortableField("company_name", is_text=True),
+        "email": SortableField("email", is_text=True),
+        "lead_source": SortableField("lead_source", is_text=True),
+        "lead_status": SortableField("lead_status", is_text=True),
+        "owner": SortableField("owner__name", is_text=True),
+        "created_at": SortableField("created_at"),
+    }
 
     def save(self, lead: Lead) -> Lead:
         model, created = DjangoLeadModel.objects.update_or_create(
@@ -124,7 +138,7 @@ class DjangoLeadRepository(LeadRepository):
 
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
-        queryset = queryset.order_by("name", "id")
+        queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size
         models = queryset[offset:offset + query.page_size]
