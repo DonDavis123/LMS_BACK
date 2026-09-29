@@ -8,6 +8,10 @@ from src.modules.contacts.application.interfaces.contact_repository import (
 )
 from src.modules.contacts.domain.entities.contact import Contact
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.persistence.ordering import (
+    SortableField,
+    apply_ordering,
+)
 from src.modules.tasks.domain.enums.task_status import TaskStatus
 from src.modules.tasks.infrastructure.persistence.models import (
     DjangoTaskModel,
@@ -17,6 +21,15 @@ from .django_contact_model import DjangoContactModel
 
 
 class DjangoContactRepository(ContactRepository):
+
+    SORTABLE_FIELDS = {
+        "name": SortableField("name", is_text=True),
+        "account": SortableField("account__account_name", is_text=True),
+        "email": SortableField("email", is_text=True),
+        "phone": SortableField("phone", is_text=True),
+        "contact_owner": SortableField("contact_owner__name", is_text=True),
+        "created_at": SortableField("created_at"),
+    }
 
     def save(self, contact: Contact) -> Contact:
         model, created = DjangoContactModel.objects.update_or_create(
@@ -150,7 +163,7 @@ class DjangoContactRepository(ContactRepository):
 
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
-        queryset = queryset.order_by("name", "id")
+        queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size
         models = queryset[offset:offset + query.page_size]

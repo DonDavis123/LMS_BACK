@@ -14,6 +14,8 @@ class ListQuery:
     filters: tuple[FilterCondition, ...] = ()
     page: int = 1
     page_size: int = 20
+    sort_by: str | None = None
+    sort_direction: str = "desc"
 
     MAX_PAGE_SIZE = 50
 
@@ -26,6 +28,8 @@ class ListQuery:
             raise ValueError(
                 f"Page size must be less than or equal to {self.MAX_PAGE_SIZE}."
             )
+        if self.sort_direction not in {"asc", "desc"}:
+            raise ValueError("Sort direction must be 'asc' or 'desc'.")
 
 
 from dataclasses import dataclass

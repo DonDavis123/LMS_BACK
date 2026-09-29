@@ -58,10 +58,24 @@ def parse_list_query(query_params: Any) -> ListQuery:
 
         filters = tuple(parsed)
 
+    sort_by = query_params.get("sort_by")
+    sort_by = sort_by.strip() if isinstance(sort_by, str) else None
+    sort_by = sort_by or None
+
+    sort_direction = query_params.get("sort_direction")
+    if isinstance(sort_direction, str) and sort_direction.strip():
+        sort_direction = sort_direction.strip().lower()
+    else:
+        sort_direction = "asc" if sort_by else "desc"
+    if sort_direction not in {"asc", "desc"}:
+        raise ValueError("The sort_direction parameter must be 'asc' or 'desc'.")
+
     return ListQuery(
         filters=filters,
         page=page,
         page_size=page_size,
+        sort_by=sort_by,
+        sort_direction=sort_direction,
     )
 
 

@@ -2,12 +2,17 @@ from datetime import date, datetime
 from uuid import UUID
 
 from django.db.models import Q
+from django.db.models.functions import Coalesce, Lower
 
 from src.modules.tasks.application.dto.get_task import GetTaskDTO
 from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.persistence.ordering import (
+    SortableField,
+    apply_ordering,
+)
 from src.modules.tasks.domain.entities.task import Task
 from src.modules.tasks.domain.enums.task_priority import TaskPriority
 from src.modules.tasks.domain.enums.task_status import TaskStatus
@@ -16,6 +21,30 @@ from .models import DjangoTaskModel
 
 
 class DjangoTaskRepository(TaskRepository):
+
+    SORTABLE_FIELDS = {
+        "subject": SortableField("subject", is_text=True),
+        "due_date": SortableField("due_date"),
+        "priority": SortableField("priority", is_text=True),
+        "status": SortableField("status", is_text=True),
+        # Annotation added by _annotate_related_sort(); only present when
+        # the list is actually sorted by "Related To".
+        "related_to": SortableField("related_to_sort"),
+        "owner": SortableField("owner__name", is_text=True),
+        "created_at": SortableField("created_at"),
+    }
+
+    @staticmethod
+    def _annotate_related_sort(queryset, query: ListQuery):
+        if query.sort_by != "related_to":
+            return queryset
+        return queryset.annotate(
+            related_to_sort=Coalesce(
+                Lower("lead__name"),
+                Lower("contact__name"),
+                Lower("account__account_name"),
+            )
+        )
 
     def save(self, task: Task) -> Task:
         model, created = DjangoTaskModel.objects.update_or_create(
@@ -90,7 +119,8 @@ class DjangoTaskRepository(TaskRepository):
 
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
-        queryset = queryset.order_by("due_date", "created_at", "id")
+        queryset = self._annotate_related_sort(queryset, query)
+        queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size
         models = queryset[offset:offset + query.page_size]
@@ -111,7 +141,8 @@ class DjangoTaskRepository(TaskRepository):
 
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
-        queryset = queryset.order_by("due_date", "created_at", "id")
+        queryset = self._annotate_related_sort(queryset, query)
+        queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size
         models = queryset[offset:offset + query.page_size]

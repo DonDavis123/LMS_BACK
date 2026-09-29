@@ -3,7 +3,8 @@ from uuid import UUID
 from datetime import datetime
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce, Lower
 
 from src.modules.meetings.application.dto.get_meeting import (
     GetMeetingDTO,
@@ -17,6 +18,10 @@ from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.persistence.ordering import (
+    SortableField,
+    apply_ordering,
+)
 
 from .models import (
     DjangoMeetingModel,
@@ -122,13 +127,33 @@ class DjangoMeetingRepository(MeetingRepository):
             participants=tuple(participants),
         )
 
+    SORTABLE_FIELDS = {
+        "title": SortableField("title", is_text=True),
+        "start_at": SortableField("start_at"),
+        "end_at": SortableField("end_at"),
+        # Annotation added in get_all(); only present when the list is
+        # actually sorted by "Related To".
+        "related_to": SortableField("related_to_sort"),
+        "host": SortableField("host__name", is_text=True),
+        "created_at": SortableField("created_at"),
+    }
+
     def get_all(self, query: ListQuery) -> PaginatedResult[GetMeetingsDTO]:
         queryset = (
             DjangoMeetingModel.objects
             .select_related("host")
             .filter(is_deleted=False)
-            .order_by("start_at", "id")
         )
+        if query.sort_by == "related_to":
+            first_related_name = (
+                DjangoMeetingRelatedRecordModel.objects
+                .filter(meeting_id=OuterRef("pk"))
+                .annotate(record_name=Coalesce(Lower("lead__name"), Lower("contact__name")))
+                .order_by("id")
+                .values("record_name")[:1]
+            )
+            queryset = queryset.annotate(related_to_sort=Subquery(first_related_name))
+        queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
         total = queryset.count()
         offset = (query.page - 1) * query.page_size
         models = list(queryset[offset:offset + query.page_size])

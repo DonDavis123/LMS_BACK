@@ -5,11 +5,24 @@ from src.modules.accounts.application.interfaces.account_repository import (
 )
 from src.modules.accounts.domain.entities.account import Account
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.persistence.ordering import (
+    SortableField,
+    apply_ordering,
+)
 
 from .django_account_model import DjangoAccountModel
 
 
 class DjangoAccountRepository(AccountRepository):
+
+    SORTABLE_FIELDS = {
+        "account_name": SortableField("account_name", is_text=True),
+        "website": SortableField("website", is_text=True),
+        "phone": SortableField("phone", is_text=True),
+        "industry": SortableField("industry", is_text=True),
+        "account_owner": SortableField("account_owner__name", is_text=True),
+        "created_at": SortableField("created_at"),
+    }
 
     def save(self, account: Account) -> Account:
         model, created = DjangoAccountModel.objects.update_or_create(
@@ -88,7 +101,7 @@ class DjangoAccountRepository(AccountRepository):
 
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
-        queryset = queryset.order_by("account_name", "id")
+        queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size
         models = queryset[offset:offset + query.page_size]
