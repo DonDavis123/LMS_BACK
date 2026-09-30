@@ -11,6 +11,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         SUPERADMIN = "SUPERADMIN", "Superadmin"
         ADMIN = "ADMIN", "Admin"
+        SALES_MANAGER = "SALES_MANAGER", "Sales Manager"
+        SALES_EXECUTIVE = "SALES_EXECUTIVE", "Sales Executive"
 
     id = models.UUIDField(
         primary_key=True,
