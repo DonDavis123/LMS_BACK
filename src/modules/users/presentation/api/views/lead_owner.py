@@ -3,11 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from src.modules.users.application.use_cases.get_lead_owners import (
-    GetLeadOwnersUseCase,
-)
-from src.modules.users.infrastructure.persistence.user_repository import (
-    DjangoUserRepository,
+from src.modules.users.presentation.api.dependencies.user_dependencies import (
+    get_lead_owners_use_case,
 )
 
 from ..serializers.lead_owner import LeadOwnerSerializer
@@ -21,9 +18,7 @@ class GetLeadOwnersView(APIView):
 
     def get(self, request):
 
-        use_case = GetLeadOwnersUseCase(
-            user_repository=DjangoUserRepository(),
-        )
+        use_case = get_lead_owners_use_case()
 
         owners = use_case.execute()
 

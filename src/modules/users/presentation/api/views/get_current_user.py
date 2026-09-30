@@ -3,11 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from src.modules.users.application.use_cases.get_current_user import (
-    GetCurrentUserUseCase,
-)
-from src.modules.users.infrastructure.persistence.user_repository import (
-    DjangoUserRepository,
+from src.modules.users.presentation.api.dependencies.user_dependencies import (
+    get_current_user_use_case,
 )
 
 from ..serializers.get_current_user import CurrentUserSerializer
@@ -20,9 +17,7 @@ class GetCurrentUserView(APIView):
     ]
 
     def get(self, request):
-        use_case = GetCurrentUserUseCase(
-            user_repository=DjangoUserRepository(),
-        )
+        use_case = get_current_user_use_case()
 
         try:
             user = use_case.execute(
