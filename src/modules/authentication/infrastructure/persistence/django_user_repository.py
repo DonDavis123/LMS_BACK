@@ -9,8 +9,10 @@ from src.modules.users.infrastructure.persistence.models import User
 class DjangoUserRepository(UserRepository):
 
     def get_by_email(self, email: str):
+        # Case-insensitive so "Name@Example.com" matches the stored
+        # lowercase address on login and password reset.
         return User.objects.filter(
-            email=email,
+            email__iexact=email.strip(),
         ).first()
 
     def get_by_id(self, user_id: UUID):

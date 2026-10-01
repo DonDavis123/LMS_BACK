@@ -22,6 +22,18 @@ class UpdateUserUseCase:
         if target_user is None:
             raise ValueError("User not found.")
 
+        if target_user.is_deleted:
+            raise ValueError("A deleted user cannot be updated.")
+
+        if (
+            data.role is not None
+            and target_user.id == current_user.id
+            and data.role != target_user.role
+        ):
+            # Prevents the last remaining superadmin from locking
+            # everyone out of user management.
+            raise ValueError("A superadmin cannot change their own role.")
+
         if data.name is not None:
             name = data.name.strip()
             if not name:
