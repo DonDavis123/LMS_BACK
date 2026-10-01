@@ -140,6 +140,11 @@ class DjangoNotificationRepository(NotificationRepository):
         ).delete()
         return deleted > 0
 
+    def count_by_user_id(self, user_id: UUID) -> int:
+        return DjangoNotificationModel.objects.filter(
+            user_id=user_id,
+        ).count()
+
     def delete_by_user_id(self, user_id: UUID) -> int:
         deleted, _ = DjangoNotificationModel.objects.filter(
             user_id=user_id,

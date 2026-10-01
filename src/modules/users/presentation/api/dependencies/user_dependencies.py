@@ -22,12 +22,18 @@ from src.modules.shared.infrastructure.transactions.django_transaction_manager i
 from src.modules.tasks.infrastructure.persistence.django_task_repository import (
     DjangoTaskRepository,
 )
+from src.modules.timeline.infrastructure.persistence.django_timeline_repository import (
+    DjangoTimelineRepository,
+)
 from src.modules.users.application.use_cases.block_user import BlockUserUseCase
 from src.modules.users.application.use_cases.create_user import CreateUserUseCase
 from src.modules.users.application.use_cases.delete_user import DeleteUserUseCase
 from src.modules.users.application.use_cases.get_current_user import GetCurrentUserUseCase
 from src.modules.users.application.use_cases.get_lead_owners import GetLeadOwnersUseCase
 from src.modules.users.application.use_cases.get_user_details import GetUserDetailsUseCase
+from src.modules.users.application.use_cases.get_user_deletion_preview import (
+    GetUserDeletionPreviewUseCase,
+)
 from src.modules.users.application.use_cases.get_users import GetUsersUseCase
 from src.modules.users.application.use_cases.unblock_user import UnblockUserUseCase
 from src.modules.users.application.use_cases.update_user import UpdateUserUseCase
@@ -94,6 +100,20 @@ def get_delete_user_use_case() -> DeleteUserUseCase:
         notification_repository=DjangoNotificationRepository(),
         transaction_manager=DjangoTransactionManager(),
     )
+
+def get_user_deletion_preview_use_case() -> GetUserDeletionPreviewUseCase:
+    return GetUserDeletionPreviewUseCase(
+        user_repository=get_user_repository(),
+        lead_repository=DjangoLeadRepository(),
+        contact_repository=DjangoContactRepository(),
+        account_repository=DjangoAccountRepository(),
+        meeting_repository=DjangoMeetingRepository(),
+        task_repository=DjangoTaskRepository(),
+        reminder_repository=DjangoReminderRepository(),
+        notification_repository=DjangoNotificationRepository(),
+        timeline_repository=DjangoTimelineRepository(),
+    )
+
 
 def get_lead_owners_use_case() -> GetLeadOwnersUseCase:
     return GetLeadOwnersUseCase(

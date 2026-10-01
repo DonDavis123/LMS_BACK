@@ -59,3 +59,7 @@ class NotificationRepository(ABC):
     @abstractmethod
     def delete_by_user_id(self, user_id: UUID) -> int:
         pass
+
+    @abstractmethod
+    def count_by_user_id(self, user_id: UUID) -> int:
+        pass

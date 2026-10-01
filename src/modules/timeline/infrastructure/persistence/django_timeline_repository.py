@@ -44,6 +44,12 @@ class DjangoTimelineRepository(TimelineRepository):
                 for entity_type, entity_id in targets
             ])
 
+    def count_by_actor_id(self, actor_id: UUID) -> int:
+        return TimelineEvent.objects.filter(
+            actor_id=actor_id,
+            is_deleted=False,
+        ).count()
+
     def get_for_entity(self, entity_type: str, entity_id: UUID) -> list[dict]:
         rows = (
             TimelineEventTarget.objects

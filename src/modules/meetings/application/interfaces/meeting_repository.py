@@ -76,3 +76,7 @@ class MeetingRepository(ABC):
         Meeting participants are not changed.
         """
         pass
+
+    @abstractmethod
+    def count_by_host_id(self, host_id: UUID) -> int:
+        pass

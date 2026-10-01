@@ -1,4 +1,7 @@
+import logging
 from uuid import UUID
+
+from django.db import DatabaseError
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -15,8 +18,12 @@ from src.modules.users.presentation.api.dependencies.user_dependencies import (
 )
 from src.modules.users.presentation.permissions.is_superadmin import IsSuperAdmin
 
+from ..serializers.delete_user import DeleteUserSerializer
 from ..serializers.update_user import UpdateUserSerializer
 from ..serializers.user import UserSerializer
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserDetailView(APIView):
@@ -72,6 +79,9 @@ class UserDetailView(APIView):
         )
 
     def delete(self, request, user_id: UUID):
+        serializer = DeleteUserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         try:
             current_user = get_current_user_use_case().execute(
                 user_id=request.user.id,
@@ -79,30 +89,28 @@ class UserDetailView(APIView):
             get_delete_user_use_case().execute(
                 current_user=current_user,
                 user_id=user_id,
-                replacement_user_id=self._replacement_user_id(request.data),
+                replacement_user_id=serializer.validated_data.get(
+                    "replacement_user_id"
+                ),
             )
         except ValueError as error:
             return self._error_response(error)
+        except DatabaseError:
+            # The transaction has been rolled back; never leak DB details.
+            logger.exception("Retiring user %s failed.", user_id)
+            return Response(
+                {"detail": "User could not be deleted."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @staticmethod
-    def _replacement_user_id(data) -> UUID | None:
-        # Interim parsing only; Phase 2 replaces this with a serializer.
-        raw_value = data.get("replacement_user_id") if hasattr(data, "get") else None
-        if raw_value in (None, ""):
-            return None
-        try:
-            return UUID(str(raw_value))
-        except ValueError:
-            raise ValueError("Replacement user id is invalid.")
 
     @staticmethod
     def _error_response(error: ValueError):
         message = str(error)
         status_code = (
             status.HTTP_404_NOT_FOUND
-            if message == "User not found."
+            if message.endswith("not found.")
             else status.HTTP_400_BAD_REQUEST
         )
         return Response(
