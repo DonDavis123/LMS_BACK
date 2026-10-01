@@ -58,3 +58,13 @@ class ContactRepository(ABC):
     @abstractmethod
     def unlink_account_contacts(self, account_id: UUID) -> None:
        pass
+
+
+    @abstractmethod
+    def transfer_ownership(
+        self,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> int:
+        """Reassign every Contact owned by ``from_user_id`` to ``to_user_id``."""
+        pass

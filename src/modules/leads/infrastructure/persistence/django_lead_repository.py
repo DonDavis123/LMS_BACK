@@ -444,6 +444,20 @@ class DjangoLeadRepository(LeadRepository):
         lookup = {db_field: value}
         return queryset.filter(**lookup) if operator == "equals" else queryset.exclude(**lookup)
 
+    def transfer_ownership(
+        self,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> int:
+        # Only the owner relationship (and updated_at) changes. Soft-deleted
+        # Leads are included so the retired user keeps no ownership at all.
+        return DjangoLeadModel.objects.filter(
+            owner_id=from_user_id,
+        ).update(
+            owner_id=to_user_id,
+            updated_at=timezone.now(),
+        )
+
     @staticmethod
     def _to_domain(model: DjangoLeadModel) -> Lead:
         return Lead(

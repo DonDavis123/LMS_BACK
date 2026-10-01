@@ -64,3 +64,15 @@ class MeetingRepository(ABC):
         record_id: UUID,
     ) -> list[UUID]:
         pass
+
+    @abstractmethod
+    def transfer_host(
+        self,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> int:
+        """Reassign every Meeting hosted by ``from_user_id`` to ``to_user_id``.
+
+        Meeting participants are not changed.
+        """
+        pass

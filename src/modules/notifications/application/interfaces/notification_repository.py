@@ -55,3 +55,7 @@ class NotificationRepository(ABC):
     @abstractmethod
     def delete_expired(self, as_of: datetime) -> int:
         pass
+
+    @abstractmethod
+    def delete_by_user_id(self, user_id: UUID) -> int:
+        pass

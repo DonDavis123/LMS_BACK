@@ -42,3 +42,11 @@ class AccountRepository(ABC):
     ) -> list[Account]:
         pass
 
+    @abstractmethod
+    def transfer_ownership(
+        self,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> int:
+        """Reassign every Account owned by ``from_user_id`` to ``to_user_id``."""
+        pass

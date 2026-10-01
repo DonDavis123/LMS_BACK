@@ -79,11 +79,23 @@ class UserDetailView(APIView):
             get_delete_user_use_case().execute(
                 current_user=current_user,
                 user_id=user_id,
+                replacement_user_id=self._replacement_user_id(request.data),
             )
         except ValueError as error:
             return self._error_response(error)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def _replacement_user_id(data) -> UUID | None:
+        # Interim parsing only; Phase 2 replaces this with a serializer.
+        raw_value = data.get("replacement_user_id") if hasattr(data, "get") else None
+        if raw_value in (None, ""):
+            return None
+        try:
+            return UUID(str(raw_value))
+        except ValueError:
+            raise ValueError("Replacement user id is invalid.")
 
     @staticmethod
     def _error_response(error: ValueError):

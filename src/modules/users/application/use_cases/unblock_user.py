@@ -21,6 +21,9 @@ class UnblockUserUseCase:
         if target_user is None:
             raise ValueError("User not found.")
 
+        if target_user.is_deleted:
+            raise ValueError("A deleted user cannot be unblocked.")
+
         updated_user = self.user_repository.set_active(
             user_id=user_id,
             is_active=True,

@@ -1,6 +1,5 @@
+from datetime import datetime
 from uuid import UUID
-
-from django.db.models import ProtectedError
 
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 from src.modules.shared.infrastructure.persistence.ordering import (
@@ -77,6 +76,7 @@ class DjangoUserRepository(UserRepository):
                 DjangoUser.Role.ADMIN,
             ],
             is_active=True,
+            deleted_at__isnull=True,
         ).order_by("name")
 
         return [
@@ -88,7 +88,7 @@ class DjangoUserRepository(UserRepository):
         self,
         query: ListQuery,
     ) -> PaginatedResult[User]:
-        queryset = DjangoUser.objects.all()
+        queryset = DjangoUser.objects.filter(deleted_at__isnull=True)
         total = queryset.count()
         queryset = apply_ordering(
             queryset,
@@ -150,21 +150,23 @@ class DjangoUserRepository(UserRepository):
 
         return self._to_domain(django_user)
 
-    def delete(
+    def soft_delete(
         self,
         user_id: UUID,
-    ) -> None:
+        deleted_at: datetime,
+    ) -> User | None:
         try:
             django_user = DjangoUser.objects.get(id=user_id)
         except DjangoUser.DoesNotExist:
-            raise ValueError("User not found.")
+            return None
 
-        try:
-            django_user.delete()
-        except ProtectedError as exc:
-            raise ValueError(
-                "User cannot be deleted because related records exist."
-            ) from exc
+        django_user.is_active = False
+        django_user.deleted_at = deleted_at
+        django_user.save(
+            update_fields=["is_active", "deleted_at", "updated_at"],
+        )
+
+        return self._to_domain(django_user)
 
     @staticmethod
     def _to_domain(
@@ -179,4 +181,5 @@ class DjangoUserRepository(UserRepository):
             is_active=django_user.is_active,
             created_at=django_user.created_at,
             updated_at=django_user.updated_at,
+            deleted_at=django_user.deleted_at,
         )

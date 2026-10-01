@@ -140,6 +140,12 @@ class DjangoNotificationRepository(NotificationRepository):
         ).delete()
         return deleted > 0
 
+    def delete_by_user_id(self, user_id: UUID) -> int:
+        deleted, _ = DjangoNotificationModel.objects.filter(
+            user_id=user_id,
+        ).delete()
+        return deleted
+
     def delete_expired(self, as_of: datetime) -> int:
         natural_expired = DjangoNotificationModel.objects.filter(
             expires_at__lte=as_of,
