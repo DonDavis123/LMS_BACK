@@ -39,3 +39,7 @@ class TimelineRepository(ABC):
         entity_id: UUID,
     ) -> None:
         pass
+
+    @abstractmethod
+    def count_by_actor_id(self, actor_id: UUID) -> int:
+        pass

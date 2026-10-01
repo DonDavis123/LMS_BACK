@@ -3,6 +3,7 @@ from django.urls import path
 from .views.block_user import BlockUserView
 from .views.create_user import CreateUserView
 from .views.get_current_user import GetCurrentUserView
+from .views.get_user_deletion_preview import UserDeletionPreviewView
 from .views.lead_owner import GetLeadOwnersView
 from .views.unblock_user import UnblockUserView
 from .views.user_detail import UserDetailView
@@ -23,6 +24,11 @@ urlpatterns = [
         "users/<uuid:user_id>/",
         UserDetailView.as_view(),
         name="user-detail",
+    ),
+    path(
+        "users/<uuid:user_id>/deletion-preview/",
+        UserDeletionPreviewView.as_view(),
+        name="user-deletion-preview",
     ),
     path(
         "users/<uuid:user_id>/block/",

@@ -438,6 +438,11 @@ class DjangoContactRepository(ContactRepository):
           for model in matches
       ]
 
+    def count_by_owner_id(self, owner_id: UUID) -> int:
+        return DjangoContactModel.objects.filter(
+            contact_owner_id=owner_id,
+        ).count()
+
     def transfer_ownership(
         self,
         from_user_id: UUID,

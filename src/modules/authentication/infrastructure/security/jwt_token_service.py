@@ -31,6 +31,9 @@ class JWTTokenService(TokenService):
 
             user = User.objects.get(id=user_id)
 
+            if not user.is_active:
+                raise InvalidRefreshTokenError()
+
             # Rotate the refresh token.
             # The old token becomes unusable.
             old_refresh.blacklist()

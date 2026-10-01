@@ -54,3 +54,7 @@ class TaskRepository(ABC):
     def delete_by_owner_id(self, owner_id: UUID) -> int:
         """Permanently delete every Task owned by ``owner_id``."""
         pass
+
+    @abstractmethod
+    def count_by_owner_id(self, owner_id: UUID) -> int:
+        pass

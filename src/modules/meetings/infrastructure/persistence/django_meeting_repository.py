@@ -249,6 +249,9 @@ class DjangoMeetingRepository(MeetingRepository):
             model.save(update_fields=["is_deleted", "updated_at"])
             return self._to_domain(model)
 
+    def count_by_host_id(self, host_id: UUID) -> int:
+        return DjangoMeetingModel.objects.filter(host_id=host_id).count()
+
     def transfer_host(
         self,
         from_user_id: UUID,

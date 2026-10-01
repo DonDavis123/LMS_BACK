@@ -50,3 +50,7 @@ class AccountRepository(ABC):
     ) -> int:
         """Reassign every Account owned by ``from_user_id`` to ``to_user_id``."""
         pass
+
+    @abstractmethod
+    def count_by_owner_id(self, owner_id: UUID) -> int:
+        pass
