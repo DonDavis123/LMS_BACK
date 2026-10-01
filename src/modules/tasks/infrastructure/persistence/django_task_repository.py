@@ -402,6 +402,15 @@ class DjangoTaskRepository(TaskRepository):
             account_id=None,
         )
 
+    def delete_by_owner_id(self, owner_id: UUID) -> int:
+        # Physical deletion, including already soft-deleted Tasks. Reminders
+        # and Notifications attached to these Tasks are removed by the
+        # existing CASCADE relationships.
+        deleted, _ = DjangoTaskModel.objects.filter(
+            owner_id=owner_id,
+        ).delete()
+        return deleted
+
     @staticmethod
     def _to_domain(model: DjangoTaskModel) -> Task:
         return Task(

@@ -49,3 +49,8 @@ class TaskRepository(ABC):
     @abstractmethod
     def unlink_account_from_contact_tasks(self, account_id: UUID) -> None:
         pass
+
+    @abstractmethod
+    def delete_by_owner_id(self, owner_id: UUID) -> int:
+        """Permanently delete every Task owned by ``owner_id``."""
+        pass

@@ -29,3 +29,12 @@ class LeadRepository(ABC):
       lead_id: UUID,
     ) -> tuple[Lead, str] | None:
       pass
+
+    @abstractmethod
+    def transfer_ownership(
+        self,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> int:
+        """Reassign every Lead owned by ``from_user_id`` to ``to_user_id``."""
+        pass

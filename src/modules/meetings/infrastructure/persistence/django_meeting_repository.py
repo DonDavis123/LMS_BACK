@@ -5,6 +5,7 @@ from datetime import datetime
 from django.db import IntegrityError, transaction
 from django.db.models import OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce, Lower
+from django.utils import timezone
 
 from src.modules.meetings.application.dto.get_meeting import (
     GetMeetingDTO,
@@ -247,6 +248,19 @@ class DjangoMeetingRepository(MeetingRepository):
             model.is_deleted = True
             model.save(update_fields=["is_deleted", "updated_at"])
             return self._to_domain(model)
+
+    def transfer_host(
+        self,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> int:
+        # Only the host changes; created_by and participants are untouched.
+        return DjangoMeetingModel.objects.filter(
+            host_id=from_user_id,
+        ).update(
+            host_id=to_user_id,
+            updated_at=timezone.now(),
+        )
 
     def add_related_records(
         self,

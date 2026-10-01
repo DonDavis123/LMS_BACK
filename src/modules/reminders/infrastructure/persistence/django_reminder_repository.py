@@ -66,6 +66,10 @@ class DjangoReminderRepository(ReminderRepository):
         deleted, _ = DjangoReminderModel.objects.filter(id=reminder_id).delete()
         return deleted > 0
 
+    def delete_by_user_id(self, user_id: UUID) -> int:
+        deleted, _ = DjangoReminderModel.objects.filter(user_id=user_id).delete()
+        return deleted
+
     @staticmethod
     def _to_domain(model: DjangoReminderModel) -> Reminder:
         return Reminder(

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
@@ -56,8 +57,9 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    def delete(
+    def soft_delete(
         self,
         user_id: UUID,
-    ) -> None:
+        deleted_at: datetime,
+    ) -> User | None:
         pass

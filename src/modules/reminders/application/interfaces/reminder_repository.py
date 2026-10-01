@@ -34,3 +34,7 @@ class ReminderRepository(ABC):
     @abstractmethod
     def delete_by_id(self, reminder_id: UUID) -> bool:
         pass
+
+    @abstractmethod
+    def delete_by_user_id(self, user_id: UUID) -> int:
+        pass

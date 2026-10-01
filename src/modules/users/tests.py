@@ -366,13 +366,27 @@ class SuperadminUserManagementPresentationTests(APITestCase):
         self.authenticate(self.superadmin)
 
         response = self.client.delete(
-            f"/api/users/{self.target.id}/"
+            f"/api/users/{self.target.id}/",
+            {"replacement_user_id": str(self.admin.id)},
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(
-            User.objects.filter(id=self.target.id).exists()
+        target = User.objects.get(id=self.target.id)
+        self.assertIsNotNone(target.deleted_at)
+        self.assertFalse(target.is_active)
+
+    def test_delete_user_requires_replacement_user(self):
+        self.authenticate(self.superadmin)
+
+        response = self.client.delete(
+            f"/api/users/{self.target.id}/"
         )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        target = User.objects.get(id=self.target.id)
+        self.assertIsNone(target.deleted_at)
+        self.assertTrue(target.is_active)
 
     def test_delete_user_returns_404_for_missing_user(self):
         self.authenticate(self.superadmin)

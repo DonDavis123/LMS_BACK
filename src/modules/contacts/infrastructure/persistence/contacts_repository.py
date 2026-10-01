@@ -2,6 +2,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from django.db.models import OuterRef, Subquery
+from django.utils import timezone
 
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
@@ -436,6 +437,19 @@ class DjangoContactRepository(ContactRepository):
           self._to_domain(model)
           for model in matches
       ]
+
+    def transfer_ownership(
+        self,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> int:
+        # created_by / modified_by are historical and intentionally untouched.
+        return DjangoContactModel.objects.filter(
+            contact_owner_id=from_user_id,
+        ).update(
+            contact_owner_id=to_user_id,
+            updated_at=timezone.now(),
+        )
 
     @staticmethod
     def _to_domain(model: DjangoContactModel) -> Contact:

@@ -14,3 +14,8 @@ class User:
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    deleted_at: datetime | None = None
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
