@@ -43,3 +43,6 @@ class UserDeletionPreviewSerializer(serializers.Serializer):
     user_action = _UserActionSerializer()
     can_retire = serializers.BooleanField()
     blockers = serializers.ListField(child=serializers.CharField())
+    has_related_data = serializers.BooleanField()
+    user_is_blocked = serializers.BooleanField()
+    available_actions = serializers.ListField(child=serializers.CharField())

@@ -31,7 +31,10 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    def get_lead_owners(self) -> list[User]:
+    def get_lead_owners(
+        self,
+        exclude_user_id: UUID | None = None,
+    ) -> list[User]:
         pass
 
     @abstractmethod
