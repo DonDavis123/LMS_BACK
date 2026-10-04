@@ -40,7 +40,8 @@ class DeleteUserUseCase:
     """Retire (soft-delete) a user.
 
     Leads, Contacts, Accounts and Meeting hosting are transferred to an
-    explicitly chosen replacement user. Tasks, Reminders and Notifications
+    explicitly chosen replacement user (optional only when none of them
+    exist). Tasks, Reminders and Notifications
     belonging to the retired user are permanently deleted. Timeline is
     untouched. The User row is kept and marked as deleted/inactive.
     The whole workflow runs in one transaction.
@@ -78,7 +79,7 @@ class DeleteUserUseCase:
         self,
         current_user: User,
         user_id: UUID,
-        replacement_user_id: UUID | None,
+        replacement_user_id: UUID | None = None,
     ) -> None:
         self._require_superadmin(current_user)
 
@@ -91,32 +92,41 @@ class DeleteUserUseCase:
         if target_user.is_deleted:
             raise ValueError("User has already been deleted.")
 
-        if replacement_user_id is None:
-            raise ValueError("Replacement user is required.")
-
-        replacement_user = self._validate_replacement_user(
-            target_user=target_user,
-            replacement_user_id=replacement_user_id,
+        # A replacement that is supplied is always fully validated, even
+        # when there turns out to be nothing to transfer.
+        replacement_user = (
+            self._validate_replacement_user(
+                target_user=target_user,
+                replacement_user_id=replacement_user_id,
+            )
+            if replacement_user_id is not None
+            else None
         )
 
         def retirement() -> None:
-            # Ownership transfers (records are kept).
-            self.lead_repository.transfer_ownership(
-                from_user_id=target_user.id,
-                to_user_id=replacement_user.id,
-            )
-            self.contact_repository.transfer_ownership(
-                from_user_id=target_user.id,
-                to_user_id=replacement_user.id,
-            )
-            self.account_repository.transfer_ownership(
-                from_user_id=target_user.id,
-                to_user_id=replacement_user.id,
-            )
-            self.meeting_repository.transfer_host(
-                from_user_id=target_user.id,
-                to_user_id=replacement_user.id,
-            )
+            # Decided inside the transaction, right before the changes, so
+            # the answer cannot go stale between a check and the retirement.
+            if self._has_records_to_transfer(target_user.id):
+                if replacement_user is None:
+                    raise ValueError("Replacement user is required.")
+
+                # Ownership transfers (records are kept).
+                self.lead_repository.transfer_ownership(
+                    from_user_id=target_user.id,
+                    to_user_id=replacement_user.id,
+                )
+                self.contact_repository.transfer_ownership(
+                    from_user_id=target_user.id,
+                    to_user_id=replacement_user.id,
+                )
+                self.account_repository.transfer_ownership(
+                    from_user_id=target_user.id,
+                    to_user_id=replacement_user.id,
+                )
+                self.meeting_repository.transfer_host(
+                    from_user_id=target_user.id,
+                    to_user_id=replacement_user.id,
+                )
 
             # Permanent cleanup. Tasks first so their dependent
             # reminders/notifications are removed before the user-scoped ones.
@@ -137,15 +147,27 @@ class DeleteUserUseCase:
                     action=UserAuditAction.USER_RETIRED,
                     actor=current_user,
                     target=target_user,
-                    metadata={
-                        "replacement_user_id": str(replacement_user.id),
-                        "replacement_user_email": replacement_user.email,
-                    },
+                    metadata=(
+                        {
+                            "replacement_user_id": str(replacement_user.id),
+                            "replacement_user_email": replacement_user.email,
+                        }
+                        if replacement_user is not None
+                        else {}
+                    ),
                 )
             )
             self.session_revoker.revoke_all_sessions(target_user.id)
 
         self.transaction_manager.execute(retirement)
+
+    def _has_records_to_transfer(self, user_id: UUID) -> bool:
+        return (
+            self.lead_repository.count_by_owner_id(user_id) > 0
+            or self.contact_repository.count_by_owner_id(user_id) > 0
+            or self.account_repository.count_by_owner_id(user_id) > 0
+            or self.meeting_repository.count_by_host_id(user_id) > 0
+        )
 
     def _validate_replacement_user(
         self,

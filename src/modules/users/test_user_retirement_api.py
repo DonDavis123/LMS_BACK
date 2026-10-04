@@ -191,7 +191,8 @@ class UserRetirementApiTests(APITestCase):
 
     # ---------- retire: validation ----------
 
-    def test_missing_replacement_user_returns_400(self):
+    def test_missing_replacement_user_returns_400_when_records_must_be_transferred(self):
+        self._create_business_data()
         self.authenticate(self.superadmin)
         response = self.retire()
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

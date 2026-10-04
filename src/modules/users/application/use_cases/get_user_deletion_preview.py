@@ -90,6 +90,28 @@ class GetUserDeletionPreviewUseCase:
         blockers: list[str] = []
         if current_user.id == user_id:
             blockers.append("A superadmin cannot delete their own account.")
+        can_retire = not blockers
+
+        # The timeline is kept on retirement, so it is not related data.
+        has_related_data = any(
+            count > 0
+            for count in (
+                leads,
+                contacts,
+                accounts,
+                meetings,
+                tasks,
+                reminders,
+                notifications,
+            )
+        )
+        user_is_blocked = not target_user.is_active
+
+        available_actions: list[str] = []
+        if can_retire:
+            if not user_is_blocked:
+                available_actions.append("BLOCK")
+            available_actions.append("TRANSFER_AND_DELETE")
 
         return UserDeletionPreviewDTO(
             user=DeletionPreviewUserDTO(
@@ -119,8 +141,11 @@ class GetUserDeletionPreviewUseCase:
                 notifications=notifications,
             ),
             user_action=UserActionDTO(type="SOFT_DELETE"),
-            can_retire=not blockers,
+            can_retire=can_retire,
             blockers=tuple(blockers),
+            has_related_data=has_related_data,
+            user_is_blocked=user_is_blocked,
+            available_actions=tuple(available_actions),
         )
 
     @staticmethod

@@ -74,16 +74,23 @@ class DjangoUserRepository(UserRepository):
 
         return self._to_domain(django_user)
 
-    def get_lead_owners(self) -> list[User]:
+    def get_lead_owners(
+        self,
+        exclude_user_id: UUID | None = None,
+    ) -> list[User]:
 
-        django_users = DjangoUser.objects.filter(
+        queryset = DjangoUser.objects.filter(
             role__in=[
                 DjangoUser.Role.SUPERADMIN,
                 DjangoUser.Role.ADMIN,
             ],
             is_active=True,
             deleted_at__isnull=True,
-        ).order_by("name")
+        )
+        if exclude_user_id is not None:
+            queryset = queryset.exclude(id=exclude_user_id)
+
+        django_users = queryset.order_by("name")
 
         return [
             self._to_domain(django_user)

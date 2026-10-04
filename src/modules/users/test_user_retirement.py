@@ -87,6 +87,15 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.session_revoker = Mock()
         self.transaction_manager = Mock()
         self.transaction_manager.execute.side_effect = lambda op: op()
+        # By default the target owns records, so a transfer is required.
+        for repository in (
+            self.lead_repository,
+            self.contact_repository,
+            self.account_repository,
+            self.meeting_repository,
+        ):
+            repository.count_by_owner_id.return_value = 1
+            repository.count_by_host_id.return_value = 1
 
         self.use_case = DeleteUserUseCase(
             self.user_repository,
@@ -102,8 +111,9 @@ class DeleteUserValidationTests(SimpleTestCase):
             self.transaction_manager,
         )
 
-    def _assert_nothing_changed(self):
-        self.transaction_manager.execute.assert_not_called()
+    def _assert_nothing_changed(self, in_transaction=False):
+        if not in_transaction:
+            self.transaction_manager.execute.assert_not_called()
         self.lead_repository.transfer_ownership.assert_not_called()
         self.contact_repository.transfer_ownership.assert_not_called()
         self.account_repository.transfer_ownership.assert_not_called()
@@ -113,17 +123,67 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.notification_repository.delete_by_user_id.assert_not_called()
         self.user_repository.soft_delete.assert_not_called()
 
-    def _fail(self, replacement_user_id, message, user_id=None):
+    def _fail(self, replacement_user_id, message, user_id=None, in_transaction=False):
         with self.assertRaisesMessage(ValueError, message):
             self.use_case.execute(
                 self.superadmin,
                 user_id or self.target.id,
                 replacement_user_id,
             )
-        self._assert_nothing_changed()
+        self._assert_nothing_changed(in_transaction=in_transaction)
 
-    def test_replacement_user_is_required(self):
-        self._fail(None, "Replacement user is required.")
+    def test_replacement_user_is_required_when_records_must_be_transferred(self):
+        # The decision is made inside the transaction, before any change.
+        self._fail(None, "Replacement user is required.", in_transaction=True)
+
+    def test_replacement_user_is_required_for_each_kind_of_record(self):
+        repositories = (
+            (self.lead_repository, "count_by_owner_id"),
+            (self.contact_repository, "count_by_owner_id"),
+            (self.account_repository, "count_by_owner_id"),
+            (self.meeting_repository, "count_by_host_id"),
+        )
+        for owning_repository, method in repositories:
+            with self.subTest(repository=method, mock=id(owning_repository)):
+                for repository, _ in repositories:
+                    getattr(repository, method).return_value = 0
+                getattr(owning_repository, method).return_value = 1
+                self._fail(None, "Replacement user is required.", in_transaction=True)
+
+    def test_replacement_user_is_optional_when_nothing_to_transfer(self):
+        for repository, method in (
+            (self.lead_repository, "count_by_owner_id"),
+            (self.contact_repository, "count_by_owner_id"),
+            (self.account_repository, "count_by_owner_id"),
+            (self.meeting_repository, "count_by_host_id"),
+        ):
+            getattr(repository, method).return_value = 0
+        self.user_repository.soft_delete.return_value = self.target
+
+        self.use_case.execute(self.superadmin, self.target.id, None)
+
+        self.lead_repository.transfer_ownership.assert_not_called()
+        self.contact_repository.transfer_ownership.assert_not_called()
+        self.account_repository.transfer_ownership.assert_not_called()
+        self.meeting_repository.transfer_host.assert_not_called()
+        self.task_repository.delete_by_owner_id.assert_called_once_with(self.target.id)
+        self.reminder_repository.delete_by_user_id.assert_called_once_with(self.target.id)
+        self.notification_repository.delete_by_user_id.assert_called_once_with(self.target.id)
+        self.user_repository.soft_delete.assert_called_once()
+        self.audit_log_repository.add.assert_called_once()
+        self.session_revoker.revoke_all_sessions.assert_called_once_with(self.target.id)
+
+    def test_supplied_replacement_is_still_validated_when_nothing_to_transfer(self):
+        for repository, method in (
+            (self.lead_repository, "count_by_owner_id"),
+            (self.contact_repository, "count_by_owner_id"),
+            (self.account_repository, "count_by_owner_id"),
+            (self.meeting_repository, "count_by_host_id"),
+        ):
+            getattr(repository, method).return_value = 0
+        self.replacement.is_active = False
+
+        self._fail(self.replacement.id, "Replacement user must be active.")
 
     def test_replacement_user_does_not_exist(self):
         self._fail(uuid4(), "Replacement user not found.")

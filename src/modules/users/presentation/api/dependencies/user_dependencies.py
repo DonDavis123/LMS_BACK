@@ -34,6 +34,9 @@ from src.modules.users.application.use_cases.get_user_details import GetUserDeta
 from src.modules.users.application.use_cases.get_user_deletion_preview import (
     GetUserDeletionPreviewUseCase,
 )
+from src.modules.users.application.use_cases.get_replacement_candidates import (
+    GetReplacementCandidatesUseCase,
+)
 from src.modules.users.application.use_cases.get_users import GetUsersUseCase
 from src.modules.users.application.use_cases.get_user_audit_logs import (
     GetUserAuditLogsUseCase,
@@ -165,5 +168,11 @@ def get_user_deletion_preview_use_case() -> GetUserDeletionPreviewUseCase:
 
 def get_lead_owners_use_case() -> GetLeadOwnersUseCase:
     return GetLeadOwnersUseCase(
+        user_repository=get_user_repository(),
+    )
+
+
+def get_replacement_candidates_use_case() -> GetReplacementCandidatesUseCase:
+    return GetReplacementCandidatesUseCase(
         user_repository=get_user_repository(),
     )

@@ -50,3 +50,6 @@ class UserDeletionPreviewDTO:
     user_action: UserActionDTO
     can_retire: bool
     blockers: tuple[str, ...] = field(default_factory=tuple)
+    has_related_data: bool = False
+    user_is_blocked: bool = False
+    available_actions: tuple[str, ...] = field(default_factory=tuple)
