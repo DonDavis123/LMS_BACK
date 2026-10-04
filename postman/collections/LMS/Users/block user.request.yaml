@@ -1,8 +1,8 @@
 $kind: http-request
-url: http://127.0.0.1:8000/api/users/me/
-method: GET
+url: http://127.0.0.1:8000/api/users/{{user_id}}/block/
+method: POST
 auth:
   type: bearer
   credentials:
     token: "{{json_web_token_0um6}}"
-order: 1788801427800
+order: 1788801432800

@@ -1,0 +1,8 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/users/audit-logs/?user_id={{user_id}}&page=1&page_size=20
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0um6}}"
+order: 1788801437800

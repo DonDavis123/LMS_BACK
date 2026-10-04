@@ -51,11 +51,13 @@ class DjangoUserRepository(UserRepository):
         email: str,
     ) -> User | None:
 
-        try:
-            django_user = DjangoUser.objects.get(
-                email=email,
-            )
-        except DjangoUser.DoesNotExist:
+        # Case-insensitive, like login: the DB unique index is case-sensitive,
+        # so an exact match would miss "Bob@x.com" when "bob@x.com" is asked
+        # for and the later save would fail with a 500 instead of a 400.
+        django_user = DjangoUser.objects.filter(
+            email__iexact=email,
+        ).first()
+        if django_user is None:
             return None
 
         return self._to_domain(django_user)
