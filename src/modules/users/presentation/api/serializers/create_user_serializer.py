@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from src.modules.users.domain.entities.role import UserRole
+from src.modules.users.domain.entities.role import MANAGEABLE_ROLES
 
 
 class CreateUserSerializer(serializers.Serializer):
@@ -19,6 +19,6 @@ class CreateUserSerializer(serializers.Serializer):
     role = serializers.ChoiceField(
         choices=[
             (role.value, role.name)
-            for role in UserRole
+            for role in MANAGEABLE_ROLES
         ],
     )

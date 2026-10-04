@@ -150,6 +150,21 @@ class DjangoUserRepository(UserRepository):
 
         return self._to_domain(django_user)
 
+    def set_password(
+        self,
+        user_id: UUID,
+        password: str,
+    ) -> User | None:
+        try:
+            django_user = DjangoUser.objects.get(id=user_id)
+        except DjangoUser.DoesNotExist:
+            return None
+
+        django_user.set_password(password)
+        django_user.save(update_fields=["password", "updated_at"])
+
+        return self._to_domain(django_user)
+
     def soft_delete(
         self,
         user_id: UUID,

@@ -35,8 +35,20 @@ from src.modules.users.application.use_cases.get_user_deletion_preview import (
     GetUserDeletionPreviewUseCase,
 )
 from src.modules.users.application.use_cases.get_users import GetUsersUseCase
+from src.modules.users.application.use_cases.get_user_audit_logs import (
+    GetUserAuditLogsUseCase,
+)
+from src.modules.users.application.use_cases.reset_user_password import (
+    ResetUserPasswordUseCase,
+)
 from src.modules.users.application.use_cases.unblock_user import UnblockUserUseCase
 from src.modules.users.application.use_cases.update_user import UpdateUserUseCase
+from src.modules.users.infrastructure.persistence.user_audit_log_repository import (
+    DjangoUserAuditLogRepository,
+)
+from src.modules.users.infrastructure.security.jwt_session_revoker import (
+    JWTSessionRevoker,
+)
 from src.modules.users.infrastructure.persistence.user_repository import (
     DjangoUserRepository,
 )
@@ -52,9 +64,19 @@ def get_current_user_use_case() -> GetCurrentUserUseCase:
     )
 
 
+def get_user_audit_log_repository() -> DjangoUserAuditLogRepository:
+    return DjangoUserAuditLogRepository()
+
+
+def get_session_revoker() -> JWTSessionRevoker:
+    return JWTSessionRevoker()
+
+
 def get_create_user_use_case() -> CreateUserUseCase:
     return CreateUserUseCase(
         user_repository=get_user_repository(),
+        audit_log_repository=get_user_audit_log_repository(),
+        transaction_manager=DjangoTransactionManager(),
     )
 
 
@@ -73,18 +95,41 @@ def get_user_details_use_case() -> GetUserDetailsUseCase:
 def get_update_user_use_case() -> UpdateUserUseCase:
     return UpdateUserUseCase(
         user_repository=get_user_repository(),
+        audit_log_repository=get_user_audit_log_repository(),
+        session_revoker=get_session_revoker(),
+        transaction_manager=DjangoTransactionManager(),
     )
 
 
 def get_block_user_use_case() -> BlockUserUseCase:
     return BlockUserUseCase(
         user_repository=get_user_repository(),
+        audit_log_repository=get_user_audit_log_repository(),
+        session_revoker=get_session_revoker(),
+        transaction_manager=DjangoTransactionManager(),
     )
 
 
 def get_unblock_user_use_case() -> UnblockUserUseCase:
     return UnblockUserUseCase(
         user_repository=get_user_repository(),
+        audit_log_repository=get_user_audit_log_repository(),
+        transaction_manager=DjangoTransactionManager(),
+    )
+
+
+def get_reset_user_password_use_case() -> ResetUserPasswordUseCase:
+    return ResetUserPasswordUseCase(
+        user_repository=get_user_repository(),
+        audit_log_repository=get_user_audit_log_repository(),
+        session_revoker=get_session_revoker(),
+        transaction_manager=DjangoTransactionManager(),
+    )
+
+
+def get_user_audit_logs_use_case() -> GetUserAuditLogsUseCase:
+    return GetUserAuditLogsUseCase(
+        audit_log_repository=get_user_audit_log_repository(),
     )
 
 
@@ -98,8 +143,11 @@ def get_delete_user_use_case() -> DeleteUserUseCase:
         task_repository=DjangoTaskRepository(),
         reminder_repository=DjangoReminderRepository(),
         notification_repository=DjangoNotificationRepository(),
+        audit_log_repository=get_user_audit_log_repository(),
+        session_revoker=get_session_revoker(),
         transaction_manager=DjangoTransactionManager(),
     )
+
 
 def get_user_deletion_preview_use_case() -> GetUserDeletionPreviewUseCase:
     return GetUserDeletionPreviewUseCase(

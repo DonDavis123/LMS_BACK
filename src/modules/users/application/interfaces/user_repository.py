@@ -57,6 +57,14 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
+    def set_password(
+        self,
+        user_id: UUID,
+        password: str,
+    ) -> User | None:
+        pass
+
+    @abstractmethod
     def soft_delete(
         self,
         user_id: UUID,

@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 from rest_framework import serializers
 
 
@@ -10,6 +12,11 @@ class DeleteUserSerializer(serializers.Serializer):
     )
 
     def to_internal_value(self, data):
+        if not isinstance(data, Mapping):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["Request body must be an object."]}
+            )
+
         unknown_fields = set(data) - set(self.fields)
         if unknown_fields:
             raise serializers.ValidationError({

@@ -35,6 +35,12 @@ from src.modules.users.application.use_cases.unblock_user import UnblockUserUseC
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.users.domain.entities.user import User as DomainUser
 from src.modules.users.infrastructure.persistence.models import User
+from src.modules.shared.infrastructure.transactions.django_transaction_manager import (
+    DjangoTransactionManager,
+)
+from src.modules.users.infrastructure.persistence.user_audit_log_repository import (
+    DjangoUserAuditLogRepository,
+)
 from src.modules.users.infrastructure.persistence.user_repository import (
     DjangoUserRepository,
 )
@@ -77,6 +83,8 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.task_repository = Mock()
         self.reminder_repository = Mock()
         self.notification_repository = Mock()
+        self.audit_log_repository = Mock()
+        self.session_revoker = Mock()
         self.transaction_manager = Mock()
         self.transaction_manager.execute.side_effect = lambda op: op()
 
@@ -89,6 +97,8 @@ class DeleteUserValidationTests(SimpleTestCase):
             self.task_repository,
             self.reminder_repository,
             self.notification_repository,
+            self.audit_log_repository,
+            self.session_revoker,
             self.transaction_manager,
         )
 
@@ -182,6 +192,8 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.notification_repository.delete_by_user_id.assert_called_once_with(self.target.id)
         self.user_repository.soft_delete.assert_called_once()
         self.assertFalse(self.user_repository.delete.called)
+        self.audit_log_repository.add.assert_called_once()
+        self.session_revoker.revoke_all_sessions.assert_called_once_with(self.target.id)
 
 
 class UnblockSoftDeletedUserTests(SimpleTestCase):
@@ -193,7 +205,9 @@ class UnblockSoftDeletedUserTests(SimpleTestCase):
         user_repository.get_by_id.return_value = deleted
 
         with self.assertRaisesMessage(ValueError, "A deleted user cannot be unblocked."):
-            UnblockUserUseCase(user_repository).execute(superadmin, deleted.id)
+            UnblockUserUseCase(user_repository, Mock(), Mock()).execute(
+                superadmin, deleted.id,
+            )
 
         user_repository.set_active.assert_not_called()
 
@@ -425,7 +439,11 @@ class UserRetirementWorkflowTests(TestCase):
         self._retire()
 
         with self.assertRaises(ValueError):
-            UnblockUserUseCase(DjangoUserRepository()).execute(
+            UnblockUserUseCase(
+                DjangoUserRepository(),
+                DjangoUserAuditLogRepository(),
+                DjangoTransactionManager(),
+            ).execute(
                 DjangoUserRepository().get_by_id(self.superadmin.id),
                 self.target.id,
             )

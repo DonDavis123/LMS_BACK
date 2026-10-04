@@ -25,9 +25,15 @@ from src.modules.shared.application.interfaces.transaction_manager import (
 from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
+from src.modules.users.application.interfaces.session_revoker import SessionRevoker
+from src.modules.users.application.interfaces.user_audit_log_repository import (
+    UserAuditLogRepository,
+)
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.users.domain.entities.user import User
+from src.modules.users.domain.entities.user_audit_action import UserAuditAction
+from src.modules.users.domain.entities.user_audit_log import UserAuditLog
 
 
 class DeleteUserUseCase:
@@ -52,6 +58,8 @@ class DeleteUserUseCase:
         task_repository: TaskRepository,
         reminder_repository: ReminderRepository,
         notification_repository: NotificationRepository,
+        audit_log_repository: UserAuditLogRepository,
+        session_revoker: SessionRevoker,
         transaction_manager: TransactionManager,
     ):
         self.user_repository = user_repository
@@ -62,6 +70,8 @@ class DeleteUserUseCase:
         self.task_repository = task_repository
         self.reminder_repository = reminder_repository
         self.notification_repository = notification_repository
+        self.audit_log_repository = audit_log_repository
+        self.session_revoker = session_revoker
         self.transaction_manager = transaction_manager
 
     def execute(
@@ -121,6 +131,19 @@ class DeleteUserUseCase:
                 deleted_at=datetime.now(timezone.utc),
             ) is None:
                 raise ValueError("User not found.")
+
+            self.audit_log_repository.add(
+                UserAuditLog.create(
+                    action=UserAuditAction.USER_RETIRED,
+                    actor=current_user,
+                    target=target_user,
+                    metadata={
+                        "replacement_user_id": str(replacement_user.id),
+                        "replacement_user_email": replacement_user.email,
+                    },
+                )
+            )
+            self.session_revoker.revoke_all_sessions(target_user.id)
 
         self.transaction_manager.execute(retirement)
 
