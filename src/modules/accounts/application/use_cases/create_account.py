@@ -7,6 +7,7 @@ from src.modules.accounts.application.interfaces.account_repository import (
 from src.modules.accounts.domain.entities.account import Account
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
+from src.modules.users.application.interfaces.user_repository import UserRepository
 
 
 class CreateAccountUseCase:
@@ -16,10 +17,12 @@ class CreateAccountUseCase:
         account_repository: AccountRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        user_repository: UserRepository,
     ):
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        self.user_repository = user_repository
 
     def execute(
         self,
@@ -31,6 +34,13 @@ class CreateAccountUseCase:
             data.account_owner_id
             or current_user_id
         )
+
+        owner = self.user_repository.get_by_id(account_owner_id)
+        if owner is None:
+            raise ValueError("Account owner not found.")
+        # Blocked and retired (soft-deleted) users are inactive.
+        if not owner.is_active:
+            raise ValueError("Account owner must be an active user.")
 
         account = Account.create(
             account_owner_id=account_owner_id,

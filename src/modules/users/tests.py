@@ -52,14 +52,14 @@ class SuperadminUserManagementPresentationTests(APITestCase):
                 "name": "New User",
                 "email": "new-user@example.com",
                 "password": "newpassword123",
-                "role": User.Role.SALES_EXECUTIVE,
+                "role": User.Role.ADMIN,
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["email"], "new-user@example.com")
-        self.assertEqual(response.data["role"], User.Role.SALES_EXECUTIVE)
+        self.assertEqual(response.data["role"], User.Role.ADMIN)
         self.assertNotIn("password", response.data)
 
     def test_create_user_rejects_invalid_request_data(self):

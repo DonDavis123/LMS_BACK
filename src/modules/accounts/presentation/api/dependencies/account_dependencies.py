@@ -7,6 +7,7 @@ from src.modules.accounts.infrastructure.persistence.django_account_repository i
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
+from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 from src.modules.timeline.infrastructure.persistence.django_timeline_repository import DjangoTimelineRepository
 from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelineRecorder
 
@@ -16,7 +17,12 @@ def recorder():
 
 
 def get_create_account_use_case() -> CreateAccountUseCase:
-    return CreateAccountUseCase(DjangoAccountRepository(), recorder(), DjangoTransactionManager())
+    return CreateAccountUseCase(
+        DjangoAccountRepository(),
+        recorder(),
+        DjangoTransactionManager(),
+        DjangoUserRepository(),
+    )
 
 
 def get_accounts_use_case() -> GetAccountsUseCase:

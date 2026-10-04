@@ -379,7 +379,7 @@ class UserApiRegressionTests(APITestCase):
         created = self.client.post(
             "/api/users/",
             {"name": "New", "email": "new@example.com", "password": "newpassword123",
-             "role": User.Role.SALES_EXECUTIVE},
+             "role": User.Role.ADMIN},
             format="json",
         )
         self.assertEqual(created.status_code, status.HTTP_201_CREATED)

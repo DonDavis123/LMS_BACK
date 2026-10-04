@@ -3,12 +3,11 @@ from collections.abc import Mapping
 from rest_framework import serializers
 
 
-class DeleteUserSerializer(serializers.Serializer):
-    # Presence/ownership rules are business validation and live in the
-    # Application use case; this only checks the HTTP payload shape.
-    replacement_user_id = serializers.UUIDField(
-        required=False,
-        allow_null=True,
+class ResetUserPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        max_length=128,
     )
 
     def to_internal_value(self, data):

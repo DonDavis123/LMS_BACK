@@ -3,6 +3,7 @@ from uuid import UUID
 from src.modules.shared.application.interfaces.transaction_manager import (
     TransactionManager,
 )
+from src.modules.users.application.interfaces.session_revoker import SessionRevoker
 from src.modules.users.application.interfaces.user_audit_log_repository import (
     UserAuditLogRepository,
 )
@@ -13,51 +14,60 @@ from src.modules.users.domain.entities.user_audit_action import UserAuditAction
 from src.modules.users.domain.entities.user_audit_log import UserAuditLog
 
 
-class UnblockUserUseCase:
+class ResetUserPasswordUseCase:
+    """A superadmin sets a new password for another user."""
 
     def __init__(
         self,
         user_repository: UserRepository,
         audit_log_repository: UserAuditLogRepository,
+        session_revoker: SessionRevoker,
         transaction_manager: TransactionManager,
     ):
         self.user_repository = user_repository
         self.audit_log_repository = audit_log_repository
+        self.session_revoker = session_revoker
         self.transaction_manager = transaction_manager
 
     def execute(
         self,
         current_user: User,
         user_id: UUID,
-    ) -> User:
+        new_password: str,
+    ) -> None:
         self._require_superadmin(current_user)
+
+        if current_user.id == user_id:
+            raise ValueError(
+                "Use the forgot-password flow to change your own password."
+            )
 
         target_user = self.user_repository.get_by_id(user_id)
         if target_user is None:
             raise ValueError("User not found.")
 
         if target_user.is_deleted:
-            raise ValueError("A deleted user cannot be unblocked.")
+            raise ValueError("A deleted user's password cannot be reset.")
 
-        def change_status() -> User:
-            updated_user = self.user_repository.set_active(
+        def reset() -> None:
+            if self.user_repository.set_password(
                 user_id=user_id,
-                is_active=True,
-            )
-            if updated_user is None:
+                password=new_password,
+            ) is None:
                 raise ValueError("User not found.")
 
+            # The password itself is never written to the audit log.
             self.audit_log_repository.add(
                 UserAuditLog.create(
-                    action=UserAuditAction.USER_UNBLOCKED,
+                    action=UserAuditAction.USER_PASSWORD_RESET,
                     actor=current_user,
-                    target=updated_user,
+                    target=target_user,
                 )
             )
+            # Anyone holding the old credentials loses their sessions.
+            self.session_revoker.revoke_all_sessions(user_id)
 
-            return updated_user
-
-        return self.transaction_manager.execute(change_status)
+        self.transaction_manager.execute(reset)
 
     @staticmethod
     def _require_superadmin(current_user: User) -> None:

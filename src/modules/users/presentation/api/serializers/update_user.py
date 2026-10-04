@@ -1,6 +1,8 @@
+from collections.abc import Mapping
+
 from rest_framework import serializers
 
-from src.modules.users.domain.entities.role import UserRole
+from src.modules.users.domain.entities.role import MANAGEABLE_ROLES
 
 
 class UpdateUserSerializer(serializers.Serializer):
@@ -14,12 +16,17 @@ class UpdateUserSerializer(serializers.Serializer):
     role = serializers.ChoiceField(
         choices=[
             (role.value, role.name)
-            for role in UserRole
+            for role in MANAGEABLE_ROLES
         ],
         required=False,
     )
 
     def to_internal_value(self, data):
+        if not isinstance(data, Mapping):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["Request body must be an object."]}
+            )
+
         unknown_fields = set(data) - set(self.fields)
         if unknown_fields:
             raise serializers.ValidationError({
