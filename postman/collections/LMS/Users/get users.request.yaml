@@ -1,4 +1,8 @@
 $kind: http-request
-url: ""
+url: http://127.0.0.1:8000/api/users/?search=admin&filters=%5B%7B%22field%22%3A%22role%22%2C%22operator%22%3A%22equals%22%2C%22value%22%3A%22ADMIN%22%7D%2C%7B%22field%22%3A%22is_active%22%2C%22operator%22%3A%22equals%22%2C%22value%22%3Atrue%7D%5D&sort_by=name&sort_direction=asc&page=1&page_size=20
 method: GET
-order: 4186600872379139
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0um6}}"
+order: 1788801428800

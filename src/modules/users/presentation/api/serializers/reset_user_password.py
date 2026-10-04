@@ -8,6 +8,7 @@ class ResetUserPasswordSerializer(serializers.Serializer):
         write_only=True,
         min_length=8,
         max_length=128,
+        trim_whitespace=False,
     )
 
     def to_internal_value(self, data):
