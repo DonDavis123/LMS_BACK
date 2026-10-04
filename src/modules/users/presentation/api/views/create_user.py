@@ -13,7 +13,7 @@ from src.modules.users.presentation.api.dependencies.user_dependencies import (
 from src.modules.users.presentation.permissions.is_superadmin import IsSuperAdmin
 
 from ..serializers.create_user_serializer import CreateUserSerializer
-from ..serializers.user import UserSerializer
+from ..serializers.user import UserListSerializer, UserSerializer
 
 
 class CreateUserView(APIView):

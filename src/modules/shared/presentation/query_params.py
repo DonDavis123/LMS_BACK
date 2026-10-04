@@ -70,12 +70,17 @@ def parse_list_query(query_params: Any) -> ListQuery:
     if sort_direction not in {"asc", "desc"}:
         raise ValueError("The sort_direction parameter must be 'asc' or 'desc'.")
 
+    search = query_params.get("search")
+    search = search.strip() if isinstance(search, str) else None
+    search = search or None
+
     return ListQuery(
         filters=filters,
         page=page,
         page_size=page_size,
         sort_by=sort_by,
         sort_direction=sort_direction,
+        search=search,
     )
 
 

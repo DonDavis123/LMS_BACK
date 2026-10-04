@@ -16,8 +16,10 @@ class ListQuery:
     page_size: int = 20
     sort_by: str | None = None
     sort_direction: str = "desc"
+    search: str | None = None
 
     MAX_PAGE_SIZE = 50
+    MAX_SEARCH_LENGTH = 100
 
     def __post_init__(self) -> None:
         if self.page < 1:
@@ -30,6 +32,10 @@ class ListQuery:
             )
         if self.sort_direction not in {"asc", "desc"}:
             raise ValueError("Sort direction must be 'asc' or 'desc'.")
+        if self.search is not None and len(self.search) > self.MAX_SEARCH_LENGTH:
+            raise ValueError(
+                f"Search must be at most {self.MAX_SEARCH_LENGTH} characters."
+            )
 
 
 from dataclasses import dataclass

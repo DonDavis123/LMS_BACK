@@ -1,7 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
+from django.db.models import Q
+
+from src.modules.shared.application.dto.list_query import (
+    FilterCondition,
+    ListQuery,
+    PaginatedResult,
+)
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -89,6 +95,12 @@ class DjangoUserRepository(UserRepository):
         query: ListQuery,
     ) -> PaginatedResult[User]:
         queryset = DjangoUser.objects.filter(deleted_at__isnull=True)
+        if query.search:
+            queryset = queryset.filter(
+                Q(name__icontains=query.search)
+                | Q(email__icontains=query.search)
+            )
+        queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
         queryset = apply_ordering(
             queryset,
@@ -108,6 +120,79 @@ class DjangoUserRepository(UserRepository):
             page_size=query.page_size,
             total=total,
         )
+
+    @staticmethod
+    def _apply_filters(queryset, filters: tuple[FilterCondition, ...]):
+        text_fields = {"name": "name", "email": "email"}
+        choice_fields = {"role": "role"}
+        boolean_fields = {"is_active": "is_active"}
+
+        for condition in filters:
+            field = condition.field
+            operator = condition.operator
+            value = condition.value
+
+            if field in text_fields:
+                queryset = DjangoUserRepository._apply_text_filter(
+                    queryset, text_fields[field], operator, value, field
+                )
+            elif field in choice_fields:
+                queryset = DjangoUserRepository._apply_choice_filter(
+                    queryset, choice_fields[field], operator, value, field
+                )
+            elif field in boolean_fields:
+                queryset = DjangoUserRepository._apply_boolean_filter(
+                    queryset, boolean_fields[field], operator, value, field
+                )
+            else:
+                raise ValueError(f"Filtering is not supported for field '{field}'.")
+
+        return queryset
+
+    @staticmethod
+    def _apply_text_filter(queryset, db_field, operator, value, field):
+        if not isinstance(value, str):
+            raise ValueError(f"Value for '{field}' must be a string.")
+        if not value:
+            raise ValueError(f"Value for '{field}' cannot be empty.")
+        lookups = {
+            "contains": "icontains",
+            "equals": "iexact",
+            "starts_with": "istartswith",
+            "ends_with": "iendswith",
+        }
+        if operator in lookups:
+            return queryset.filter(**{f"{db_field}__{lookups[operator]}": value})
+        if operator in {"not_contains", "not_equals"}:
+            lookup = "icontains" if operator == "not_contains" else "iexact"
+            return queryset.exclude(**{f"{db_field}__{lookup}": value})
+        raise ValueError(f"Operator '{operator}' is not supported for text field '{field}'.")
+
+    @staticmethod
+    def _apply_choice_filter(queryset, db_field, operator, value, field):
+        allowed = {key for key, _ in DjangoUser._meta.get_field(db_field).choices}
+        if operator in {"equals", "not_equals"}:
+            if not isinstance(value, str) or value not in allowed:
+                raise ValueError(f"Invalid value for choice field '{field}'.")
+            lookup = {db_field: value}
+            return queryset.filter(**lookup) if operator == "equals" else queryset.exclude(**lookup)
+        if operator in {"in", "not_in"}:
+            if (
+                not isinstance(value, list)
+                or not value
+                or any(not isinstance(v, str) or v not in allowed for v in value)
+            ):
+                raise ValueError(f"Value for '{field}' must be a non-empty list of valid choices.")
+            lookup = {f"{db_field}__in": value}
+            return queryset.filter(**lookup) if operator == "in" else queryset.exclude(**lookup)
+        raise ValueError(f"Operator '{operator}' is not supported for choice field '{field}'.")
+
+    @staticmethod
+    def _apply_boolean_filter(queryset, db_field, operator, value, field):
+        if operator not in {"equals", "not_equals"} or not isinstance(value, bool):
+            raise ValueError(f"Value for boolean field '{field}' must be true or false.")
+        lookup = {db_field: value}
+        return queryset.filter(**lookup) if operator == "equals" else queryset.exclude(**lookup)
 
     def update(
         self,
