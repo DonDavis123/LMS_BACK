@@ -265,6 +265,15 @@ STATIC_URL = "static/"
 # Email
 # -------------------------------------------------------------------
 
+# How password-reset emails are delivered:
+#   "smtp"  -> Django SMTP backend (works locally; also on any host that
+#              allows outbound SMTP).
+#   "brevo" -> Brevo's HTTPS API (port 443). Use this on Render's free tier,
+#              which blocks outbound SMTP ports 25/465/587.
+EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "smtp").strip().lower()
+
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 EMAIL_HOST = os.getenv("EMAIL_HOST")
@@ -280,6 +289,10 @@ EMAIL_USE_TLS = (
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+# Without a timeout a blocked SMTP port makes the request hang until
+# gunicorn kills the worker. Fail fast instead.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",

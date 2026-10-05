@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -8,6 +10,8 @@ from src.modules.authentication.presentation.api.dependencies.authentication_dep
 )
 
 from ..serializer.forgot_password import ForgotPasswordSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class ForgotPasswordView(APIView):
@@ -22,9 +26,15 @@ class ForgotPasswordView(APIView):
 
         use_case = get_forgot_password_use_case()
 
-        use_case.execute(
-            email=serializer.validated_data["email"],
-        )
+        try:
+            use_case.execute(
+                email=serializer.validated_data["email"],
+            )
+        except Exception:
+            # A delivery failure must not change the response: an error
+            # only for existing accounts would reveal which emails are
+            # registered. The full traceback goes to the server log.
+            logger.exception("Password reset email could not be sent.")
 
         return Response(
             {

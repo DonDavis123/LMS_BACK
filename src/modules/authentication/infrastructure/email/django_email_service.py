@@ -4,6 +4,9 @@ from django.core.mail import send_mail
 from src.modules.authentication.application.interfaces.email_service import (
     EmailService,
 )
+from src.modules.authentication.infrastructure.email.reset_link import (
+    build_reset_link,
+)
 
 
 class DjangoEmailService(EmailService):
@@ -14,10 +17,7 @@ class DjangoEmailService(EmailService):
         reset_token: str,
     ) -> None:
 
-        reset_link = (
-            f"{settings.FRONTEND_URL}/reset-password"
-            f"?token={reset_token}"
-        )
+        reset_link = build_reset_link(reset_token)
 
         send_mail(
             subject="Reset your Lead Management System password",
