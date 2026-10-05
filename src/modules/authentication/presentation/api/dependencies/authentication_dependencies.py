@@ -34,9 +34,22 @@ from src.modules.authentication.infrastructure.security.password_reset import (
     DjangoPasswordResetTokenService,
 )
 
+from django.conf import settings
+
+from src.modules.authentication.application.interfaces.email_service import (
+    EmailService,
+)
 from src.modules.authentication.infrastructure.email import (
+    BrevoEmailService,
     DjangoEmailService,
 )
+
+
+def _build_email_service() -> EmailService:
+    """Pick the delivery mechanism from EMAIL_PROVIDER (see settings)."""
+    if settings.EMAIL_PROVIDER == "brevo":
+        return BrevoEmailService()
+    return DjangoEmailService()
 
 
 def get_login_user_use_case() -> LoginUserUseCase:
@@ -70,7 +83,7 @@ def get_logout_user_use_case() -> LogoutUserUseCase:
 def get_forgot_password_use_case() -> ForgotPasswordUseCase:
     user_repository = DjangoUserRepository()
     password_reset_token_service = DjangoPasswordResetTokenService()
-    email_service = DjangoEmailService()
+    email_service = _build_email_service()
 
     return ForgotPasswordUseCase(
         user_repository=user_repository,
