@@ -11,6 +11,7 @@ class LeadSerializer(serializers.Serializer):
     name = serializers.CharField()
     company_name = serializers.CharField(allow_null=True, allow_blank=True)
     email = serializers.EmailField(allow_null=True)
+    phone = serializers.CharField(allow_null=True, allow_blank=True)
     mobile_number = serializers.CharField()
     lead_source = serializers.CharField()
     owner = OwnerSerializer()

@@ -11,6 +11,7 @@ class LeadResponseDTO:
     name: str
     company_name: str | None
     email: str | None
+    phone: str | None
     mobile_number: str
     lead_source: str
     owner: OwnerResponseDTO

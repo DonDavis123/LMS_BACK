@@ -19,6 +19,7 @@ class GetLeadsUseCase:
                     name=lead.name,
                     company_name=lead.company_name,
                     email=lead.email,
+                    phone=lead.phone,
                     mobile_number=lead.mobile_number,
                     lead_source=lead.lead_source.value,
                     lead_status=lead.lead_status.value,
