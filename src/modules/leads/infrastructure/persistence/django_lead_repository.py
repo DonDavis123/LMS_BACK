@@ -34,6 +34,7 @@ class DjangoLeadRepository(LeadRepository):
         "name": SortableField("name", is_text=True),
         "company_name": SortableField("company_name", is_text=True),
         "email": SortableField("email", is_text=True),
+        "phone": SortableField("phone", is_text=True),
         "lead_source": SortableField("lead_source", is_text=True),
         "lead_status": SortableField("lead_status", is_text=True),
         "owner": SortableField("owner__name", is_text=True),
