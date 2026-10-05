@@ -63,6 +63,7 @@ class GetLeadDetailsView(APIView):
             description=lead.description,
             created_at=lead.created_at,
             updated_at=lead.updated_at,
+            is_converted=lead.is_converted,
         )
 
         serializer = LeadDetailSerializer(dto)

@@ -71,3 +71,5 @@ class LeadDetailSerializer(serializers.Serializer):
 
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
+
+    is_converted = serializers.BooleanField()
