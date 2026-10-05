@@ -29,6 +29,14 @@ class UpdateLeadUseCase:
         if existing_lead is None:
             raise ValueError("Lead not found.")
 
+        # Once converted, the Lead is a read-only historical record. Any
+        # further changes must be made on the Contact / Account it became.
+        if existing_lead.is_converted:
+            raise ValueError(
+                "This lead has been converted and can no longer be edited. "
+                "Update the related Contact or Account instead."
+            )
+
         updateable_fields = (
             "name", "title", "company_name", "email", "mobile_number", "phone",
             "lead_source", "lead_status", "industry", "rating", "website",

@@ -39,3 +39,6 @@ class LeadDetailResponseDTO:
 
     created_at: datetime
     updated_at: datetime
+
+    # Lets the UI show converted leads as read-only history.
+    is_converted: bool = False
