@@ -271,10 +271,16 @@ STATIC_URL = "static/"
 #   "http" -> Plain HTTP POST to EMAIL_HTTP_ENDPOINT (port 80/443). Use
 #             this on Render's free tier, which blocks outbound SMTP
 #             ports 25/465/587.
-EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "smtp").strip().lower()
-
 # Used when EMAIL_PROVIDER == "http".
 EMAIL_HTTP_ENDPOINT = os.getenv("EMAIL_HTTP_ENDPOINT")
+
+# If EMAIL_PROVIDER is not set explicitly, use "http" whenever an HTTP
+# endpoint is configured. Otherwise a missing EMAIL_PROVIDER on Render would
+# silently fall back to SMTP, which Render blocks.
+EMAIL_PROVIDER = (
+    os.getenv("EMAIL_PROVIDER")
+    or ("http" if EMAIL_HTTP_ENDPOINT else "smtp")
+).strip().lower()
 EMAIL_HTTP_TOKEN = os.getenv("EMAIL_HTTP_TOKEN")  # optional bearer token
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -293,9 +299,10 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
-# Without a timeout a blocked SMTP port makes the request hang until
-# gunicorn kills the worker. Fail fast instead.
-EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+# Without a timeout a blocked port makes the request hang until gunicorn
+# kills the worker. 20s leaves room for Apps Script cold starts while
+# staying under gunicorn's default 30s worker timeout.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
 
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",

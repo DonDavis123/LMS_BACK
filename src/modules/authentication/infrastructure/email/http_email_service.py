@@ -106,6 +106,8 @@ class HttpEmailService(EmailService):
 
         self._raise_if_relay_reported_failure(body)
 
+        logger.info("Password reset email handed to the mail endpoint.")
+
     @staticmethod
     def _raise_if_relay_reported_failure(body: str) -> None:
         """Some relays (e.g. Google Apps Script) answer HTTP 200 even when
