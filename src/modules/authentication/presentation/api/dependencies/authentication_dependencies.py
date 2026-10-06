@@ -40,15 +40,15 @@ from src.modules.authentication.application.interfaces.email_service import (
     EmailService,
 )
 from src.modules.authentication.infrastructure.email import (
-    BrevoEmailService,
     DjangoEmailService,
+    HttpEmailService,
 )
 
 
 def _build_email_service() -> EmailService:
     """Pick the delivery mechanism from EMAIL_PROVIDER (see settings)."""
-    if settings.EMAIL_PROVIDER == "brevo":
-        return BrevoEmailService()
+    if settings.EMAIL_PROVIDER == "http":
+        return HttpEmailService()
     return DjangoEmailService()
 
 
