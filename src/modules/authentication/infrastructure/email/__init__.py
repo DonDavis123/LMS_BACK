@@ -1,2 +1,2 @@
-from .brevo_email_service import BrevoEmailService
 from .django_email_service import DjangoEmailService
+from .http_email_service import HttpEmailService
