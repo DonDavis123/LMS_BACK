@@ -93,8 +93,8 @@ class HttpEmailService(EmailService):
             with request.urlopen(
                 http_request,
                 timeout=settings.EMAIL_TIMEOUT,
-            ):
-                pass
+            ) as response:
+                body = response.read().decode("utf-8", errors="replace")
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             logger.error(
@@ -103,6 +103,28 @@ class HttpEmailService(EmailService):
                 detail,
             )
             raise
+
+        self._raise_if_relay_reported_failure(body)
+
+    @staticmethod
+    def _raise_if_relay_reported_failure(body: str) -> None:
+        """Some relays (e.g. Google Apps Script) answer HTTP 200 even when
+        sending failed and report it as {"ok": false, "error": "..."}.
+        Non-JSON or JSON without an "ok" flag is treated as success.
+        """
+        try:
+            data = json.loads(body)
+        except (TypeError, ValueError):
+            return
+
+        if isinstance(data, dict) and data.get("ok") is False:
+            logger.error(
+                "Mail endpoint reported a failure: %s",
+                data.get("error"),
+            )
+            raise RuntimeError(
+                f"Mail endpoint reported a failure: {data.get('error')}"
+            )
 
     @staticmethod
     def _get_endpoint() -> str:
