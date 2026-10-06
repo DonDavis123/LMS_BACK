@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class ForgotPasswordView(APIView):
+    # Public endpoint: never run JWT authentication here. A stale or
+    # expired Bearer token would otherwise be rejected with 401 before
+    # AllowAny is even consulted.
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):

@@ -13,6 +13,14 @@ from src.modules.authentication.infrastructure.email.reset_link import (
 HTTP = "src.modules.authentication.infrastructure.email.http_email_service"
 
 
+def _response(body: bytes = b'{"ok": true}'):
+    """Mimic the context-manager response returned by urlopen."""
+    response = MagicMock()
+    response.read.return_value = body
+    response.__enter__.return_value = response
+    return response
+
+
 @override_settings(FRONTEND_URL="https://app.example.com/")
 class ResetLinkTests(SimpleTestCase):
     def test_trailing_slash_is_removed_and_token_encoded(self):
@@ -36,7 +44,7 @@ class ResetLinkTests(SimpleTestCase):
 class HttpEmailServiceTests(SimpleTestCase):
     @patch(f"{HTTP}.request.urlopen")
     def test_posts_reset_link_over_http(self, urlopen):
-        urlopen.return_value = MagicMock()
+        urlopen.return_value = _response()
 
         HttpEmailService().send_password_reset_email("user@example.com", "tok")
 
@@ -55,7 +63,7 @@ class HttpEmailServiceTests(SimpleTestCase):
     @override_settings(EMAIL_HTTP_TOKEN=None)
     @patch(f"{HTTP}.request.urlopen")
     def test_authorization_header_omitted_without_token(self, urlopen):
-        urlopen.return_value = MagicMock()
+        urlopen.return_value = _response()
 
         HttpEmailService().send_password_reset_email("user@example.com", "tok")
 
@@ -83,3 +91,14 @@ class HttpEmailServiceTests(SimpleTestCase):
         )
         with self.assertRaises(error.HTTPError):
             HttpEmailService().send_password_reset_email("user@example.com", "tok")
+
+    @patch(f"{HTTP}.request.urlopen")
+    def test_relay_reported_failure_is_raised(self, urlopen):
+        urlopen.return_value = _response(b'{"ok": false, "error": "quota"}')
+        with self.assertRaises(RuntimeError):
+            HttpEmailService().send_password_reset_email("user@example.com", "tok")
+
+    @patch(f"{HTTP}.request.urlopen")
+    def test_non_json_success_body_is_accepted(self, urlopen):
+        urlopen.return_value = _response(b"OK")
+        HttpEmailService().send_password_reset_email("user@example.com", "tok")
