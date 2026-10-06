@@ -10,6 +10,12 @@ from django.core.exceptions import ImproperlyConfigured
 from src.modules.authentication.application.interfaces.email_service import (
     EmailService,
 )
+from src.modules.authentication.infrastructure.email.relay_diagnostics import (
+    hint_for_failure,
+    is_html,
+    safe_url,
+    summarize_body,
+)
 from src.modules.authentication.infrastructure.email.reset_link import (
     build_reset_link,
 )
@@ -95,29 +101,47 @@ class HttpEmailService(EmailService):
                 timeout=settings.EMAIL_TIMEOUT,
             ) as response:
                 body = response.read().decode("utf-8", errors="replace")
+                final_url = response.geturl()
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
-            # Google answers with a full HTML page when the web app is not
-            # publicly reachable; keep the log readable.
-            hint = ""
-            if "<html" in detail.lower():
-                hint = (
-                    " (HTML page returned: the Apps Script web app is not "
-                    "reachable anonymously - check that it is deployed as "
-                    "'Execute as: Me' with access 'Anyone', and that the "
-                    "EMAIL_HTTP_ENDPOINT URL is the current /exec URL)"
-                )
             logger.error(
-                "Mail endpoint rejected the password reset request: %s %.300s%s",
+                "Mail endpoint rejected the password reset request: "
+                "HTTP %s from %s - %s. %s",
                 exc.code,
-                " ".join(detail.split()),
-                hint,
+                # exc.url is where the answer came from, after any
+                # redirect; the query string (with the secret) is dropped.
+                safe_url(exc.url),
+                summarize_body(detail),
+                hint_for_failure(exc.code, exc.url, detail),
             )
             raise
 
+        self._raise_if_relay_returned_a_web_page(body, final_url)
         self._raise_if_relay_reported_failure(body)
 
         logger.info("Password reset email handed to the mail endpoint.")
+
+    @staticmethod
+    def _raise_if_relay_returned_a_web_page(body: str, final_url: str) -> None:
+        """A relay answers JSON or plain text, never a web page.
+
+        Google serves its sign-in / error page with HTTP 200 when the web
+        app is not public, so an HTML body means nothing was sent.
+        """
+        if not is_html(body):
+            return
+
+        hint = hint_for_failure(401, final_url, body)
+        logger.error(
+            "Mail endpoint returned a web page instead of a result: "
+            "from %s - %s. %s",
+            safe_url(final_url),
+            summarize_body(body),
+            hint,
+        )
+        raise RuntimeError(
+            "Mail endpoint returned a web page instead of a result."
+        )
 
     @staticmethod
     def _raise_if_relay_reported_failure(body: str) -> None:
