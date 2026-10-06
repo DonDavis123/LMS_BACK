@@ -97,10 +97,21 @@ class HttpEmailService(EmailService):
                 body = response.read().decode("utf-8", errors="replace")
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
+            # Google answers with a full HTML page when the web app is not
+            # publicly reachable; keep the log readable.
+            hint = ""
+            if "<html" in detail.lower():
+                hint = (
+                    " (HTML page returned: the Apps Script web app is not "
+                    "reachable anonymously - check that it is deployed as "
+                    "'Execute as: Me' with access 'Anyone', and that the "
+                    "EMAIL_HTTP_ENDPOINT URL is the current /exec URL)"
+                )
             logger.error(
-                "Mail endpoint rejected the password reset request: %s %s",
+                "Mail endpoint rejected the password reset request: %s %.300s%s",
                 exc.code,
-                detail,
+                " ".join(detail.split()),
+                hint,
             )
             raise
 

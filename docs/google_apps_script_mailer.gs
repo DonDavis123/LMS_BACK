@@ -38,6 +38,11 @@ function doPost(e) {
   }
 }
 
+/** Health check: open the /exec URL in a browser; it must show {"ok":true,...}. */
+function doGet() {
+  return reply_({ ok: true, service: "leadpulse-mailer" });
+}
+
 function reply_(body) {
   return ContentService
     .createTextOutput(JSON.stringify(body))
