@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 
 from src.modules.contacts.application.interfaces.contact_repository import (
@@ -162,6 +162,12 @@ class DjangoContactRepository(ContactRepository):
             )
         )
 
+        if query.search:
+            queryset = queryset.filter(
+                Q(name__icontains=query.search)
+                | Q(email__icontains=query.search)
+                | Q(secondary_email__icontains=query.search)
+            )
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
