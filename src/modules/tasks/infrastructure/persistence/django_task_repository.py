@@ -79,7 +79,7 @@ class DjangoTaskRepository(TaskRepository):
         try:
             model = (
                 DjangoTaskModel.objects
-                .select_related("lead", "contact", "account")
+                .select_related("owner", "lead", "contact", "account")
                 .get(id=task_id, is_deleted=False)
             )
         except DjangoTaskModel.DoesNotExist:
@@ -90,6 +90,7 @@ class DjangoTaskRepository(TaskRepository):
             lead_name=model.lead.name if model.lead else None,
             contact_name=model.contact.name if model.contact else None,
             account_name=model.account.account_name if model.account else None,
+            owner_name=model.owner.name if model.owner else None,
         )
 
     def get_by_due_date_range(self, start_date: date, end_date: date) -> list[Task]:
@@ -135,7 +136,7 @@ class DjangoTaskRepository(TaskRepository):
     def get_all_with_relations(self, query: ListQuery) -> PaginatedResult[GetTaskDTO]:
         queryset = (
             DjangoTaskModel.objects
-            .select_related("lead", "contact", "account")
+            .select_related("owner", "lead", "contact", "account")
             .filter(is_deleted=False)
         )
 
@@ -154,6 +155,7 @@ class DjangoTaskRepository(TaskRepository):
                     lead_name=model.lead.name if model.lead else None,
                     contact_name=model.contact.name if model.contact else None,
                     account_name=model.account.account_name if model.account else None,
+                    owner_name=model.owner.name if model.owner else None,
                 )
                 for model in models
             ],
