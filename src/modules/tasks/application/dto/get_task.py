@@ -17,3 +17,4 @@ class GetTaskDTO:
     lead_name: str | None
     contact_name: str | None
     account_name: str | None
+    owner_name: str | None = None
