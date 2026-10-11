@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from django.db.models import Q
 from django.utils import timezone
 
 from src.modules.accounts.application.interfaces.account_repository import (
@@ -101,6 +102,12 @@ class DjangoAccountRepository(AccountRepository):
             .filter(is_deleted=False)
         )
 
+        if query.search:
+            queryset = queryset.filter(
+                Q(account_name__icontains=query.search)
+                | Q(website__icontains=query.search)
+                | Q(phone__icontains=query.search)
+            )
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)

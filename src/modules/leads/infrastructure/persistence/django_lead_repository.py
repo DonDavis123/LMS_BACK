@@ -137,6 +137,12 @@ class DjangoLeadRepository(LeadRepository):
             )
         )
 
+        if query.search:
+            queryset = queryset.filter(
+                Q(name__icontains=query.search)
+                | Q(email__icontains=query.search)
+                | Q(company_name__icontains=query.search)
+            )
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
