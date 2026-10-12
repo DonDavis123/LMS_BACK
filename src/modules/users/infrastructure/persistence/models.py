@@ -2,6 +2,7 @@ import uuid
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
+from django.db.models.functions import Lower
 
 from .managers import UserManager
 
@@ -13,6 +14,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ADMIN = "ADMIN", "Admin"
         SALES_MANAGER = "SALES_MANAGER", "Sales Manager"
         SALES_EXECUTIVE = "SALES_EXECUTIVE", "Sales Executive"
+        PLATFORM_SUPERADMIN = "PLATFORM_SUPERADMIN", "Platform Superadmin"
 
     id = models.UUIDField(
         primary_key=True,
@@ -33,6 +35,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=30,
         choices=Role.choices,
         default=Role.ADMIN,
+    )
+
+    company = models.ForeignKey(
+        "companies.DjangoCompanyModel",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="users",
+        db_index=True,
     )
 
     is_active = models.BooleanField(
@@ -61,6 +72,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["name"]
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                Lower("email"),
+                name="user_email_lower_unique",
+            ),
+        ]
 
     def __str__(self):
         return self.email

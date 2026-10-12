@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     "src.modules.meetings.apps.MeetingsConfig",
     "src.modules.reminders.apps.RemindersConfig",
     "src.modules.notifications.apps.NotificationsConfig",
+    "src.modules.companies.apps.CompaniesConfig",
 ]
 
 

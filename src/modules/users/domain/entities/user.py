@@ -15,6 +15,7 @@ class User:
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+    company_id: UUID | None = None
 
     @property
     def is_deleted(self) -> bool:

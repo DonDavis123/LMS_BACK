@@ -140,6 +140,15 @@ class DjangoAccountModel(models.Model):
     # Soft delete
     is_deleted = models.BooleanField(default=False)
 
+    company = models.ForeignKey(
+        "companies.DjangoCompanyModel",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        db_index=True,
+    )
+
     class Meta:
         db_table = "accounts"
 

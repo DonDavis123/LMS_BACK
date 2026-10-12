@@ -58,6 +58,15 @@ class DjangoReminderModel(models.Model):
         auto_now=True,
     )
 
+    company = models.ForeignKey(
+        "companies.DjangoCompanyModel",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        db_index=True,
+    )
+
     class Meta:
         db_table = "reminders"
         indexes = [
