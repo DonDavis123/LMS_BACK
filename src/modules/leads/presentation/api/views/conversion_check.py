@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_conversion_check_use_case,
 )
@@ -15,7 +16,7 @@ class ConversionCheckView(APIView):
 
     def get(self, request, lead_id):
 
-        use_case = get_conversion_check_use_case()
+        use_case = get_conversion_check_use_case(get_tenant_context(request))
 
         try:
             result = use_case.execute(

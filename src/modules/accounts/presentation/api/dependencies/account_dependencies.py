@@ -1,3 +1,4 @@
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.accounts.application.use_cases.create_account import CreateAccountUseCase
 from src.modules.accounts.application.use_cases.get_accounts import GetAccountsUseCase
 from src.modules.accounts.application.use_cases.get_account_details import GetAccountDetailsUseCase
@@ -16,12 +17,12 @@ def recorder():
     return DefaultTimelineRecorder(DjangoTimelineRepository())
 
 
-def get_create_account_use_case() -> CreateAccountUseCase:
+def get_create_account_use_case(ctx: TenantContext) -> CreateAccountUseCase:
     return CreateAccountUseCase(
         DjangoAccountRepository(),
         recorder(),
         DjangoTransactionManager(),
-        DjangoUserRepository(),
+        DjangoUserRepository(company_id=ctx.company_id),
     )
 
 

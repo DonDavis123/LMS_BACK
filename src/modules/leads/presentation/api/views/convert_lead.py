@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.application.dto.convert_lead import (
     ConvertAccountDTO,
     ConvertContactDTO,
@@ -160,7 +161,7 @@ class ConvertLeadView(APIView):
             contact=contact_dto,
         )
 
-        use_case = get_convert_lead_use_case()
+        use_case = get_convert_lead_use_case(get_tenant_context(request))
 
         try:
 

@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_leads_use_case,
 )
@@ -21,7 +22,7 @@ class GetLeadsView(APIView):
     def get(self, request):
         try:
             query = parse_list_query(request.query_params)
-            result = get_leads_use_case().execute(query)
+            result = get_leads_use_case(get_tenant_context(request)).execute(query)
         except ValueError as exc:
             return Response(
                 {"detail": str(exc)},

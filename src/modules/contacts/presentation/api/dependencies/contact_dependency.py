@@ -1,3 +1,4 @@
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.contacts.application.use_cases.create_contact import CreateContactUseCase
 from src.modules.contacts.application.use_cases.get_contacts import GetContactsUseCase
 from src.modules.contacts.application.use_cases.get_contact_details import GetContactDetailsUseCase
@@ -16,8 +17,8 @@ def recorder():
     return DefaultTimelineRecorder(DjangoTimelineRepository())
 
 
-def get_create_contact_use_case() -> CreateContactUseCase:
-    return CreateContactUseCase(DjangoContactRepository(), DjangoAccountRepository(), DjangoUserRepository(), recorder(), DjangoTransactionManager())
+def get_create_contact_use_case(ctx: TenantContext) -> CreateContactUseCase:
+    return CreateContactUseCase(DjangoContactRepository(), DjangoAccountRepository(), DjangoUserRepository(company_id=ctx.company_id), recorder(), DjangoTransactionManager())
 
 
 def get_contacts_use_case() -> GetContactsUseCase:
@@ -28,11 +29,11 @@ def get_contact_details_use_case() -> GetContactDetailsUseCase:
     return GetContactDetailsUseCase(DjangoContactRepository())
 
 
-def get_update_contact_use_case() -> UpdateContactUseCase:
+def get_update_contact_use_case(ctx: TenantContext) -> UpdateContactUseCase:
     return UpdateContactUseCase(
         DjangoContactRepository(),
         DjangoAccountRepository(),
-        DjangoUserRepository(),
+        DjangoUserRepository(company_id=ctx.company_id),
         recorder(),
         DjangoTransactionManager(),
     )

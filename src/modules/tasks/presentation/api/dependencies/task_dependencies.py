@@ -1,3 +1,4 @@
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
@@ -27,11 +28,11 @@ def reminder_sync_service():
     return ReminderSyncService(DjangoReminderRepository())
 
 
-def get_create_task_use_case() -> CreateTaskUseCase:
+def get_create_task_use_case(ctx: TenantContext) -> CreateTaskUseCase:
     return CreateTaskUseCase(
         DjangoTaskRepository(),
-        DjangoUserRepository(),
-        DjangoLeadRepository(),
+        DjangoUserRepository(company_id=ctx.company_id),
+        DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(),
         DjangoAccountRepository(),
         recorder(),
@@ -48,11 +49,11 @@ def get_tasks_use_case() -> GetTasksUseCase:
     return GetTasksUseCase(DjangoTaskRepository())
 
 
-def get_update_task_use_case() -> UpdateTaskUseCase:
+def get_update_task_use_case(ctx: TenantContext) -> UpdateTaskUseCase:
     return UpdateTaskUseCase(
         DjangoTaskRepository(),
-        DjangoUserRepository(),
-        DjangoLeadRepository(),
+        DjangoUserRepository(company_id=ctx.company_id),
+        DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(),
         DjangoAccountRepository(),
         recorder(),

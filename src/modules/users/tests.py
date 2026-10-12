@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -13,31 +14,31 @@ from src.modules.users.infrastructure.persistence.models import User
 
 class SuperadminUserManagementPresentationTests(APITestCase):
     def setUp(self):
-        self.superadmin = User.objects.create_user(
+        self.superadmin = User.objects.create_user(company=default_test_company(),
             email="superadmin@example.com",
             password="password123",
             name="Super Admin",
             role=User.Role.SUPERADMIN,
         )
-        self.admin = User.objects.create_user(
+        self.admin = User.objects.create_user(company=default_test_company(),
             email="admin@example.com",
             password="password123",
             name="Admin",
             role=User.Role.ADMIN,
         )
-        self.sales_manager = User.objects.create_user(
+        self.sales_manager = User.objects.create_user(company=default_test_company(),
             email="manager@example.com",
             password="password123",
             name="Sales Manager",
             role=User.Role.SALES_MANAGER,
         )
-        self.sales_executive = User.objects.create_user(
+        self.sales_executive = User.objects.create_user(company=default_test_company(),
             email="executive@example.com",
             password="password123",
             name="Sales Executive",
             role=User.Role.SALES_EXECUTIVE,
         )
-        self.target = User.objects.create_user(
+        self.target = User.objects.create_user(company=default_test_company(),
             email="target@example.com",
             password="password123",
             name="Target User",

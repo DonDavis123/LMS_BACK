@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.users.infrastructure.persistence.models import User
 
 
@@ -37,7 +38,7 @@ class UserListApiTestCase(APITestCase):
 
     @staticmethod
     def make(email, name, role, is_active=True):
-        return User.objects.create_user(
+        return User.objects.create_user(company=default_test_company(),
             email=email,
             password="password123",
             name=name,

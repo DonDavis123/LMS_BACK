@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -12,13 +13,13 @@ from src.modules.users.infrastructure.persistence.models import User
 class AccountApiTests(APITestCase):
     def setUp(self):
         now = datetime(2026, 9, 1, tzinfo=timezone.utc)
-        self.owner = User.objects.create_user(
+        self.owner = User.objects.create_user(company=default_test_company(),
             email="account-owner@example.com",
             password="account-password",
             name="Account Owner",
             role=User.Role.ADMIN,
         )
-        self.other_owner = User.objects.create_user(
+        self.other_owner = User.objects.create_user(company=default_test_company(),
             email="other-owner@example.com",
             password="other-password",
             name="Other Owner",

@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.accounts.application.dto.create_account_dto import (
     CreateAccountDTO,
 )
@@ -55,7 +56,7 @@ class CreateAccountView(APIView):
             description=data.get("description"),
         )
 
-        use_case = get_create_account_use_case()
+        use_case = get_create_account_use_case(get_tenant_context(request))
 
         try:
             account = use_case.execute(

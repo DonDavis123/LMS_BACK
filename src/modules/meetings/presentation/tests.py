@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.contacts.infrastructure.persistence.django_contact_model import (
     DjangoContactModel,
 )
@@ -21,27 +22,27 @@ from src.modules.users.infrastructure.persistence.models import User
 
 class MeetingPresentationApiTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_user(company=default_test_company(),
             email="meeting-api@example.com",
             password="password",
             name="Meeting API User",
             role=User.Role.ADMIN,
         )
 
-        self.other_user = User.objects.create_user(
+        self.other_user = User.objects.create_user(company=default_test_company(),
             email="meeting-api-other@example.com",
             password="password",
             name="Other Meeting User",
             role=User.Role.ADMIN,
         )
 
-        self.lead = DjangoLeadModel.objects.create(
+        self.lead = DjangoLeadModel.objects.create(company=default_test_company(),
             name="API Lead",
             company_name="API Company",
             owner=self.user,
         )
 
-        self.second_lead = DjangoLeadModel.objects.create(
+        self.second_lead = DjangoLeadModel.objects.create(company=default_test_company(),
             name="Second API Lead",
             company_name="Second API Company",
             owner=self.user,

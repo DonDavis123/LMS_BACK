@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.shared.presentation.query_params import parse_list_query
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.users.presentation.api.dependencies.user_dependencies import (
@@ -17,15 +19,16 @@ from ..serializers.user import UserListSerializer, UserSerializer
 
 
 class CreateUserView(APIView):
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated, IsCompanyUser, IsSuperAdmin]
 
     def get(self, request):
+        ctx = get_tenant_context(request)
         try:
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
             query = parse_list_query(request.query_params)
-            result = get_users_use_case().execute(
+            result = get_users_use_case(ctx).execute(
                 current_user=current_user,
                 query=query,
             )
@@ -51,15 +54,16 @@ class CreateUserView(APIView):
         )
 
     def post(self, request):
+        ctx = get_tenant_context(request)
         serializer = CreateUserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
         try:
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
-            user = get_create_user_use_case().execute(
+            user = get_create_user_use_case(ctx).execute(
                 current_user=current_user,
                 name=data["name"],
                 email=data["email"],

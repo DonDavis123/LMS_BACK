@@ -4,6 +4,7 @@ from uuid import uuid4
 from django.test import TestCase
 from django.utils import timezone
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.contacts.infrastructure.persistence.django_contact_model import (
     DjangoContactModel,
 )
@@ -87,24 +88,24 @@ class MeetingDomainTests(TestCase):
 
 class MeetingInfrastructureTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_user(company=default_test_company(),
             email="meeting-owner@example.com",
             password="meeting-password",
             name="Meeting Owner",
             role=User.Role.ADMIN,
         )
-        self.second_user = User.objects.create_user(
+        self.second_user = User.objects.create_user(company=default_test_company(),
             email="meeting-user@example.com",
             password="meeting-password",
             name="Meeting User",
             role=User.Role.ADMIN,
         )
-        self.lead = DjangoLeadModel.objects.create(
+        self.lead = DjangoLeadModel.objects.create(company=default_test_company(),
             name="Meeting Lead",
             company_name="Meeting Company",
             owner=self.user,
         )
-        self.second_lead = DjangoLeadModel.objects.create(
+        self.second_lead = DjangoLeadModel.objects.create(company=default_test_company(),
             name="Second Lead",
             company_name="Second Company",
             owner=self.user,

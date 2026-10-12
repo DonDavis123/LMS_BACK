@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.users.presentation.api.dependencies.user_dependencies import (
     get_block_user_use_case,
     get_current_user_use_case,
@@ -15,14 +17,15 @@ from ..serializers.user import UserSerializer
 
 
 class BlockUserView(APIView):
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated, IsCompanyUser, IsSuperAdmin]
 
     def post(self, request, user_id: UUID):
+        ctx = get_tenant_context(request)
         try:
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
-            user = get_block_user_use_case().execute(
+            user = get_block_user_use_case(ctx).execute(
                 current_user=current_user,
                 user_id=user_id,
             )

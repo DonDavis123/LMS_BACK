@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.reminders.infrastructure.persistence.models.django_reminder_model import DjangoReminderModel
 
 from src.modules.notifications.domain.entities.notification import Notification
@@ -17,12 +18,12 @@ from src.modules.notifications.infrastructure.persistence.django_notification_re
 class NotificationAPITests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"notification-api-{uuid4()}@example.com",
             password="test-password",
             name="Notification API User",
         )
-        self.other_user = get_user_model().objects.create_user(
+        self.other_user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"notification-api-other-{uuid4()}@example.com",
             password="test-password",
             name="Other User",
@@ -112,7 +113,7 @@ class NotificationAPITests(TestCase):
 class NotificationCronEndpointTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"notification-cron-{uuid4()}@example.com",
             password="test-password",
             name="Notification Cron User",

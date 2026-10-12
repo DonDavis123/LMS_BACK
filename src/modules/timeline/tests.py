@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.utils import timezone
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.application.dto.delete_account import DeleteAccountDTO
 from src.modules.accounts.application.use_cases.delete_account import DeleteAccountUseCase
 from src.modules.accounts.infrastructure.persistence.django_account_model import DjangoAccountModel
@@ -24,13 +25,13 @@ from src.modules.users.infrastructure.persistence.models import User
 class TimelineCascadeDeletionTests(TestCase):
     def setUp(self):
         now = timezone.now()
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_user(company=default_test_company(),
             email="timeline-cascade@example.com",
             password="password",
             name="Timeline Cascade",
             role=User.Role.ADMIN,
         )
-        self.lead = DjangoLeadModel.objects.create(
+        self.lead = DjangoLeadModel.objects.create(company=default_test_company(),
             name="Cascade Lead",
             company_name="Lead Company",
             owner=self.user,
@@ -83,7 +84,7 @@ class TimelineCascadeDeletionTests(TestCase):
         event = self._event([(TimelineEntityType.LEAD.value, self.lead.id)])
 
         DeleteLeadUseCase(
-            DjangoLeadRepository(),
+            DjangoLeadRepository(company_id=default_test_company().id),
             DjangoTaskRepository(),
             DjangoTimelineRepository(),
             DjangoTransactionManager(),
@@ -211,7 +212,7 @@ class TimelineCascadeDeletionTests(TestCase):
                 raise RuntimeError("timeline cascade failed")
 
         use_case = DeleteLeadUseCase(
-            DjangoLeadRepository(),
+            DjangoLeadRepository(company_id=default_test_company().id),
             DjangoTaskRepository(),
             FailingTimelineRepository(),
             DjangoTransactionManager(),

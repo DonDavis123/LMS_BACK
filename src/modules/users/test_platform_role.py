@@ -8,8 +8,12 @@ from rest_framework.test import APITestCase
 from src.modules.companies.infrastructure.persistence.django_company_model import (
     DjangoCompanyModel,
 )
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.users.domain.entities.role import MANAGEABLE_ROLES, UserRole
 from src.modules.users.domain.entities.user import User as DomainUser
+from src.modules.users.infrastructure.persistence.current_user_reader import (
+    DjangoCurrentUserReader,
+)
 from src.modules.users.infrastructure.persistence.models import User
 from src.modules.users.infrastructure.persistence.user_repository import (
     DjangoUserRepository,
@@ -43,12 +47,14 @@ class PlatformSuperadminApiTests(APITestCase):
             password="password123",
             name="Super Admin",
             role=User.Role.SUPERADMIN,
+            company=default_test_company(),
         )
         self.target = User.objects.create_user(
             email="target@example.com",
             password="password123",
             name="Target User",
             role=User.Role.ADMIN,
+            company=default_test_company(),
         )
         self.client.force_authenticate(self.superadmin)
 
@@ -98,16 +104,17 @@ class UserCompanyMappingTests(TestCase):
             name="Platform",
             role=User.Role.PLATFORM_SUPERADMIN,
         )
-        repository = DjangoUserRepository()
-
-        member = repository.get_by_id(with_company.id)
-        platform = repository.get_by_id(without_company.id)
+        member = DjangoUserRepository(company_id=company.id).get_by_id(with_company.id)
+        # A company-scoped repository never sees users without a company;
+        # the unscoped current-user reader resolves them by their own id.
+        platform = DjangoCurrentUserReader().get_by_id(without_company.id)
 
         self.assertEqual(member.company_id, company.id)
         self.assertIsNone(platform.company_id)
         self.assertEqual(platform.role, UserRole.PLATFORM_SUPERADMIN)
 
-    def test_users_created_through_the_repository_have_no_company_yet(self):
+    def test_users_created_through_the_repository_get_the_repository_company(self):
+        company = DjangoCompanyModel.objects.create(name="Acme", slug="acme")
         now = datetime.now(timezone.utc)
         domain_user = DomainUser(
             id=uuid4(),
@@ -119,7 +126,10 @@ class UserCompanyMappingTests(TestCase):
             updated_at=now,
         )
 
-        created = DjangoUserRepository().create(domain_user, "password123")
+        created = DjangoUserRepository(company_id=company.id).create(
+            domain_user, "password123",
+        )
 
+        # The entity carries no company; the repository stamps its own.
         self.assertIsNone(domain_user.company_id)
-        self.assertIsNone(created.company_id)
+        self.assertEqual(created.company_id, company.id)

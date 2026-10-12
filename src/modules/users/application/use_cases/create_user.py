@@ -70,6 +70,8 @@ class CreateUserUseCase:
             is_active=True,
             created_at=now,
             updated_at=now,
+            # Always the creator's company, never anything from the request.
+            company_id=current_user.company_id,
         )
 
         def create() -> User:

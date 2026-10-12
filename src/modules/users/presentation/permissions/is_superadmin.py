@@ -14,4 +14,5 @@ class IsSuperAdmin(BasePermission):
             and user.is_authenticated
             and user.is_active
             and user.role == UserRole.SUPERADMIN.value
+            and getattr(user, "company_id", None) is not None
         )

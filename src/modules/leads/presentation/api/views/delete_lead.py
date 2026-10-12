@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_delete_lead_use_case,
 )
@@ -14,7 +15,7 @@ class DeleteLeadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, lead_id):
-        use_case = get_delete_lead_use_case()
+        use_case = get_delete_lead_use_case(get_tenant_context(request))
 
         try:
             use_case.execute(UUID(str(lead_id)))

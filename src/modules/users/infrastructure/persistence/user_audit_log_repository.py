@@ -12,8 +12,20 @@ from .user_audit_log_model import DjangoUserAuditLogModel
 
 class DjangoUserAuditLogRepository(UserAuditLogRepository):
 
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoUserAuditLogModel.objects.filter(
+            company_id=self._company_id,
+        )
+
     def add(self, entry: UserAuditLog) -> UserAuditLog:
+        # Stamped from the repository's own company, never from the entry.
         DjangoUserAuditLogModel.objects.create(
+            company_id=self._company_id,
             id=entry.id,
             action=entry.action.value,
             actor_id=entry.actor_id,
@@ -31,7 +43,7 @@ class DjangoUserAuditLogRepository(UserAuditLogRepository):
         target_user_id: UUID | None = None,
         action: UserAuditAction | None = None,
     ) -> PaginatedResult[UserAuditLog]:
-        queryset = DjangoUserAuditLogModel.objects.all()
+        queryset = self._base_queryset()
 
         if target_user_id is not None:
             queryset = queryset.filter(target_user_id=target_user_id)

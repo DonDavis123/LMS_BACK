@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from src.modules.users.application.interfaces.user_repository import (
-    UserRepository,
+from src.modules.users.application.interfaces.current_user_reader import (
+    CurrentUserReader,
 )
 from src.modules.users.domain.entities.user import User
 
@@ -10,7 +10,7 @@ class GetCurrentUserUseCase:
 
     def __init__(
         self,
-        user_repository: UserRepository,
+        user_repository: CurrentUserReader,
     ):
         self.user_repository = user_repository
 

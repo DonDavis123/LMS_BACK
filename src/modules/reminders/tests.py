@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.reminders.domain.entities.reminder import Reminder
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import (
     DjangoReminderRepository,
@@ -54,7 +55,7 @@ class ReminderDomainTests(TestCase):
 
 class ReminderRepositoryTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"reminder-{uuid4()}@example.com",
             password="test-password",
             name="Reminder Repository User",
@@ -469,12 +470,12 @@ class ReminderAPITests(TestCase):
         from rest_framework.test import APIClient
 
         self.client = APIClient()
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"api-reminder-{uuid4()}@example.com",
             password="test-password",
             name="Reminder API User",
         )
-        self.other_user = get_user_model().objects.create_user(
+        self.other_user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"api-reminder-other-{uuid4()}@example.com",
             password="test-password",
             name="Other User",
@@ -604,7 +605,7 @@ class ReminderEnabledStateTests(TestCase):
         from rest_framework.test import APIClient
 
         self.client = APIClient()
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"enabled-reminder-{uuid4()}@example.com",
             password="test-password",
             name="Enabled Reminder User",

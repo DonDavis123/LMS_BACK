@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.reminders.application.dto.create_reminder import CreateReminderDTO
 from src.modules.reminders.presentation.api.dependencies.reminder_dependencies import (
     get_create_reminder_use_case,
@@ -57,7 +58,7 @@ class ReminderListView(APIView):
         )
 
         try:
-            reminder = get_create_reminder_use_case().execute(dto)
+            reminder = get_create_reminder_use_case(get_tenant_context(request)).execute(dto)
         except ValueError as error:
             return Response(
                 {"detail": str(error)},

@@ -1,3 +1,4 @@
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.leads.application.use_cases.create_lead import CreateLeadUseCase
 from src.modules.leads.application.use_cases.get_leads import GetLeadsUseCase
 from src.modules.leads.application.use_cases.get_leaddetails import GetLeadDetailsUseCase
@@ -19,33 +20,33 @@ def recorder():
     return DefaultTimelineRecorder(DjangoTimelineRepository())
 
 
-def get_create_lead_use_case() -> CreateLeadUseCase:
-    return CreateLeadUseCase(DjangoLeadRepository(), DjangoUserRepository(), recorder(), DjangoTransactionManager())
+def get_create_lead_use_case(ctx: TenantContext) -> CreateLeadUseCase:
+    return CreateLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(), DjangoTransactionManager())
 
 
-def get_update_lead_use_case() -> UpdateLeadUseCase:
+def get_update_lead_use_case(ctx: TenantContext) -> UpdateLeadUseCase:
     return UpdateLeadUseCase(
-        DjangoLeadRepository(),
-        DjangoUserRepository(),
+        DjangoLeadRepository(company_id=ctx.company_id),
+        DjangoUserRepository(company_id=ctx.company_id),
         recorder(),
         DjangoTransactionManager(),
     )
 
-def get_leads_use_case() -> GetLeadsUseCase:
-    return GetLeadsUseCase(DjangoLeadRepository())
+def get_leads_use_case(ctx: TenantContext) -> GetLeadsUseCase:
+    return GetLeadsUseCase(DjangoLeadRepository(company_id=ctx.company_id))
 
 
-def get_lead_details_use_case() -> GetLeadDetailsUseCase:
-    return GetLeadDetailsUseCase(DjangoLeadRepository())
+def get_lead_details_use_case(ctx: TenantContext) -> GetLeadDetailsUseCase:
+    return GetLeadDetailsUseCase(DjangoLeadRepository(company_id=ctx.company_id))
 
 
-def get_delete_lead_use_case() -> DeleteLeadUseCase:
-    return DeleteLeadUseCase(DjangoLeadRepository(), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())
+def get_delete_lead_use_case(ctx: TenantContext) -> DeleteLeadUseCase:
+    return DeleteLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())
 
 
-def get_convert_lead_use_case() -> ConvertLeadUseCase:
-    return ConvertLeadUseCase(DjangoLeadRepository(), DjangoAccountRepository(), DjangoContactRepository(), DjangoUserRepository(), DjangoTransactionManager(), recorder())
+def get_convert_lead_use_case(ctx: TenantContext) -> ConvertLeadUseCase:
+    return ConvertLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(), DjangoContactRepository(), DjangoUserRepository(company_id=ctx.company_id), DjangoTransactionManager(), recorder())
 
 
-def get_conversion_check_use_case() -> ConversionCheckUseCase:
-    return ConversionCheckUseCase(DjangoLeadRepository(), DjangoAccountRepository(), DjangoContactRepository())
+def get_conversion_check_use_case(ctx: TenantContext) -> ConversionCheckUseCase:
+    return ConversionCheckUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(), DjangoContactRepository())

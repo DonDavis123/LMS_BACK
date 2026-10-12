@@ -4,6 +4,7 @@ from uuid import uuid4
 from django.test import TestCase
 from django.utils import timezone
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.meetings.infrastructure.persistence.models.django_meeting_model import DjangoMeetingModel
 from src.modules.tasks.infrastructure.persistence.models.django_task_model import DjangoTaskModel
 from src.modules.timeline.domain.enums.timeline_entity_type import TimelineEntityType
@@ -14,7 +15,7 @@ from src.modules.users.infrastructure.persistence.models import User
 
 class TaskMeetingTimelineTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_user(company=default_test_company(),
             email=f"timeline-{uuid4()}@example.com",
             password="password",
             name="Timeline User",

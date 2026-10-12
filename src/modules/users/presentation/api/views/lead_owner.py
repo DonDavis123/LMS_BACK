@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.users.presentation.api.dependencies.user_dependencies import (
     get_lead_owners_use_case,
 )
@@ -14,11 +16,13 @@ class GetLeadOwnersView(APIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsCompanyUser,
     ]
 
     def get(self, request):
+        ctx = get_tenant_context(request)
 
-        use_case = get_lead_owners_use_case()
+        use_case = get_lead_owners_use_case(ctx)
 
         owners = use_case.execute()
 

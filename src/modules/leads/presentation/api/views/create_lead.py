@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.application.dto.create_lead_dto import CreateLeadDTO
 from src.modules.leads.domain.entities.lead_industry import LeadIndustry
 from src.modules.leads.domain.entities.lead_rating import LeadRating
@@ -82,7 +83,7 @@ class CreateLeadView(APIView):
             description=data.get("description"),
         )
 
-        use_case = get_create_lead_use_case()
+        use_case = get_create_lead_use_case(get_tenant_context(request))
 
         try:
             lead = use_case.execute(

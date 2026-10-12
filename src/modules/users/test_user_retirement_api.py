@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -38,7 +39,7 @@ class UserRetirementApiTests(APITestCase):
 
     def setUp(self):
         def make(email, name, role):
-            return User.objects.create_user(
+            return User.objects.create_user(company=default_test_company(),
                 email=email, password="password123", name=name, role=role,
             )
 
@@ -67,8 +68,8 @@ class UserRetirementApiTests(APITestCase):
         self.assertTrue(target.is_active)
 
     def _create_business_data(self):
-        lead = DjangoLeadModel.objects.create(name="L1", owner=self.target)
-        DjangoLeadModel.objects.create(name="L2", owner=self.target)
+        lead = DjangoLeadModel.objects.create(company=default_test_company(), name="L1", owner=self.target)
+        DjangoLeadModel.objects.create(company=default_test_company(), name="L2", owner=self.target)
         account = DjangoAccountModel.objects.create(
             account_owner=self.target, account_name="A1",
             created_by=self.target, modified_by=self.target,
@@ -366,11 +367,11 @@ class UserApiRegressionTests(APITestCase):
     """Existing user endpoints keep their contracts."""
 
     def setUp(self):
-        self.superadmin = User.objects.create_user(
+        self.superadmin = User.objects.create_user(company=default_test_company(),
             email="superadmin@example.com", password="password123",
             name="Super Admin", role=User.Role.SUPERADMIN,
         )
-        self.other = User.objects.create_user(
+        self.other = User.objects.create_user(company=default_test_company(),
             email="other@example.com", password="password123",
             name="Other", role=User.Role.ADMIN,
         )
@@ -405,7 +406,7 @@ class UserApiRegressionTests(APITestCase):
     def test_blocked_user_can_still_be_retired_and_not_blocked_again(self):
         self.other.is_active = False
         self.other.save()
-        replacement = User.objects.create_user(
+        replacement = User.objects.create_user(company=default_test_company(),
             email="repl@example.com", password="password123",
             name="Repl", role=User.Role.ADMIN,
         )

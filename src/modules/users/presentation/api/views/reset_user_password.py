@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.users.presentation.api.dependencies.user_dependencies import (
     get_current_user_use_case,
     get_reset_user_password_use_case,
@@ -15,17 +17,18 @@ from ..serializers.reset_user_password import ResetUserPasswordSerializer
 
 
 class ResetUserPasswordView(APIView):
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated, IsCompanyUser, IsSuperAdmin]
 
     def post(self, request, user_id: UUID):
+        ctx = get_tenant_context(request)
         serializer = ResetUserPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
-            get_reset_user_password_use_case().execute(
+            get_reset_user_password_use_case(ctx).execute(
                 current_user=current_user,
                 user_id=user_id,
                 new_password=serializer.validated_data["new_password"],
