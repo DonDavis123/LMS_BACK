@@ -3,7 +3,9 @@ import logging
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from src.modules.companies.infrastructure.persistence.active_companies import get_active_company_ids
 from src.modules.meetings.infrastructure.persistence.django_meeting_repository import DjangoMeetingRepository
+from src.modules.notifications.application.dto.process_notifications import ProcessNotificationsResult
 from src.modules.notifications.application.use_cases.process_notifications import ProcessNotificationsUseCase
 from src.modules.notifications.infrastructure.persistence.django_notification_repository import DjangoNotificationRepository
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import DjangoReminderRepository
@@ -21,14 +23,19 @@ class Command(BaseCommand):
         now = timezone.now()
         self.stdout.write(f"Processing notifications at {now.isoformat()}")
         try:
-            result = ProcessNotificationsUseCase(
-                notification_repository=DjangoNotificationRepository(),
-                reminder_repository=DjangoReminderRepository(),
-                task_repository=DjangoTaskRepository(),
-                meeting_repository=DjangoMeetingRepository(),
-                user_repository=DjangoUserRepository(),
-                transaction_manager=DjangoTransactionManager(),
-            ).execute(now, timezone.localtime(now))
+            # TRANSITIONAL (Stage A): the user repository is now company
+            # scoped, so run once per ACTIVE company. The remaining
+            # repositories are scoped in Stage C, which replaces this loop.
+            result = ProcessNotificationsResult()
+            for company_id in get_active_company_ids():
+                result = result + ProcessNotificationsUseCase(
+                    notification_repository=DjangoNotificationRepository(),
+                    reminder_repository=DjangoReminderRepository(),
+                    task_repository=DjangoTaskRepository(),
+                    meeting_repository=DjangoMeetingRepository(),
+                    user_repository=DjangoUserRepository(company_id=company_id),
+                    transaction_manager=DjangoTransactionManager(),
+                ).execute(now, timezone.localtime(now))
         except Exception:
             logger.exception("Notification processing failed")
             self.stderr.write(self.style.ERROR("Notification processing failed."))

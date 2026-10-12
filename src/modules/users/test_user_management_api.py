@@ -9,6 +9,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -26,7 +27,7 @@ class UserManagementApiTestCase(APITestCase):
 
     def setUp(self):
         def make(email, name, role):
-            return User.objects.create_user(
+            return User.objects.create_user(company=default_test_company(),
                 email=email, password="password123", name=name, role=role,
             )
 
@@ -229,7 +230,7 @@ class SessionRevocationTests(UserManagementApiTestCase):
     def test_role_change_takes_effect_for_existing_access_token(self):
         # Role is read from the database on every request, so an old access
         # token cannot keep admin privileges after a demotion.
-        promoted = User.objects.create_user(
+        promoted = User.objects.create_user(company=default_test_company(),
             email="promoted@example.com", password="password123",
             name="Promoted", role=User.Role.SUPERADMIN,
         )

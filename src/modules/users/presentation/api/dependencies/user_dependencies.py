@@ -16,6 +16,7 @@ from src.modules.notifications.infrastructure.persistence.django_notification_re
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import (
     DjangoReminderRepository,
 )
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import (
     DjangoTransactionManager,
 )
@@ -46,6 +47,9 @@ from src.modules.users.application.use_cases.reset_user_password import (
 )
 from src.modules.users.application.use_cases.unblock_user import UnblockUserUseCase
 from src.modules.users.application.use_cases.update_user import UpdateUserUseCase
+from src.modules.users.infrastructure.persistence.current_user_reader import (
+    DjangoCurrentUserReader,
+)
 from src.modules.users.infrastructure.persistence.user_audit_log_repository import (
     DjangoUserAuditLogRepository,
 )
@@ -57,105 +61,117 @@ from src.modules.users.infrastructure.persistence.user_repository import (
 )
 
 
-def get_user_repository() -> DjangoUserRepository:
-    return DjangoUserRepository()
+def get_user_repository(ctx: TenantContext) -> DjangoUserRepository:
+    return DjangoUserRepository(company_id=ctx.company_id)
 
 
-def get_current_user_use_case() -> GetCurrentUserUseCase:
+def get_current_user_use_case(
+    ctx: TenantContext | None = None,
+) -> GetCurrentUserUseCase:
+    # Without a context (GET /users/me/ only) the user's own row is read
+    # by id; platform superadmins have no company to scope by.
+    if ctx is None:
+        return GetCurrentUserUseCase(
+            user_repository=DjangoCurrentUserReader(),
+        )
+
     return GetCurrentUserUseCase(
-        user_repository=get_user_repository(),
+        user_repository=get_user_repository(ctx),
     )
 
 
-def get_user_audit_log_repository() -> DjangoUserAuditLogRepository:
-    return DjangoUserAuditLogRepository()
+def get_user_audit_log_repository(
+    ctx: TenantContext,
+) -> DjangoUserAuditLogRepository:
+    return DjangoUserAuditLogRepository(company_id=ctx.company_id)
 
 
 def get_session_revoker() -> JWTSessionRevoker:
     return JWTSessionRevoker()
 
 
-def get_create_user_use_case() -> CreateUserUseCase:
+def get_create_user_use_case(ctx: TenantContext) -> CreateUserUseCase:
     return CreateUserUseCase(
-        user_repository=get_user_repository(),
-        audit_log_repository=get_user_audit_log_repository(),
+        user_repository=get_user_repository(ctx),
+        audit_log_repository=get_user_audit_log_repository(ctx),
         transaction_manager=DjangoTransactionManager(),
     )
 
 
-def get_users_use_case() -> GetUsersUseCase:
+def get_users_use_case(ctx: TenantContext) -> GetUsersUseCase:
     return GetUsersUseCase(
-        user_repository=get_user_repository(),
+        user_repository=get_user_repository(ctx),
     )
 
 
-def get_user_details_use_case() -> GetUserDetailsUseCase:
+def get_user_details_use_case(ctx: TenantContext) -> GetUserDetailsUseCase:
     return GetUserDetailsUseCase(
-        user_repository=get_user_repository(),
+        user_repository=get_user_repository(ctx),
     )
 
 
-def get_update_user_use_case() -> UpdateUserUseCase:
+def get_update_user_use_case(ctx: TenantContext) -> UpdateUserUseCase:
     return UpdateUserUseCase(
-        user_repository=get_user_repository(),
-        audit_log_repository=get_user_audit_log_repository(),
+        user_repository=get_user_repository(ctx),
+        audit_log_repository=get_user_audit_log_repository(ctx),
         session_revoker=get_session_revoker(),
         transaction_manager=DjangoTransactionManager(),
     )
 
 
-def get_block_user_use_case() -> BlockUserUseCase:
+def get_block_user_use_case(ctx: TenantContext) -> BlockUserUseCase:
     return BlockUserUseCase(
-        user_repository=get_user_repository(),
-        audit_log_repository=get_user_audit_log_repository(),
+        user_repository=get_user_repository(ctx),
+        audit_log_repository=get_user_audit_log_repository(ctx),
         session_revoker=get_session_revoker(),
         transaction_manager=DjangoTransactionManager(),
     )
 
 
-def get_unblock_user_use_case() -> UnblockUserUseCase:
+def get_unblock_user_use_case(ctx: TenantContext) -> UnblockUserUseCase:
     return UnblockUserUseCase(
-        user_repository=get_user_repository(),
-        audit_log_repository=get_user_audit_log_repository(),
+        user_repository=get_user_repository(ctx),
+        audit_log_repository=get_user_audit_log_repository(ctx),
         transaction_manager=DjangoTransactionManager(),
     )
 
 
-def get_reset_user_password_use_case() -> ResetUserPasswordUseCase:
+def get_reset_user_password_use_case(ctx: TenantContext) -> ResetUserPasswordUseCase:
     return ResetUserPasswordUseCase(
-        user_repository=get_user_repository(),
-        audit_log_repository=get_user_audit_log_repository(),
+        user_repository=get_user_repository(ctx),
+        audit_log_repository=get_user_audit_log_repository(ctx),
         session_revoker=get_session_revoker(),
         transaction_manager=DjangoTransactionManager(),
     )
 
 
-def get_user_audit_logs_use_case() -> GetUserAuditLogsUseCase:
+def get_user_audit_logs_use_case(ctx: TenantContext) -> GetUserAuditLogsUseCase:
     return GetUserAuditLogsUseCase(
-        audit_log_repository=get_user_audit_log_repository(),
+        audit_log_repository=get_user_audit_log_repository(ctx),
+        user_repository=get_user_repository(ctx),
     )
 
 
-def get_delete_user_use_case() -> DeleteUserUseCase:
+def get_delete_user_use_case(ctx: TenantContext) -> DeleteUserUseCase:
     return DeleteUserUseCase(
-        user_repository=get_user_repository(),
-        lead_repository=DjangoLeadRepository(),
+        user_repository=get_user_repository(ctx),
+        lead_repository=DjangoLeadRepository(company_id=ctx.company_id),
         contact_repository=DjangoContactRepository(),
         account_repository=DjangoAccountRepository(),
         meeting_repository=DjangoMeetingRepository(),
         task_repository=DjangoTaskRepository(),
         reminder_repository=DjangoReminderRepository(),
         notification_repository=DjangoNotificationRepository(),
-        audit_log_repository=get_user_audit_log_repository(),
+        audit_log_repository=get_user_audit_log_repository(ctx),
         session_revoker=get_session_revoker(),
         transaction_manager=DjangoTransactionManager(),
     )
 
 
-def get_user_deletion_preview_use_case() -> GetUserDeletionPreviewUseCase:
+def get_user_deletion_preview_use_case(ctx: TenantContext) -> GetUserDeletionPreviewUseCase:
     return GetUserDeletionPreviewUseCase(
-        user_repository=get_user_repository(),
-        lead_repository=DjangoLeadRepository(),
+        user_repository=get_user_repository(ctx),
+        lead_repository=DjangoLeadRepository(company_id=ctx.company_id),
         contact_repository=DjangoContactRepository(),
         account_repository=DjangoAccountRepository(),
         meeting_repository=DjangoMeetingRepository(),
@@ -166,13 +182,13 @@ def get_user_deletion_preview_use_case() -> GetUserDeletionPreviewUseCase:
     )
 
 
-def get_lead_owners_use_case() -> GetLeadOwnersUseCase:
+def get_lead_owners_use_case(ctx: TenantContext) -> GetLeadOwnersUseCase:
     return GetLeadOwnersUseCase(
-        user_repository=get_user_repository(),
+        user_repository=get_user_repository(ctx),
     )
 
 
-def get_replacement_candidates_use_case() -> GetReplacementCandidatesUseCase:
+def get_replacement_candidates_use_case(ctx: TenantContext) -> GetReplacementCandidatesUseCase:
     return GetReplacementCandidatesUseCase(
-        user_repository=get_user_repository(),
+        user_repository=get_user_repository(ctx),
     )

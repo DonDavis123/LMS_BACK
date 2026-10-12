@@ -4,6 +4,7 @@ from django.core.management import call_command
 from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.users.infrastructure.persistence.models import User
 
 
@@ -18,7 +19,7 @@ def run_check_duplicate_emails():
 
 
 def make_user(email):
-    return User.objects.create_user(
+    return User.objects.create_user(company=default_test_company(),
         email=email,
         password="password123",
         name=email.split("@")[0],

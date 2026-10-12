@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -17,7 +18,7 @@ from src.modules.users.infrastructure.persistence.models import User
 
 class TaskApiTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_user(company=default_test_company(),
             email="task-owner@example.com",
             password="task-password",
             name="Task Owner",
@@ -25,7 +26,7 @@ class TaskApiTests(APITestCase):
         )
         now = timezone.now()
 
-        self.lead = DjangoLeadModel.objects.create(
+        self.lead = DjangoLeadModel.objects.create(company=default_test_company(),
             name="Task Lead",
             company_name="Example Company",
             owner=self.user,

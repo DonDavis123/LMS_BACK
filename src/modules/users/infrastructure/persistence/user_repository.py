@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 
 from src.modules.shared.application.dto.list_query import (
@@ -29,20 +30,39 @@ class DjangoUserRepository(UserRepository):
         "created_at": SortableField("created_at"),
     }
 
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoUser.objects.filter(company_id=self._company_id)
+
     def create(
         self,
         user: User,
         password: str,
     ) -> User:
 
-        django_user = DjangoUser.objects.create_user(
-            email=user.email,
-            password=password,
-            name=user.name,
-            role=user.role.value,
-            is_active=user.is_active,
-            is_staff=False,
-        )
+        if user.role is UserRole.PLATFORM_SUPERADMIN:
+            raise ValueError("Platform superadmins cannot belong to a company.")
+
+        # The company is always the repository's own, never the entity's.
+        try:
+            with transaction.atomic():
+                django_user = DjangoUser.objects.create_user(
+                    email=user.email,
+                    password=password,
+                    name=user.name,
+                    role=user.role.value,
+                    is_active=user.is_active,
+                    is_staff=False,
+                    company_id=self._company_id,
+                )
+        except IntegrityError:
+            # Emails are unique across all companies; a clash with another
+            # company's user reads exactly like a clash inside this one.
+            raise ValueError("User with this email already exists.")
 
         return self._to_domain(django_user)
 
@@ -54,7 +74,7 @@ class DjangoUserRepository(UserRepository):
         # Case-insensitive, like login: the DB unique index is case-sensitive,
         # so an exact match would miss "Bob@x.com" when "bob@x.com" is asked
         # for and the later save would fail with a 500 instead of a 400.
-        django_user = DjangoUser.objects.filter(
+        django_user = self._base_queryset().filter(
             email__iexact=email,
         ).first()
         if django_user is None:
@@ -68,7 +88,7 @@ class DjangoUserRepository(UserRepository):
     ) -> User | None:
 
         try:
-            django_user = DjangoUser.objects.get(
+            django_user = self._base_queryset().get(
                 id=user_id,
             )
         except DjangoUser.DoesNotExist:
@@ -81,7 +101,7 @@ class DjangoUserRepository(UserRepository):
         exclude_user_id: UUID | None = None,
     ) -> list[User]:
 
-        queryset = DjangoUser.objects.filter(
+        queryset = self._base_queryset().filter(
             role__in=[
                 DjangoUser.Role.SUPERADMIN,
                 DjangoUser.Role.ADMIN,
@@ -103,7 +123,7 @@ class DjangoUserRepository(UserRepository):
         self,
         query: ListQuery,
     ) -> PaginatedResult[User]:
-        queryset = DjangoUser.objects.filter(deleted_at__isnull=True)
+        queryset = self._base_queryset().filter(deleted_at__isnull=True)
         if query.search:
             queryset = queryset.filter(
                 Q(name__icontains=query.search)
@@ -208,7 +228,7 @@ class DjangoUserRepository(UserRepository):
         user: User,
     ) -> User:
         try:
-            django_user = DjangoUser.objects.get(id=user.id)
+            django_user = self._base_queryset().get(id=user.id)
         except DjangoUser.DoesNotExist:
             raise ValueError("User not found.")
 
@@ -217,15 +237,19 @@ class DjangoUserRepository(UserRepository):
         django_user.role = user.role.value
         django_user.is_active = user.is_active
         django_user.updated_at = user.updated_at
-        django_user.save(
-            update_fields=[
-                "name",
-                "email",
-                "role",
-                "is_active",
-                "updated_at",
-            ],
-        )
+        try:
+            with transaction.atomic():
+                django_user.save(
+                    update_fields=[
+                        "name",
+                        "email",
+                        "role",
+                        "is_active",
+                        "updated_at",
+                    ],
+                )
+        except IntegrityError:
+            raise ValueError("User with this email already exists.")
 
         return self._to_domain(django_user)
 
@@ -235,7 +259,7 @@ class DjangoUserRepository(UserRepository):
         is_active: bool,
     ) -> User | None:
         try:
-            django_user = DjangoUser.objects.get(id=user_id)
+            django_user = self._base_queryset().get(id=user_id)
         except DjangoUser.DoesNotExist:
             return None
 
@@ -250,7 +274,7 @@ class DjangoUserRepository(UserRepository):
         password: str,
     ) -> User | None:
         try:
-            django_user = DjangoUser.objects.get(id=user_id)
+            django_user = self._base_queryset().get(id=user_id)
         except DjangoUser.DoesNotExist:
             return None
 
@@ -265,7 +289,7 @@ class DjangoUserRepository(UserRepository):
         deleted_at: datetime,
     ) -> User | None:
         try:
-            django_user = DjangoUser.objects.get(id=user_id)
+            django_user = self._base_queryset().get(id=user_id)
         except DjangoUser.DoesNotExist:
             return None
 

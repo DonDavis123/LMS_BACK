@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.notifications.application.dto.create_notification import (
     CreateNotificationDTO,
 )
@@ -160,7 +161,7 @@ class NotificationDomainTests(TestCase):
 
 class NotificationRepositoryTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
+        self.user = get_user_model().objects.create_user(company=default_test_company(),
             email=f"notification-{uuid4()}@example.com",
             password="test-password",
             name="Notification User",

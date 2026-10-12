@@ -5,6 +5,7 @@ from uuid import uuid4
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -276,19 +277,19 @@ class UserRetirementWorkflowTests(TestCase):
     """End-to-end workflow against the real repositories and database."""
 
     def setUp(self):
-        self.superadmin = User.objects.create_user(
+        self.superadmin = User.objects.create_user(company=default_test_company(),
             email="super@example.com", password="pw12345678",
             name="Super", role=User.Role.SUPERADMIN,
         )
-        self.target = User.objects.create_user(
+        self.target = User.objects.create_user(company=default_test_company(),
             email="target@example.com", password="pw12345678",
             name="Target", role=User.Role.ADMIN,
         )
-        self.replacement = User.objects.create_user(
+        self.replacement = User.objects.create_user(company=default_test_company(),
             email="replacement@example.com", password="pw12345678",
             name="Replacement", role=User.Role.ADMIN,
         )
-        self.other = User.objects.create_user(
+        self.other = User.objects.create_user(company=default_test_company(),
             email="other@example.com", password="pw12345678",
             name="Other", role=User.Role.ADMIN,
         )
@@ -297,7 +298,7 @@ class UserRetirementWorkflowTests(TestCase):
     # ---------- builders ----------
 
     def _lead(self, owner, name="Lead"):
-        return DjangoLeadModel.objects.create(name=name, owner=owner)
+        return DjangoLeadModel.objects.create(company=default_test_company(), name=name, owner=owner)
 
     def _account(self, owner, created_by=None, name="Account"):
         created_by = created_by or owner
@@ -339,7 +340,7 @@ class UserRetirementWorkflowTests(TestCase):
 
     def _retire(self, replacement=None):
         get_delete_user_use_case().execute(
-            current_user=DjangoUserRepository().get_by_id(self.superadmin.id),
+            current_user=DjangoUserRepository(company_id=default_test_company().id).get_by_id(self.superadmin.id),
             user_id=self.target.id,
             replacement_user_id=(replacement or self.replacement).id,
         )
@@ -500,11 +501,11 @@ class UserRetirementWorkflowTests(TestCase):
 
         with self.assertRaises(ValueError):
             UnblockUserUseCase(
-                DjangoUserRepository(),
-                DjangoUserAuditLogRepository(),
+                DjangoUserRepository(company_id=default_test_company().id),
+                DjangoUserAuditLogRepository(company_id=default_test_company().id),
                 DjangoTransactionManager(),
             ).execute(
-                DjangoUserRepository().get_by_id(self.superadmin.id),
+                DjangoUserRepository(company_id=default_test_company().id).get_by_id(self.superadmin.id),
                 self.target.id,
             )
         target = User.objects.get(id=self.target.id)
@@ -513,7 +514,7 @@ class UserRetirementWorkflowTests(TestCase):
 
     def test_soft_deleted_user_excluded_from_list_and_owner_choices(self):
         self._retire()
-        repository = DjangoUserRepository()
+        repository = DjangoUserRepository(company_id=default_test_company().id)
 
         listed = repository.get_all(ListQuery(page=1, page_size=50)).results
         self.assertNotIn(self.target.id, [u.id for u in listed])

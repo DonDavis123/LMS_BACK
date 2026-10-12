@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
 from src.modules.meetings.application.dto.update_meeting import UpdateMeetingDTO, _UNSET
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
@@ -74,7 +75,7 @@ class MeetingDetailView(APIView):
         )
 
         try:
-            meeting = get_update_meeting_use_case().execute(dto, current_user_id=request.user.id)
+            meeting = get_update_meeting_use_case(get_tenant_context(request)).execute(dto, current_user_id=request.user.id)
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 

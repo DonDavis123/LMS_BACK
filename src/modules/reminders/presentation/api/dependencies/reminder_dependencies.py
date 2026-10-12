@@ -1,3 +1,4 @@
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.meetings.infrastructure.persistence.django_meeting_repository import (
     DjangoMeetingRepository,
 )
@@ -34,10 +35,10 @@ def transaction_manager():
     return DjangoTransactionManager()
 
 
-def get_create_reminder_use_case() -> CreateReminderUseCase:
+def get_create_reminder_use_case(ctx: TenantContext) -> CreateReminderUseCase:
     return CreateReminderUseCase(
         DjangoReminderRepository(),
-        DjangoUserRepository(),
+        DjangoUserRepository(company_id=ctx.company_id),
         DjangoTaskRepository(),
         DjangoMeetingRepository(),
         transaction_manager(),

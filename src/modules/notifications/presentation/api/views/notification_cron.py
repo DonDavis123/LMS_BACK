@@ -8,8 +8,14 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.companies.infrastructure.persistence.active_companies import (
+    get_active_company_ids,
+)
 from src.modules.meetings.infrastructure.persistence.django_meeting_repository import (
     DjangoMeetingRepository,
+)
+from src.modules.notifications.application.dto.process_notifications import (
+    ProcessNotificationsResult,
 )
 from src.modules.notifications.application.use_cases.process_notifications import (
     ProcessNotificationsUseCase,
@@ -65,14 +71,19 @@ class NotificationCronProcessView(APIView):
         now = timezone.now()
 
         try:
-            result = ProcessNotificationsUseCase(
-                notification_repository=DjangoNotificationRepository(),
-                reminder_repository=DjangoReminderRepository(),
-                task_repository=DjangoTaskRepository(),
-                meeting_repository=DjangoMeetingRepository(),
-                user_repository=DjangoUserRepository(),
-                transaction_manager=DjangoTransactionManager(),
-            ).execute(now, timezone.localtime(now))
+            # TRANSITIONAL (Stage A): the user repository is now company
+            # scoped, so run once per ACTIVE company. The remaining
+            # repositories are scoped in Stage C, which replaces this loop.
+            result = ProcessNotificationsResult()
+            for company_id in get_active_company_ids():
+                result = result + ProcessNotificationsUseCase(
+                    notification_repository=DjangoNotificationRepository(),
+                    reminder_repository=DjangoReminderRepository(),
+                    task_repository=DjangoTaskRepository(),
+                    meeting_repository=DjangoMeetingRepository(),
+                    user_repository=DjangoUserRepository(company_id=company_id),
+                    transaction_manager=DjangoTransactionManager(),
+                ).execute(now, timezone.localtime(now))
         except Exception:
             logger.exception("Notification cron processing failed")
             return Response(

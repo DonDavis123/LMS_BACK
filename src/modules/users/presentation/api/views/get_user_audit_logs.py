@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.shared.presentation.query_params import parse_list_query
 from src.modules.users.domain.entities.user_audit_action import UserAuditAction
 from src.modules.users.presentation.api.dependencies.user_dependencies import (
@@ -19,26 +21,33 @@ from ..serializers.user_audit_log import UserAuditLogSerializer
 class UserAuditLogListView(APIView):
     """GET /api/users/audit-logs/?user_id=<uuid>&action=<ACTION>&page=1"""
 
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated, IsCompanyUser, IsSuperAdmin]
 
     def get(self, request):
+        ctx = get_tenant_context(request)
         try:
             target_user_id = self._parse_user_id(request.query_params.get("user_id"))
             action = self._parse_action(request.query_params.get("action"))
             query = parse_list_query(request.query_params)
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
-            result = get_user_audit_logs_use_case().execute(
+            result = get_user_audit_logs_use_case(ctx).execute(
                 current_user=current_user,
                 query=query,
                 target_user_id=target_user_id,
                 action=action,
             )
         except ValueError as error:
+            message = str(error)
+            status_code = (
+                status.HTTP_404_NOT_FOUND
+                if message == "User not found."
+                else status.HTTP_400_BAD_REQUEST
+            )
             return Response(
-                {"detail": str(error)},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"detail": message},
+                status=status_code,
             )
 
         return Response(

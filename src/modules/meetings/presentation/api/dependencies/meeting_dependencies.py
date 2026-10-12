@@ -1,3 +1,4 @@
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
 from src.modules.meetings.application.use_cases.create_meeting import CreateMeetingUseCase
@@ -26,11 +27,11 @@ def reminder_sync_service():
     return ReminderSyncService(DjangoReminderRepository())
 
 
-def get_create_meeting_use_case() -> CreateMeetingUseCase:
+def get_create_meeting_use_case(ctx: TenantContext) -> CreateMeetingUseCase:
     return CreateMeetingUseCase(
         DjangoMeetingRepository(),
-        DjangoUserRepository(),
-        DjangoLeadRepository(),
+        DjangoUserRepository(company_id=ctx.company_id),
+        DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(),
         recorder(),
         transaction_manager(),
@@ -46,11 +47,11 @@ def get_meeting_use_case() -> GetMeetingUseCase:
     return GetMeetingUseCase(DjangoMeetingRepository())
 
 
-def get_update_meeting_use_case() -> UpdateMeetingUseCase:
+def get_update_meeting_use_case(ctx: TenantContext) -> UpdateMeetingUseCase:
     return UpdateMeetingUseCase(
         DjangoMeetingRepository(),
-        DjangoUserRepository(),
-        DjangoLeadRepository(),
+        DjangoUserRepository(company_id=ctx.company_id),
+        DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(),
         recorder(),
         transaction_manager(),

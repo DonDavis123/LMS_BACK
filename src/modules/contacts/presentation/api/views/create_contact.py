@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.contacts.application.dto.create_contact import (
     CreateContactDTO,
 )
@@ -49,7 +50,7 @@ class CreateContactView(APIView):
             description=data.get("description"),
         )
 
-        use_case = get_create_contact_use_case()
+        use_case = get_create_contact_use_case(get_tenant_context(request))
 
         try:
             contact = use_case.execute(

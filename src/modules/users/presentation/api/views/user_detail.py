@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.users.application.dto.update_user import UpdateUserDTO
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.users.presentation.api.dependencies.user_dependencies import (
@@ -27,14 +29,15 @@ logger = logging.getLogger(__name__)
 
 
 class UserDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated, IsCompanyUser, IsSuperAdmin]
 
     def get(self, request, user_id: UUID):
+        ctx = get_tenant_context(request)
         try:
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
-            user = get_user_details_use_case().execute(
+            user = get_user_details_use_case(ctx).execute(
                 current_user=current_user,
                 user_id=user_id,
             )
@@ -47,6 +50,7 @@ class UserDetailView(APIView):
         )
 
     def patch(self, request, user_id: UUID):
+        ctx = get_tenant_context(request)
         serializer = UpdateUserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -63,10 +67,10 @@ class UserDetailView(APIView):
         )
 
         try:
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
-            user = get_update_user_use_case().execute(
+            user = get_update_user_use_case(ctx).execute(
                 current_user=current_user,
                 data=dto,
             )
@@ -79,14 +83,15 @@ class UserDetailView(APIView):
         )
 
     def delete(self, request, user_id: UUID):
+        ctx = get_tenant_context(request)
         serializer = DeleteUserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            current_user = get_current_user_use_case().execute(
+            current_user = get_current_user_use_case(ctx).execute(
                 user_id=request.user.id,
             )
-            get_delete_user_use_case().execute(
+            get_delete_user_use_case(ctx).execute(
                 current_user=current_user,
                 user_id=user_id,
                 replacement_user_id=serializer.validated_data.get(

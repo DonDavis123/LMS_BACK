@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -35,7 +36,7 @@ class UserDeleteFlowTestCase(APITestCase):
 
     def setUp(self):
         def make(email, name, role, **extra):
-            return User.objects.create_user(
+            return User.objects.create_user(company=default_test_company(),
                 email=email, password="password123", name=name, role=role, **extra,
             )
 
@@ -62,7 +63,7 @@ class UserDeleteFlowTestCase(APITestCase):
         self.assertTrue(target.is_active)
 
     def lead(self):
-        return DjangoLeadModel.objects.create(name="Lead", owner=self.target)
+        return DjangoLeadModel.objects.create(company=default_test_company(), name="Lead", owner=self.target)
 
     def contact(self):
         return DjangoContactModel.objects.create(

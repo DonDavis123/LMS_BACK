@@ -41,10 +41,21 @@ class DjangoLeadRepository(LeadRepository):
         "created_at": SortableField("created_at"),
     }
 
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoLeadModel.objects.filter(company_id=self._company_id)
+
     def save(self, lead: Lead) -> Lead:
-        model, created = DjangoLeadModel.objects.update_or_create(
+        model, created = self._base_queryset().update_or_create(
             id=lead.id,
             defaults={
+                # Always the repository's own company, never the entity's.
+                "company_id": self._company_id,
+
                 # Basic information
                 "name": lead.name,
                 "title": lead.title,
@@ -87,7 +98,7 @@ class DjangoLeadRepository(LeadRepository):
 
     def get_by_id(self, lead_id: UUID) -> Lead | None:
         try:
-            model = DjangoLeadModel.objects.get(
+            model = self._base_queryset().get(
                 id=lead_id
             )
         except DjangoLeadModel.DoesNotExist:
@@ -101,7 +112,7 @@ class DjangoLeadRepository(LeadRepository):
     ) -> tuple[Lead, str] | None:
         try:
             model = (
-                DjangoLeadModel.objects
+                self._base_queryset()
                 .select_related("owner")
                 .get(id=lead_id)
             )
@@ -114,7 +125,7 @@ class DjangoLeadRepository(LeadRepository):
         )
 
     def get_all(self) -> list[Lead]:
-        models = DjangoLeadModel.objects.filter(
+        models = self._base_queryset().filter(
             is_deleted=False,
             is_converted=False,
         )
@@ -129,7 +140,7 @@ class DjangoLeadRepository(LeadRepository):
         query: ListQuery,
     ) -> PaginatedResult[tuple[Lead, str]]:
         queryset = (
-            DjangoLeadModel.objects
+            self._base_queryset()
             .select_related("owner")
             .filter(
                 is_deleted=False,
@@ -405,6 +416,7 @@ class DjangoLeadRepository(LeadRepository):
 
         if field == "account_name":
             related = DjangoAccountModel.objects.filter(
+                company_id=OuterRef("company_id"),
                 is_deleted=False,
                 account_name__iexact=OuterRef("company_name"),
             ).filter(**{f"account_name__{lookup}": value})
@@ -417,6 +429,7 @@ class DjangoLeadRepository(LeadRepository):
             )
             related = DjangoContactModel.objects.filter(
                 corresponds,
+                company_id=OuterRef("company_id"),
                 is_deleted=False,
             ).filter(**{f"name__{lookup}": value})
 
@@ -452,7 +465,7 @@ class DjangoLeadRepository(LeadRepository):
         return queryset.filter(**lookup) if operator == "equals" else queryset.exclude(**lookup)
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
-        return DjangoLeadModel.objects.filter(owner_id=owner_id).count()
+        return self._base_queryset().filter(owner_id=owner_id).count()
 
     def transfer_ownership(
         self,
@@ -461,7 +474,7 @@ class DjangoLeadRepository(LeadRepository):
     ) -> int:
         # Only the owner relationship (and updated_at) changes. Soft-deleted
         # Leads are included so the retired user keeps no ownership at all.
-        return DjangoLeadModel.objects.filter(
+        return self._base_queryset().filter(
             owner_id=from_user_id,
         ).update(
             owner_id=to_user_id,

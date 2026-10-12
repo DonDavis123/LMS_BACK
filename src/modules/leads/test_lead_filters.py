@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -26,7 +27,7 @@ class LeadListFilterApiTests(APITestCase):
     URL = "/api/leads/"
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_user(company=default_test_company(),
             email="filter-owner@example.com",
             password="filter-password",
             name="Filter Owner",
@@ -37,6 +38,7 @@ class LeadListFilterApiTests(APITestCase):
 
         def account(name, **extra):
             return DjangoAccountModel.objects.create(
+                company=default_test_company(),
                 account_owner=self.user, account_name=name,
                 created_by=self.user, created_at=now,
                 modified_by=self.user, updated_at=now, **extra,
@@ -44,13 +46,14 @@ class LeadListFilterApiTests(APITestCase):
 
         def contact(name, **extra):
             return DjangoContactModel.objects.create(
+                company=default_test_company(),
                 contact_owner=self.user, name=name,
                 created_by=self.user, created_at=now,
                 modified_by=self.user, updated_at=now, **extra,
             )
 
         def lead(name, **extra):
-            return DjangoLeadModel.objects.create(name=name, owner=self.user, **extra)
+            return DjangoLeadModel.objects.create(company=default_test_company(), name=name, owner=self.user, **extra)
 
         self.abc_account = account("ABC Industries")
         self.deleted_account = account("Ghost Corp", is_deleted=True)
@@ -204,7 +207,7 @@ class LeadListFilterApiTests(APITestCase):
     # -------------------------------------------------------- pagination
     def test_pagination_total_reflects_filtered_dataset(self):
         for index in range(25):
-            DjangoLeadModel.objects.create(
+            DjangoLeadModel.objects.create(company=default_test_company(),
                 name=f"Bulk {index:02d}", company_name="ABC Industries", owner=self.user,
             )
         filters = [self._f("account_name", "equals", "ABC Industries")]
@@ -317,7 +320,7 @@ class LeadListFilterApiTests(APITestCase):
 
     def test_queries_do_not_scale_with_result_count(self):
         for index in range(15):
-            DjangoLeadModel.objects.create(
+            DjangoLeadModel.objects.create(company=default_test_company(),
                 name=f"Perf {index}", company_name="ABC Industries", owner=self.user,
             )
         filters = [

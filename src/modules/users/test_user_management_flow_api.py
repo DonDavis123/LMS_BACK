@@ -20,6 +20,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
+from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
@@ -59,7 +60,7 @@ class ManageUsersFlowTests(APITestCase):
 
     def setUp(self):
         def make(email, name, role, **extra):
-            return User.objects.create_user(
+            return User.objects.create_user(company=default_test_company(),
                 email=email, password=PASSWORD, name=name, role=role, **extra,
             )
 
@@ -119,8 +120,8 @@ class ManageUsersFlowTests(APITestCase):
         """Everything the retired user can own, host, or be linked to."""
         t, a = self.target, self.admin
         self.leads = [
-            DjangoLeadModel.objects.create(name="Lead 1", owner=t),
-            DjangoLeadModel.objects.create(name="Lead 2", owner=t),
+            DjangoLeadModel.objects.create(company=default_test_company(), name="Lead 1", owner=t),
+            DjangoLeadModel.objects.create(company=default_test_company(), name="Lead 2", owner=t),
         ]
         self.contact = DjangoContactModel.objects.create(
             contact_owner=t, name="Contact",

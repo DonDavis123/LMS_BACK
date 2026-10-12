@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.tasks.application.dto.create_task import CreateTaskDTO
 from src.modules.tasks.domain.enums.task_priority import TaskPriority
 from src.modules.tasks.domain.enums.task_status import TaskStatus
@@ -66,7 +67,7 @@ class TaskListView(APIView):
         )
 
         try:
-            task = get_create_task_use_case().execute(dto)
+            task = get_create_task_use_case(get_tenant_context(request)).execute(dto)
         except ValueError as error:
             return Response(
                 {"detail": str(error)},

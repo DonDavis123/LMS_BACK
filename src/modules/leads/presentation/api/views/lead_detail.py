@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.application.dto.lead_detail import (
     LeadDetailResponseDTO,
 )
@@ -23,7 +24,7 @@ class GetLeadDetailsView(APIView):
 
     def get(self, request, lead_id):
 
-        use_case = get_lead_details_use_case()
+        use_case = get_lead_details_use_case(get_tenant_context(request))
 
         try:
             lead, owner_name = use_case.execute(

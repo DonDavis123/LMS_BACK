@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.application.dto.update_lead import (
     UpdateLeadDTO,
 )
@@ -114,7 +115,7 @@ class UpdateLeadView(APIView):
 
         dto = UpdateLeadDTO(**dto_data)
 
-        use_case = get_update_lead_use_case()
+        use_case = get_update_lead_use_case(get_tenant_context(request))
 
         try:
             lead = use_case.execute(dto, current_user_id=request.user.id)
