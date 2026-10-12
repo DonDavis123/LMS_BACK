@@ -1,9 +1,13 @@
 import uuid
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from src.modules.accounts.infrastructure.persistence.django_account_model import (
+    DjangoAccountModel,
+)
 from src.modules.users.infrastructure.persistence.models import User
 
 
@@ -378,6 +382,15 @@ class SuperadminUserManagementPresentationTests(APITestCase):
 
     def test_delete_user_requires_replacement_user(self):
         self.authenticate(self.superadmin)
+
+        # A replacement is only mandatory when the user owns records that
+        # must be transferred.
+        now = timezone.now()
+        DjangoAccountModel.objects.create(
+            account_owner=self.target, account_name="Account",
+            created_by=self.target, modified_by=self.target,
+            created_at=now, updated_at=now,
+        )
 
         response = self.client.delete(
             f"/api/users/{self.target.id}/"

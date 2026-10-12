@@ -158,6 +158,32 @@ class FakeMeetingRepo(MeetingRepository):
         meeting.is_deleted = True
         return meeting
 
+    def get_by_start_at_range(self, start_at, end_at):
+        return [
+            meeting
+            for meeting in self.meetings.values()
+            if not getattr(meeting, "is_deleted", False)
+            and start_at <= meeting.start_at < end_at
+        ]
+
+    def transfer_host(self, from_user_id, to_user_id):
+        moved = 0
+
+        for meeting in self.meetings.values():
+            if meeting.host_id == from_user_id:
+                meeting.host_id = to_user_id
+                moved += 1
+
+        return moved
+
+    def count_by_host_id(self, host_id):
+        return sum(
+            1
+            for meeting in self.meetings.values()
+            if meeting.host_id == host_id
+            and not getattr(meeting, "is_deleted", False)
+        )
+
     def soft_delete_if_orphaned(self, record_type, record_id):
         self.orphaned.append(
             (
