@@ -291,4 +291,5 @@ class DjangoUserRepository(UserRepository):
             created_at=django_user.created_at,
             updated_at=django_user.updated_at,
             deleted_at=django_user.deleted_at,
+            company_id=django_user.company_id,
         )

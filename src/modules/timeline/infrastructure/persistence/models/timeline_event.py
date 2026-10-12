@@ -17,6 +17,15 @@ class TimelineEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     is_deleted = models.BooleanField(default=False)
 
+    company = models.ForeignKey(
+        "companies.DjangoCompanyModel",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        db_index=True,
+    )
+
     class Meta:
         db_table = "timeline_events"
         indexes = [

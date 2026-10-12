@@ -18,6 +18,8 @@ class DjangoUserAuditLogModel(models.Model):
     target_email = models.EmailField()
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(db_index=True)
+    # Plain id, not a foreign key, like actor_id/target_user_id above.
+    company_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "user_audit_logs"
