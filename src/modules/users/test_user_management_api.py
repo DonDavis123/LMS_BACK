@@ -234,6 +234,9 @@ class SessionRevocationTests(UserManagementApiTestCase):
             name="Promoted", role=User.Role.SUPERADMIN,
         )
         access = str(RefreshToken.for_user(promoted).access_token)
+        # setUp force-authenticates the superadmin; drop that so the real
+        # Bearer token is what gets exercised.
+        self.client.force_authenticate(None)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         self.assertEqual(self.client.get("/api/users/").status_code, status.HTTP_200_OK)
 
@@ -409,7 +412,7 @@ class ReviewFixTests(UserManagementApiTestCase):
         for owner in (self.target, self.admin):
             with self.subTest(owner=owner.email):
                 response = self.client.post(
-                    "/api/accounts/",
+                    "/api/accounts/create/",
                     {"account_name": "Acme", "account_owner_id": str(owner.id)},
                     format="json",
                 )
@@ -418,7 +421,7 @@ class ReviewFixTests(UserManagementApiTestCase):
 
     def test_account_with_unknown_owner_is_a_clean_400(self):
         response = self.client.post(
-            "/api/accounts/",
+            "/api/accounts/create/",
             {"account_name": "Acme", "account_owner_id": str(uuid.uuid4())},
             format="json",
         )
@@ -426,7 +429,7 @@ class ReviewFixTests(UserManagementApiTestCase):
 
     def test_account_defaults_to_current_user(self):
         response = self.client.post(
-            "/api/accounts/", {"account_name": "Acme"}, format="json",
+            "/api/accounts/create/", {"account_name": "Acme"}, format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
