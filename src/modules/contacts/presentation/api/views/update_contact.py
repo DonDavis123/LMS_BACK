@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.contacts.application.dto.update_contact import (
     UpdateContactDTO,
@@ -17,7 +18,7 @@ from ..serializers.update_contact import UpdateContactSerializer
 
 
 class UpdateContactView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def patch(self, request, contact_id: UUID):
         serializer = UpdateContactSerializer(
@@ -33,7 +34,8 @@ class UpdateContactView(APIView):
             fields=serializer.validated_data,
         )
 
-        use_case = get_update_contact_use_case(get_tenant_context(request))
+        ctx = get_tenant_context(request)
+        use_case = get_update_contact_use_case(ctx)
 
         try:
             contact = use_case.execute(

@@ -50,7 +50,7 @@ class MeetingPresentationApiTests(APITestCase):
 
         now = timezone.now()
 
-        self.contact = DjangoContactModel.objects.create(
+        self.contact = DjangoContactModel.objects.create(company=default_test_company(),
             name="API Contact",
             contact_owner=self.user,
             created_by=self.user,

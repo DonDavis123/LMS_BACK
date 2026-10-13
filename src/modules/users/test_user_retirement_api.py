@@ -70,13 +70,13 @@ class UserRetirementApiTests(APITestCase):
     def _create_business_data(self):
         lead = DjangoLeadModel.objects.create(company=default_test_company(), name="L1", owner=self.target)
         DjangoLeadModel.objects.create(company=default_test_company(), name="L2", owner=self.target)
-        account = DjangoAccountModel.objects.create(
+        account = DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=self.target, account_name="A1",
             created_by=self.target, modified_by=self.target,
             created_at=self.now, updated_at=self.now,
         )
         for i in range(2):
-            DjangoContactModel.objects.create(
+            DjangoContactModel.objects.create(company=default_test_company(),
                 contact_owner=self.target, name=f"C{i}",
                 created_by=self.target, modified_by=self.target,
                 created_at=self.now, updated_at=self.now,

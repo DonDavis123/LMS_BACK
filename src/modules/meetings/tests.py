@@ -111,7 +111,7 @@ class MeetingInfrastructureTests(TestCase):
             owner=self.user,
         )
         now = timezone.now()
-        self.contact = DjangoContactModel.objects.create(
+        self.contact = DjangoContactModel.objects.create(company=default_test_company(),
             name="Meeting Contact",
             contact_owner=self.user,
             created_by=self.user,
@@ -119,7 +119,7 @@ class MeetingInfrastructureTests(TestCase):
             modified_by=self.user,
             updated_at=now,
         )
-        self.second_contact = DjangoContactModel.objects.create(
+        self.second_contact = DjangoContactModel.objects.create(company=default_test_company(),
             name="Second Contact",
             contact_owner=self.user,
             created_by=self.user,

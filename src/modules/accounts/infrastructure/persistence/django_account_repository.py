@@ -27,10 +27,21 @@ class DjangoAccountRepository(AccountRepository):
         "created_at": SortableField("created_at"),
     }
 
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoAccountModel.objects.filter(company_id=self._company_id)
+
     def save(self, account: Account) -> Account:
-        model, created = DjangoAccountModel.objects.update_or_create(
+        model, created = self._base_queryset().update_or_create(
             id=account.id,
             defaults={
+                # Always the repository's own company, never the entity's.
+                "company_id": self._company_id,
+
                 "account_owner_id": account.account_owner_id,
                 "account_name": account.account_name,
                 "account_site": account.account_site,
@@ -74,7 +85,7 @@ class DjangoAccountRepository(AccountRepository):
     ) -> Account | None:
 
         try:
-            model = DjangoAccountModel.objects.get(
+            model = self._base_queryset().get(
                 id=account_id,
             )
         except DjangoAccountModel.DoesNotExist:
@@ -84,7 +95,7 @@ class DjangoAccountRepository(AccountRepository):
 
     def get_all(self) -> list[Account]:
 
-        models = DjangoAccountModel.objects.filter(
+        models = self._base_queryset().filter(
             is_deleted=False,
         )
 
@@ -97,7 +108,7 @@ class DjangoAccountRepository(AccountRepository):
         query: ListQuery,
     ) -> PaginatedResult[tuple[Account, str | None]]:
         queryset = (
-            DjangoAccountModel.objects
+            self._base_queryset()
             .select_related("account_owner")
             .filter(is_deleted=False)
         )
@@ -257,7 +268,7 @@ class DjangoAccountRepository(AccountRepository):
 
       try:
           model = (
-              DjangoAccountModel.objects
+              self._base_queryset()
               .select_related("account_owner")
               .get(
                   id=account_id,
@@ -279,7 +290,7 @@ class DjangoAccountRepository(AccountRepository):
         phone: str | None,
     ) -> list[Account]:
 
-        queryset = DjangoAccountModel.objects.filter(
+        queryset = self._base_queryset().filter(
             is_deleted=False,
         )
 
@@ -309,7 +320,7 @@ class DjangoAccountRepository(AccountRepository):
         ]
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
-        return DjangoAccountModel.objects.filter(
+        return self._base_queryset().filter(
             account_owner_id=owner_id,
         ).count()
 
@@ -319,7 +330,7 @@ class DjangoAccountRepository(AccountRepository):
         to_user_id: UUID,
     ) -> int:
         # created_by / modified_by are historical and intentionally untouched.
-        return DjangoAccountModel.objects.filter(
+        return self._base_queryset().filter(
             account_owner_id=from_user_id,
         ).update(
             account_owner_id=to_user_id,

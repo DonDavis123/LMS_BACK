@@ -45,8 +45,8 @@ def get_delete_lead_use_case(ctx: TenantContext) -> DeleteLeadUseCase:
 
 
 def get_convert_lead_use_case(ctx: TenantContext) -> ConvertLeadUseCase:
-    return ConvertLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(), DjangoContactRepository(), DjangoUserRepository(company_id=ctx.company_id), DjangoTransactionManager(), recorder())
+    return ConvertLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoContactRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), DjangoTransactionManager(), recorder())
 
 
 def get_conversion_check_use_case(ctx: TenantContext) -> ConversionCheckUseCase:
-    return ConversionCheckUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(), DjangoContactRepository())
+    return ConversionCheckUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoContactRepository(company_id=ctx.company_id))

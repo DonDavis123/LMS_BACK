@@ -5,6 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
+
 from src.modules.accounts.application.dto.update_account import (
     UpdateAccountDTO,
 )
@@ -16,7 +19,7 @@ from ..serializers.edit_account import UpdateAccountSerializer
 
 
 class UpdateAccountView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def put(self, request, account_id: UUID):
         serializer = UpdateAccountSerializer(
@@ -55,7 +58,8 @@ class UpdateAccountView(APIView):
             description=data.get("description"),
         )
 
-        use_case = get_update_account_use_case()
+        ctx = get_tenant_context(request)
+        use_case = get_update_account_use_case(ctx)
 
         try:
             account = use_case.execute(

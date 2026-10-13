@@ -123,12 +123,12 @@ class ManageUsersFlowTests(APITestCase):
             DjangoLeadModel.objects.create(company=default_test_company(), name="Lead 1", owner=t),
             DjangoLeadModel.objects.create(company=default_test_company(), name="Lead 2", owner=t),
         ]
-        self.contact = DjangoContactModel.objects.create(
+        self.contact = DjangoContactModel.objects.create(company=default_test_company(),
             contact_owner=t, name="Contact",
             created_by=t, modified_by=t,
             created_at=self.now, updated_at=self.now,
         )
-        self.account = DjangoAccountModel.objects.create(
+        self.account = DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=t, account_name="Account",
             created_by=t, modified_by=t,
             created_at=self.now, updated_at=self.now,

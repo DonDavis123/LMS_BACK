@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.contacts.application.dto.create_contact import (
     CreateContactDTO,
@@ -14,7 +15,7 @@ from ..serializers.create_contact import CreateContactSerializer
 
 
 class CreateContactView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def post(self, request):
         serializer = CreateContactSerializer(data=request.data)
@@ -50,7 +51,8 @@ class CreateContactView(APIView):
             description=data.get("description"),
         )
 
-        use_case = get_create_contact_use_case(get_tenant_context(request))
+        ctx = get_tenant_context(request)
+        use_case = get_create_contact_use_case(ctx)
 
         try:
             contact = use_case.execute(

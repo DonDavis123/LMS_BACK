@@ -387,7 +387,7 @@ class SuperadminUserManagementPresentationTests(APITestCase):
         # A replacement is only mandatory when the user owns records that
         # must be transferred.
         now = timezone.now()
-        DjangoAccountModel.objects.create(
+        DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=self.target, account_name="Account",
             created_by=self.target, modified_by=self.target,
             created_at=now, updated_at=now,

@@ -5,6 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
+
 from src.modules.accounts.application.dto.delete_account import (
     DeleteAccountDTO,
 )
@@ -14,7 +17,7 @@ from src.modules.accounts.presentation.api.dependencies.account_dependencies imp
 
 
 class DeleteAccountView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def delete(
         self,
@@ -25,7 +28,8 @@ class DeleteAccountView(APIView):
             account_id=account_id,
         )
 
-        use_case = get_delete_account_use_case()
+        ctx = get_tenant_context(request)
+        use_case = get_delete_account_use_case(ctx)
 
         try:
             use_case.execute(

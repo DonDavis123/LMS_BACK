@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.accounts.application.dto.create_account_dto import (
     CreateAccountDTO,
@@ -15,7 +16,7 @@ from ..serializers.create_account import CreateAccountSerializer
 
 
 class CreateAccountView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def post(self, request):
         serializer = CreateAccountSerializer(
@@ -56,7 +57,8 @@ class CreateAccountView(APIView):
             description=data.get("description"),
         )
 
-        use_case = get_create_account_use_case(get_tenant_context(request))
+        ctx = get_tenant_context(request)
+        use_case = get_create_account_use_case(ctx)
 
         try:
             account = use_case.execute(

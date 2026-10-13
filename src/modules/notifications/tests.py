@@ -284,7 +284,7 @@ class NotificationRepositoryTests(TestCase):
 
     def test_dismissed_notification_is_not_recreated_by_source_lookup(self):
         notification = self.repository.save(self._notification())
-        notification.dismiss()
+        notification.dismiss(notification.created_at + timedelta(seconds=1))
         self.repository.save(notification)
         found = self.repository.get_existing_for_source(
             notification_type=notification.notification_type,
