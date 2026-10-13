@@ -19,26 +19,35 @@ def recorder():
 
 def get_create_account_use_case(ctx: TenantContext) -> CreateAccountUseCase:
     return CreateAccountUseCase(
-        DjangoAccountRepository(),
+        DjangoAccountRepository(company_id=ctx.company_id),
         recorder(),
         DjangoTransactionManager(),
         DjangoUserRepository(company_id=ctx.company_id),
     )
 
 
-def get_accounts_use_case() -> GetAccountsUseCase:
-    return GetAccountsUseCase(DjangoAccountRepository())
+def get_accounts_use_case(ctx: TenantContext) -> GetAccountsUseCase:
+    return GetAccountsUseCase(DjangoAccountRepository(company_id=ctx.company_id))
 
 
-def get_account_details_use_case() -> GetAccountDetailsUseCase:
-    return GetAccountDetailsUseCase(DjangoAccountRepository(), DjangoContactRepository())
+def get_account_details_use_case(ctx: TenantContext) -> GetAccountDetailsUseCase:
+    return GetAccountDetailsUseCase(
+        DjangoAccountRepository(company_id=ctx.company_id),
+        DjangoContactRepository(company_id=ctx.company_id),
+    )
 
 
-def get_update_account_use_case() -> UpdateAccountUseCase:
+def get_update_account_use_case(ctx: TenantContext) -> UpdateAccountUseCase:
     return UpdateAccountUseCase(
-        DjangoAccountRepository(),
+        DjangoAccountRepository(company_id=ctx.company_id),
         recorder(),
         DjangoTransactionManager(),
     )
-def get_delete_account_use_case() -> DeleteAccountUseCase:
-    return DeleteAccountUseCase(DjangoAccountRepository(), DjangoContactRepository(), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())
+def get_delete_account_use_case(ctx: TenantContext) -> DeleteAccountUseCase:
+    return DeleteAccountUseCase(
+        DjangoAccountRepository(company_id=ctx.company_id),
+        DjangoContactRepository(company_id=ctx.company_id),
+        DjangoTaskRepository(),
+        DjangoTimelineRepository(),
+        DjangoTransactionManager(),
+    )

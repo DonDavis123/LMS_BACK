@@ -302,7 +302,7 @@ class UserRetirementWorkflowTests(TestCase):
 
     def _account(self, owner, created_by=None, name="Account"):
         created_by = created_by or owner
-        return DjangoAccountModel.objects.create(
+        return DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=owner, account_name=name,
             created_by=created_by, modified_by=created_by,
             created_at=self.now, updated_at=self.now,
@@ -310,7 +310,7 @@ class UserRetirementWorkflowTests(TestCase):
 
     def _contact(self, owner, created_by=None, name="Contact"):
         created_by = created_by or owner
-        return DjangoContactModel.objects.create(
+        return DjangoContactModel.objects.create(company=default_test_company(),
             contact_owner=owner, name=name,
             created_by=created_by, modified_by=created_by,
             created_at=self.now, updated_at=self.now,

@@ -156,8 +156,8 @@ def get_delete_user_use_case(ctx: TenantContext) -> DeleteUserUseCase:
     return DeleteUserUseCase(
         user_repository=get_user_repository(ctx),
         lead_repository=DjangoLeadRepository(company_id=ctx.company_id),
-        contact_repository=DjangoContactRepository(),
-        account_repository=DjangoAccountRepository(),
+        contact_repository=DjangoContactRepository(company_id=ctx.company_id),
+        account_repository=DjangoAccountRepository(company_id=ctx.company_id),
         meeting_repository=DjangoMeetingRepository(),
         task_repository=DjangoTaskRepository(),
         reminder_repository=DjangoReminderRepository(),
@@ -172,8 +172,8 @@ def get_user_deletion_preview_use_case(ctx: TenantContext) -> GetUserDeletionPre
     return GetUserDeletionPreviewUseCase(
         user_repository=get_user_repository(ctx),
         lead_repository=DjangoLeadRepository(company_id=ctx.company_id),
-        contact_repository=DjangoContactRepository(),
-        account_repository=DjangoAccountRepository(),
+        contact_repository=DjangoContactRepository(company_id=ctx.company_id),
+        account_repository=DjangoAccountRepository(company_id=ctx.company_id),
         meeting_repository=DjangoMeetingRepository(),
         task_repository=DjangoTaskRepository(),
         reminder_repository=DjangoReminderRepository(),

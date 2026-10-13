@@ -26,7 +26,7 @@ class AccountApiTests(APITestCase):
             role=User.Role.ADMIN,
         )
 
-        self.account_one = DjangoAccountModel.objects.create(
+        self.account_one = DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=self.owner,
             account_name="Alpha Technologies",
             account_number="ACC-001",
@@ -43,7 +43,7 @@ class AccountApiTests(APITestCase):
             modified_by=self.owner,
             updated_at=now,
         )
-        self.account_two = DjangoAccountModel.objects.create(
+        self.account_two = DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=self.other_owner,
             account_name="Beta Industries",
             account_number="ACC-002",
@@ -60,7 +60,7 @@ class AccountApiTests(APITestCase):
             modified_by=self.owner,
             updated_at=now,
         )
-        DjangoAccountModel.objects.create(
+        DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=self.owner,
             account_name="Gamma Services",
             account_number="ACC-003",

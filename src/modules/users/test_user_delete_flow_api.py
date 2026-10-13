@@ -66,14 +66,14 @@ class UserDeleteFlowTestCase(APITestCase):
         return DjangoLeadModel.objects.create(company=default_test_company(), name="Lead", owner=self.target)
 
     def contact(self):
-        return DjangoContactModel.objects.create(
+        return DjangoContactModel.objects.create(company=default_test_company(),
             contact_owner=self.target, name="Contact",
             created_by=self.target, modified_by=self.target,
             created_at=self.now, updated_at=self.now,
         )
 
     def account(self):
-        return DjangoAccountModel.objects.create(
+        return DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=self.target, account_name="Account",
             created_by=self.target, modified_by=self.target,
             created_at=self.now, updated_at=self.now,

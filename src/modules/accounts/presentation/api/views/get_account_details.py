@@ -5,6 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
+
 from src.modules.accounts.presentation.api.dependencies.account_dependencies import (
     get_account_details_use_case,
 )
@@ -13,10 +16,11 @@ from ..serializers.get_account_serializer import AccountDetailsSerializer
 
 
 class GetAccountDetailsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request, account_id: UUID):
-        use_case = get_account_details_use_case()
+        ctx = get_tenant_context(request)
+        use_case = get_account_details_use_case(ctx)
 
         account = use_case.execute(
             account_id=account_id,

@@ -32,10 +32,30 @@ class DjangoContactRepository(ContactRepository):
         "created_at": SortableField("created_at"),
     }
 
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoContactModel.objects.filter(company_id=self._company_id)
+
     def save(self, contact: Contact) -> Contact:
-        model, created = DjangoContactModel.objects.update_or_create(
+        # A contact may only report to a contact of the same company. Soft-
+        # deleted contacts are still rows of this company, so an existing
+        # (legacy) link to one of them keeps working.
+        if (
+            contact.reporting_to_id is not None
+            and not self._base_queryset().filter(id=contact.reporting_to_id).exists()
+        ):
+            raise ValueError("Reporting contact not found.")
+
+        model, created = self._base_queryset().update_or_create(
             id=contact.id,
             defaults={
+                # Always the repository's own company, never the entity's.
+                "company_id": self._company_id,
+
                 "account_id": contact.account_id,
                 "contact_owner_id": contact.contact_owner_id,
                 "name": contact.name,
@@ -73,7 +93,7 @@ class DjangoContactRepository(ContactRepository):
 
     def get_by_id(self, contact_id: UUID) -> Contact | None:
         try:
-            model = DjangoContactModel.objects.get(
+            model = self._base_queryset().get(
                 
               id=contact_id,
               is_deleted=False,
@@ -88,7 +108,7 @@ class DjangoContactRepository(ContactRepository):
       self,
       account_id: UUID,
     ) -> None:
-      DjangoContactModel.objects.filter(
+      self._base_queryset().filter(
           account_id=account_id,
       ).update(
           account_id=None,
@@ -101,7 +121,7 @@ class DjangoContactRepository(ContactRepository):
 
       try:
           model = (
-              DjangoContactModel.objects
+              self._base_queryset()
               .select_related(
                   "account",
                   "contact_owner",
@@ -146,7 +166,7 @@ class DjangoContactRepository(ContactRepository):
         )
 
         queryset = (
-            DjangoContactModel.objects
+            self._base_queryset()
             .select_related(
                 "account",
                 "contact_owner",
@@ -383,7 +403,7 @@ class DjangoContactRepository(ContactRepository):
         account_id: UUID,
     ) -> list[tuple[Contact, str | None]]:
       models = (
-          DjangoContactModel.objects
+          self._base_queryset()
           .select_related("contact_owner")
           .filter(
               account_id=account_id,
@@ -408,7 +428,7 @@ class DjangoContactRepository(ContactRepository):
     mobile: str | None,
 ) -> list[Contact]:
 
-      queryset = DjangoContactModel.objects.filter(
+      queryset = self._base_queryset().filter(
          is_deleted=False,
        )
 
@@ -445,7 +465,7 @@ class DjangoContactRepository(ContactRepository):
       ]
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
-        return DjangoContactModel.objects.filter(
+        return self._base_queryset().filter(
             contact_owner_id=owner_id,
         ).count()
 
@@ -455,7 +475,7 @@ class DjangoContactRepository(ContactRepository):
         to_user_id: UUID,
     ) -> int:
         # created_by / modified_by are historical and intentionally untouched.
-        return DjangoContactModel.objects.filter(
+        return self._base_queryset().filter(
             contact_owner_id=from_user_id,
         ).update(
             contact_owner_id=to_user_id,

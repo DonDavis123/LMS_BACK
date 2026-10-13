@@ -31,7 +31,7 @@ class TaskApiTests(APITestCase):
             company_name="Example Company",
             owner=self.user,
         )
-        self.account = DjangoAccountModel.objects.create(
+        self.account = DjangoAccountModel.objects.create(company=default_test_company(),
             account_owner=self.user,
             account_name="Task Account",
             created_by=self.user,
@@ -39,7 +39,7 @@ class TaskApiTests(APITestCase):
             modified_by=self.user,
             updated_at=now,
         )
-        self.contact = DjangoContactModel.objects.create(
+        self.contact = DjangoContactModel.objects.create(company=default_test_company(),
             account=self.account,
             contact_owner=self.user,
             name="Task Contact",

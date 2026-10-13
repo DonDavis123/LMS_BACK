@@ -3,6 +3,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
+
 from src.modules.accounts.presentation.api.dependencies.account_dependencies import (
     get_accounts_use_case,
 )
@@ -12,12 +15,13 @@ from ..serializers.get_accounts import AccountSerializer
 
 
 class GetAccountsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request):
+        ctx = get_tenant_context(request)
         try:
             query = parse_list_query(request.query_params)
-            result = get_accounts_use_case().execute(query)
+            result = get_accounts_use_case(ctx).execute(query)
         except ValueError as exc:
             return Response(
                 {"detail": str(exc)},
