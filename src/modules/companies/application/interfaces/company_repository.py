@@ -4,6 +4,7 @@ from uuid import UUID
 from src.modules.companies.application.dto.company_dto import (
     CompanyDetailDTO,
     CompanyListDTO,
+    PlatformOverviewDTO,
 )
 from src.modules.companies.domain.entities.company import Company
 from src.modules.companies.domain.entities.company_status import CompanyStatus
@@ -61,4 +62,8 @@ class CompanyRepository(ABC):
 
     @abstractmethod
     def get_user_ids(self, company_id: UUID) -> list[UUID]:
+        pass
+
+    @abstractmethod
+    def get_overview(self) -> PlatformOverviewDTO:
         pass

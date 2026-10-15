@@ -46,3 +46,22 @@ class CreateCompanyDTO:
     admin_email: str
     admin_password: str
     website: str | None = None
+
+
+@dataclass(frozen=True)
+class RecentCompanyDTO:
+    id: UUID
+    name: str
+    status: CompanyStatus
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class PlatformOverviewDTO:
+    companies_total: int
+    companies_active: int
+    companies_onboarding: int
+    companies_suspended: int
+    users_total: int
+    users_active: int
+    recent_companies: list[RecentCompanyDTO] = field(default_factory=list)

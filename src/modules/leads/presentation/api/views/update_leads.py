@@ -2,6 +2,7 @@ from uuid import UUID
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -22,7 +23,7 @@ from ..serializers.update_lead import UpdateLeadSerializer
 
 class UpdateLeadView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def patch(self, request, lead_id):
 

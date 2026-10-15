@@ -2,6 +2,7 @@ from uuid import UUID
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -20,7 +21,7 @@ from ..serializers.lead_details import LeadDetailSerializer
 
 
 class GetLeadDetailsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request, lead_id):
 

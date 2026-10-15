@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -18,7 +19,7 @@ from ..serializers.createLead import CreateLeadSerializer
 
 class CreateLeadView(APIView):
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def post(self, request):
         serializer = CreateLeadSerializer(
