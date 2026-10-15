@@ -15,54 +15,54 @@ from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelin
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 
 
-def recorder():
-    return DefaultTimelineRecorder(DjangoTimelineRepository())
+def recorder(ctx: TenantContext):
+    return DefaultTimelineRecorder(DjangoTimelineRepository(company_id=ctx.company_id))
 
 
 def transaction_manager():
     return DjangoTransactionManager()
 
 
-def reminder_sync_service():
-    return ReminderSyncService(DjangoReminderRepository())
+def reminder_sync_service(ctx: TenantContext):
+    return ReminderSyncService(DjangoReminderRepository(company_id=ctx.company_id))
 
 
 def get_create_meeting_use_case(ctx: TenantContext) -> CreateMeetingUseCase:
     return CreateMeetingUseCase(
-        DjangoMeetingRepository(),
+        DjangoMeetingRepository(company_id=ctx.company_id),
         DjangoUserRepository(company_id=ctx.company_id),
         DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         transaction_manager(),
-        reminder_sync_service(),
+        reminder_sync_service(ctx),
     )
 
 
-def get_meetings_use_case() -> GetMeetingsUseCase:
-    return GetMeetingsUseCase(DjangoMeetingRepository())
+def get_meetings_use_case(ctx: TenantContext) -> GetMeetingsUseCase:
+    return GetMeetingsUseCase(DjangoMeetingRepository(company_id=ctx.company_id))
 
 
-def get_meeting_use_case() -> GetMeetingUseCase:
-    return GetMeetingUseCase(DjangoMeetingRepository())
+def get_meeting_use_case(ctx: TenantContext) -> GetMeetingUseCase:
+    return GetMeetingUseCase(DjangoMeetingRepository(company_id=ctx.company_id))
 
 
 def get_update_meeting_use_case(ctx: TenantContext) -> UpdateMeetingUseCase:
     return UpdateMeetingUseCase(
-        DjangoMeetingRepository(),
+        DjangoMeetingRepository(company_id=ctx.company_id),
         DjangoUserRepository(company_id=ctx.company_id),
         DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         transaction_manager(),
-        reminder_sync_service(),
+        reminder_sync_service(ctx),
     )
 
 
-def get_delete_meeting_use_case() -> DeleteMeetingUseCase:
+def get_delete_meeting_use_case(ctx: TenantContext) -> DeleteMeetingUseCase:
     return DeleteMeetingUseCase(
-        DjangoMeetingRepository(),
-        recorder(),
+        DjangoMeetingRepository(company_id=ctx.company_id),
+        recorder(ctx),
         transaction_manager(),
-        reminder_sync_service(),
+        reminder_sync_service(ctx),
     )

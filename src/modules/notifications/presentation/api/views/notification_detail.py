@@ -10,13 +10,15 @@ from src.modules.notifications.presentation.api.dependencies.notification_depend
     get_mark_notification_read_use_case,
 )
 from src.modules.notifications.presentation.api.serializers.notification import NotificationSerializer
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 
 
 class NotificationDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request, notification_id):
-        notification = get_notification_use_case().execute(notification_id, request.user.id, timezone.now())
+        notification = get_notification_use_case(get_tenant_context(request)).execute(notification_id, request.user.id, timezone.now())
         if notification is None:
             return Response({"detail": "Notification not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(NotificationSerializer(notification).data, status=status.HTTP_200_OK)
@@ -25,14 +27,14 @@ class NotificationDetailView(APIView):
         if set(request.data.keys()) - {"is_read"} or request.data.get("is_read") is not True:
             return Response({"detail": "Only marking a notification as read is supported."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            notification = get_mark_notification_read_use_case().execute(notification_id, request.user.id)
+            notification = get_mark_notification_read_use_case(get_tenant_context(request)).execute(notification_id, request.user.id)
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_404_NOT_FOUND)
         return Response(NotificationSerializer(notification).data, status=status.HTTP_200_OK)
 
     def delete(self, request, notification_id):
         try:
-            get_delete_notification_use_case().execute(notification_id, request.user.id)
+            get_delete_notification_use_case(get_tenant_context(request)).execute(notification_id, request.user.id)
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_404_NOT_FOUND)
         return Response({"message": "Notification deleted successfully."}, status=status.HTTP_200_OK)

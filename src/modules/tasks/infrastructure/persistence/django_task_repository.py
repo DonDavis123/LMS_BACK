@@ -22,6 +22,14 @@ from .models import DjangoTaskModel
 
 class DjangoTaskRepository(TaskRepository):
 
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoTaskModel.objects.filter(company_id=self._company_id)
+
     SORTABLE_FIELDS = {
         "subject": SortableField("subject", is_text=True),
         "due_date": SortableField("due_date"),
@@ -47,9 +55,10 @@ class DjangoTaskRepository(TaskRepository):
         )
 
     def save(self, task: Task) -> Task:
-        model, created = DjangoTaskModel.objects.update_or_create(
+        model, created = self._base_queryset().update_or_create(
             id=task.id,
             defaults={
+                "company_id": self._company_id,
                 "subject": task.subject,
                 "due_date": task.due_date,
                 "priority": task.priority.value,
@@ -69,7 +78,7 @@ class DjangoTaskRepository(TaskRepository):
 
     def get_by_id(self, task_id: UUID) -> Task | None:
         try:
-            model = DjangoTaskModel.objects.get(id=task_id)
+            model = self._base_queryset().get(id=task_id)
         except DjangoTaskModel.DoesNotExist:
             return None
 
@@ -78,7 +87,7 @@ class DjangoTaskRepository(TaskRepository):
     def get_by_id_with_relations(self, task_id: UUID) -> GetTaskDTO | None:
         try:
             model = (
-                DjangoTaskModel.objects
+                self._base_queryset()
                 .select_related("owner", "lead", "contact", "account")
                 .get(id=task_id, is_deleted=False)
             )
@@ -95,7 +104,7 @@ class DjangoTaskRepository(TaskRepository):
 
     def get_by_due_date_range(self, start_date: date, end_date: date) -> list[Task]:
         models = (
-            DjangoTaskModel.objects
+            self._base_queryset()
             .filter(
                 is_deleted=False,
                 due_date__gte=start_date,
@@ -107,7 +116,7 @@ class DjangoTaskRepository(TaskRepository):
 
     def get_all(self, query: ListQuery) -> PaginatedResult[Task]:
         queryset = (
-            DjangoTaskModel.objects
+            self._base_queryset()
             .select_related(
                 "owner",
                 "created_by",
@@ -135,7 +144,7 @@ class DjangoTaskRepository(TaskRepository):
 
     def get_all_with_relations(self, query: ListQuery) -> PaginatedResult[GetTaskDTO]:
         queryset = (
-            DjangoTaskModel.objects
+            self._base_queryset()
             .select_related("owner", "lead", "contact", "account")
             .filter(is_deleted=False)
         )
@@ -366,7 +375,7 @@ class DjangoTaskRepository(TaskRepository):
         return queryset.exclude(condition) if operator in {"not_contains", "not_equals"} else queryset.filter(condition)
 
     def soft_delete_by_lead_id(self, lead_id: UUID) -> None:
-        DjangoTaskModel.objects.filter(
+        self._base_queryset().filter(
             lead_id=lead_id,
             is_deleted=False,
         ).update(
@@ -374,7 +383,7 @@ class DjangoTaskRepository(TaskRepository):
         )
 
     def soft_delete_by_contact_id(self, contact_id: UUID) -> None:
-        DjangoTaskModel.objects.filter(
+        self._base_queryset().filter(
             contact_id=contact_id,
             is_deleted=False,
         ).update(
@@ -384,7 +393,7 @@ class DjangoTaskRepository(TaskRepository):
     def soft_delete_by_account_id(self, account_id: UUID) -> None:
         # Account-only tasks are not valid in the current Task business rules.
         # Keep this repository operation defensive for any legacy/invalid rows.
-        DjangoTaskModel.objects.filter(
+        self._base_queryset().filter(
             account_id=account_id,
             contact_id__isnull=True,
             lead_id__isnull=True,
@@ -396,7 +405,7 @@ class DjangoTaskRepository(TaskRepository):
     def unlink_account_from_contact_tasks(self, account_id: UUID) -> None:
         # Account is optional when a Task is associated with a Contact.
         # Deleting the Account must not destroy that Contact task.
-        DjangoTaskModel.objects.filter(
+        self._base_queryset().filter(
             account_id=account_id,
             contact_id__isnull=False,
             is_deleted=False,
@@ -405,13 +414,13 @@ class DjangoTaskRepository(TaskRepository):
         )
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
-        return DjangoTaskModel.objects.filter(owner_id=owner_id).count()
+        return self._base_queryset().filter(owner_id=owner_id).count()
 
     def delete_by_owner_id(self, owner_id: UUID) -> int:
         # Physical deletion, including already soft-deleted Tasks. Reminders
         # and Notifications attached to these Tasks are removed by the
         # existing CASCADE relationships.
-        deleted, _ = DjangoTaskModel.objects.filter(
+        deleted, _ = self._base_queryset().filter(
             owner_id=owner_id,
         ).delete()
         return deleted

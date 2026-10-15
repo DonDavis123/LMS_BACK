@@ -13,12 +13,12 @@ from src.modules.timeline.infrastructure.persistence.django_timeline_repository 
 from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelineRecorder
 
 
-def recorder():
-    return DefaultTimelineRecorder(DjangoTimelineRepository())
+def recorder(ctx: TenantContext):
+    return DefaultTimelineRecorder(DjangoTimelineRepository(company_id=ctx.company_id))
 
 
 def get_create_contact_use_case(ctx: TenantContext) -> CreateContactUseCase:
-    return CreateContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(), DjangoTransactionManager())
+    return CreateContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager())
 
 
 def get_contacts_use_case(ctx: TenantContext) -> GetContactsUseCase:
@@ -34,9 +34,9 @@ def get_update_contact_use_case(ctx: TenantContext) -> UpdateContactUseCase:
         DjangoContactRepository(company_id=ctx.company_id),
         DjangoAccountRepository(company_id=ctx.company_id),
         DjangoUserRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         DjangoTransactionManager(),
     )
 
 def get_delete_contact_use_case(ctx: TenantContext) -> DeleteContactUseCase:
-    return DeleteContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())
+    return DeleteContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoTaskRepository(company_id=ctx.company_id), DjangoTimelineRepository(company_id=ctx.company_id), DjangoTransactionManager())

@@ -16,6 +16,7 @@ from src.modules.shared.presentation.query_params import parse_list_query
 
 from ..serializers.create_meeting import CreateMeetingSerializer
 from ..serializers.meeting import MeetingListSerializer
+from src.modules.shared.presentation.permissions import IsCompanyUser
 
 
 def _participant_groups(data) -> tuple[ParticipantGroup, ...]:
@@ -33,14 +34,14 @@ def _participant_groups(data) -> tuple[ParticipantGroup, ...]:
 
 
 class MeetingListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request):
         try:
             query = parse_list_query(request.query_params)
             if query.filters:
                 raise ValueError("Meeting filtering is not supported.")
-            result = get_meetings_use_case().execute(query)
+            result = get_meetings_use_case(get_tenant_context(request)).execute(query)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 

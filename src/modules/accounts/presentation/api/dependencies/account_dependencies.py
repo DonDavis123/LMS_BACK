@@ -13,14 +13,14 @@ from src.modules.timeline.infrastructure.persistence.django_timeline_repository 
 from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelineRecorder
 
 
-def recorder():
-    return DefaultTimelineRecorder(DjangoTimelineRepository())
+def recorder(ctx: TenantContext):
+    return DefaultTimelineRecorder(DjangoTimelineRepository(company_id=ctx.company_id))
 
 
 def get_create_account_use_case(ctx: TenantContext) -> CreateAccountUseCase:
     return CreateAccountUseCase(
         DjangoAccountRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         DjangoTransactionManager(),
         DjangoUserRepository(company_id=ctx.company_id),
     )
@@ -40,14 +40,14 @@ def get_account_details_use_case(ctx: TenantContext) -> GetAccountDetailsUseCase
 def get_update_account_use_case(ctx: TenantContext) -> UpdateAccountUseCase:
     return UpdateAccountUseCase(
         DjangoAccountRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         DjangoTransactionManager(),
     )
 def get_delete_account_use_case(ctx: TenantContext) -> DeleteAccountUseCase:
     return DeleteAccountUseCase(
         DjangoAccountRepository(company_id=ctx.company_id),
         DjangoContactRepository(company_id=ctx.company_id),
-        DjangoTaskRepository(),
-        DjangoTimelineRepository(),
+        DjangoTaskRepository(company_id=ctx.company_id),
+        DjangoTimelineRepository(company_id=ctx.company_id),
         DjangoTransactionManager(),
     )

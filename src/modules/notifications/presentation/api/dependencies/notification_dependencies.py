@@ -14,17 +14,17 @@ def transaction_manager():
     return DjangoTransactionManager()
 
 
-def get_notifications_use_case() -> GetNotificationsUseCase:
-    return GetNotificationsUseCase(DjangoNotificationRepository())
+def get_notifications_use_case(ctx: TenantContext) -> GetNotificationsUseCase:
+    return GetNotificationsUseCase(DjangoNotificationRepository(company_id=ctx.company_id))
 
 
-def get_notification_use_case() -> GetNotificationUseCase:
-    return GetNotificationUseCase(DjangoNotificationRepository())
+def get_notification_use_case(ctx: TenantContext) -> GetNotificationUseCase:
+    return GetNotificationUseCase(DjangoNotificationRepository(company_id=ctx.company_id))
 
 
-def get_mark_notification_read_use_case() -> MarkNotificationReadUseCase:
-    return MarkNotificationReadUseCase(DjangoNotificationRepository(), transaction_manager())
+def get_mark_notification_read_use_case(ctx: TenantContext) -> MarkNotificationReadUseCase:
+    return MarkNotificationReadUseCase(DjangoNotificationRepository(company_id=ctx.company_id), transaction_manager())
 
 
-def get_delete_notification_use_case() -> DeleteNotificationUseCase:
-    return DeleteNotificationUseCase(DjangoNotificationRepository(), transaction_manager())
+def get_delete_notification_use_case(ctx: TenantContext) -> DeleteNotificationUseCase:
+    return DeleteNotificationUseCase(DjangoNotificationRepository(company_id=ctx.company_id), transaction_manager())

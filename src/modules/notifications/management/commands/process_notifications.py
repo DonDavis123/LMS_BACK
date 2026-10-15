@@ -23,19 +23,21 @@ class Command(BaseCommand):
         now = timezone.now()
         self.stdout.write(f"Processing notifications at {now.isoformat()}")
         try:
-            # TRANSITIONAL (Stage A): the user repository is now company
-            # scoped, so run once per ACTIVE company. The remaining
-            # repositories are scoped in Stage C, which replaces this loop.
             result = ProcessNotificationsResult()
             for company_id in get_active_company_ids():
-                result = result + ProcessNotificationsUseCase(
-                    notification_repository=DjangoNotificationRepository(),
-                    reminder_repository=DjangoReminderRepository(),
-                    task_repository=DjangoTaskRepository(),
-                    meeting_repository=DjangoMeetingRepository(),
-                    user_repository=DjangoUserRepository(company_id=company_id),
-                    transaction_manager=DjangoTransactionManager(),
-                ).execute(now, timezone.localtime(now))
+                try:
+                    company_result = ProcessNotificationsUseCase(
+                        notification_repository=DjangoNotificationRepository(company_id=company_id),
+                        reminder_repository=DjangoReminderRepository(company_id=company_id),
+                        task_repository=DjangoTaskRepository(company_id=company_id),
+                        meeting_repository=DjangoMeetingRepository(company_id=company_id),
+                        user_repository=DjangoUserRepository(company_id=company_id),
+                        transaction_manager=DjangoTransactionManager(),
+                    ).execute(now, timezone.localtime(now))
+                    result = result + company_result
+                except Exception:
+                    logger.exception("Notification processing failed for company_id=%s", company_id)
+                    result = result + ProcessNotificationsResult(failures=1)
         except Exception:
             logger.exception("Notification processing failed")
             self.stderr.write(self.style.ERROR("Notification processing failed."))

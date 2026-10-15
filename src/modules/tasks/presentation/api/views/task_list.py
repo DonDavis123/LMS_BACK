@@ -16,15 +16,16 @@ from src.modules.tasks.presentation.api.dependencies.task_dependencies import (
 from ..serializers.create_task import CreateTaskSerializer
 from ..serializers.task import TaskSerializer
 from ..serializers.task_read import TaskReadSerializer
+from src.modules.shared.presentation.permissions import IsCompanyUser
 
 
 class TaskListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request):
         try:
             query = parse_list_query(request.query_params)
-            result = get_tasks_use_case().execute(query)
+            result = get_tasks_use_case(get_tenant_context(request)).execute(query)
         except ValueError as exc:
             return Response(
                 {"detail": str(exc)},

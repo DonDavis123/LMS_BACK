@@ -16,13 +16,14 @@ from src.modules.tasks.presentation.api.dependencies.task_dependencies import (
 from ..serializers.task import TaskSerializer
 from ..serializers.task_read import TaskReadSerializer
 from ..serializers.update_task import UpdateTaskSerializer
+from src.modules.shared.presentation.permissions import IsCompanyUser
 
 
 class TaskDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request, task_id):
-        task = get_task_use_case().execute(task_id)
+        task = get_task_use_case(get_tenant_context(request)).execute(task_id)
 
         if task is None:
             return Response(
@@ -67,7 +68,7 @@ class TaskDetailView(APIView):
 
     def delete(self, request, task_id):
         try:
-            get_delete_task_use_case().execute(task_id, current_user_id=request.user.id)
+            get_delete_task_use_case(get_tenant_context(request)).execute(task_id, current_user_id=request.user.id)
         except ValueError as error:
             return Response(
                 {"detail": str(error)},

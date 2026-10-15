@@ -14,6 +14,13 @@ from src.modules.timeline.infrastructure.persistence.models import TimelineEvent
 
 
 class DjangoTimelineRepository(TimelineRepository):
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return TimelineEvent.objects.filter(company_id=self._company_id)
     def record(
         self,
         *,
@@ -25,6 +32,7 @@ class DjangoTimelineRepository(TimelineRepository):
         created_at: datetime | None = None,
     ) -> None:
         event_kwargs = {
+            "company_id": self._company_id,
             "event_type": event_type,
             "actor_id": actor_id,
             "message": message,
@@ -34,7 +42,7 @@ class DjangoTimelineRepository(TimelineRepository):
             event_kwargs["created_at"] = created_at
 
         with transaction.atomic():
-            event = TimelineEvent.objects.create(**event_kwargs)
+            event = self._base_queryset().create(**event_kwargs)
             TimelineEventTarget.objects.bulk_create([
                 TimelineEventTarget(
                     event=event,
@@ -45,7 +53,7 @@ class DjangoTimelineRepository(TimelineRepository):
             ])
 
     def count_by_actor_id(self, actor_id: UUID) -> int:
-        return TimelineEvent.objects.filter(
+        return self._base_queryset().filter(
             actor_id=actor_id,
             is_deleted=False,
         ).count()
@@ -53,7 +61,7 @@ class DjangoTimelineRepository(TimelineRepository):
     def get_for_entity(self, entity_type: str, entity_id: UUID) -> list[dict]:
         rows = (
             TimelineEventTarget.objects
-            .filter(
+            .filter(event__company_id=self._company_id, 
                 entity_type=entity_type,
                 entity_id=entity_id,
                 is_deleted=False,
@@ -63,7 +71,7 @@ class DjangoTimelineRepository(TimelineRepository):
             .prefetch_related(
                 Prefetch(
                     "event__targets",
-                    queryset=TimelineEventTarget.objects.filter(is_deleted=False),
+                    queryset=TimelineEventTarget.objects.filter(event__company_id=self._company_id, is_deleted=False),
                 )
             )
             .order_by("-event__created_at", "-event__id")
@@ -102,6 +110,7 @@ class DjangoTimelineRepository(TimelineRepository):
         # a Task linked to both a Contact and an Account), so the event itself
         # must remain active while it still has another active target.
         target_qs = TimelineEventTarget.objects.filter(
+            event__company_id=self._company_id,
             entity_type=entity_type,
             entity_id=entity_id,
             is_deleted=False,
@@ -113,11 +122,12 @@ class DjangoTimelineRepository(TimelineRepository):
             return
 
         active_event_ids = TimelineEventTarget.objects.filter(
+            event__company_id=self._company_id,
             event_id__in=event_ids,
             is_deleted=False,
         ).values_list("event_id", flat=True).distinct()
 
-        TimelineEvent.objects.filter(
+        self._base_queryset().filter(
             id__in=event_ids,
         ).exclude(
             id__in=active_event_ids,
@@ -136,4 +146,4 @@ class DjangoTimelineRepository(TimelineRepository):
         model = models.get(entity_type)
         if model is None:
             raise ValueError("Unsupported timeline entity type.")
-        return model.objects.filter(id=entity_id, is_deleted=False).exists()
+        return model.objects.filter(id=entity_id, company_id=self._company_id, is_deleted=False).exists()
