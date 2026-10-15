@@ -3,6 +3,9 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from src.modules.companies.infrastructure.persistence.company_suspension import (
+    is_company_suspended,
+)
 from src.modules.authentication.application.interfaces.token_service import (
     TokenService,
 )
@@ -32,6 +35,9 @@ class JWTTokenService(TokenService):
             user = User.objects.get(id=user_id)
 
             if not user.is_active:
+                raise InvalidRefreshTokenError()
+
+            if is_company_suspended(user.company_id):
                 raise InvalidRefreshTokenError()
 
             # Rotate the refresh token.

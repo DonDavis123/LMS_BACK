@@ -1,5 +1,9 @@
 from rest_framework.permissions import BasePermission
 
+from src.modules.companies.infrastructure.persistence.company_suspension import (
+    SUSPENDED_MESSAGE,
+    is_company_suspended,
+)
 from src.modules.users.domain.entities.role import UserRole
 
 
@@ -15,13 +19,22 @@ class IsCompanyUser(BasePermission):
     def has_permission(self, request, view):
         user = request.user
 
-        return bool(
+        allowed = bool(
             user
             and user.is_authenticated
             and user.is_active
             and user.role != UserRole.PLATFORM_SUPERADMIN.value
             and getattr(user, "company_id", None) is not None
         )
+        if not allowed:
+            self.message = IsCompanyUser.message
+            return False
+
+        if is_company_suspended(user.company_id):
+            self.message = SUSPENDED_MESSAGE
+            return False
+
+        return True
 
 
 class IsPlatformSuperAdmin(BasePermission):

@@ -2,12 +2,13 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from django.contrib.auth.models import AnonymousUser
-from django.test import SimpleTestCase
+from django.test import TestCase
 
 from src.modules.shared.presentation.permissions import (
     IsCompanyUser,
     IsPlatformSuperAdmin,
 )
+from src.modules.shared.tests.tenancy.factories import make_company
 
 
 def fake_user(role="ADMIN", company_id="unset", is_active=True):
@@ -16,7 +17,7 @@ def fake_user(role="ADMIN", company_id="unset", is_active=True):
         role=role,
         is_active=is_active,
         is_authenticated=True,
-        company_id=uuid4() if company_id == "unset" else company_id,
+        company_id=make_company().id if company_id == "unset" else company_id,
     )
 
 
@@ -24,7 +25,7 @@ def check(permission_class, user):
     return permission_class().has_permission(SimpleNamespace(user=user), None)
 
 
-class IsCompanyUserTests(SimpleTestCase):
+class IsCompanyUserTests(TestCase):
 
     def test_company_user_is_allowed(self):
         for role in ("SUPERADMIN", "ADMIN", "SALES_MANAGER", "SALES_EXECUTIVE"):
@@ -52,7 +53,7 @@ class IsCompanyUserTests(SimpleTestCase):
         self.assertFalse(check(IsCompanyUser, None))
 
 
-class IsPlatformSuperAdminTests(SimpleTestCase):
+class IsPlatformSuperAdminTests(TestCase):
 
     def test_platform_superadmin_is_allowed(self):
         self.assertTrue(

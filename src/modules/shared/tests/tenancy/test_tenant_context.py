@@ -2,11 +2,12 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from django.contrib.auth.models import AnonymousUser
-from django.test import SimpleTestCase
+from django.test import TestCase
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 
 from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.shared.presentation.tenant import get_tenant_context
+from src.modules.shared.tests.tenancy.factories import make_company
 
 
 def fake_user(role="ADMIN", company_id="unset", is_active=True):
@@ -15,7 +16,7 @@ def fake_user(role="ADMIN", company_id="unset", is_active=True):
         role=role,
         is_active=is_active,
         is_authenticated=True,
-        company_id=uuid4() if company_id == "unset" else company_id,
+        company_id=make_company().id if company_id == "unset" else company_id,
     )
 
 
@@ -23,7 +24,7 @@ def request_for(user):
     return SimpleNamespace(user=user)
 
 
-class TenantContextTests(SimpleTestCase):
+class TenantContextTests(TestCase):
 
     def test_context_is_frozen(self):
         ctx = TenantContext(company_id=uuid4(), user_id=uuid4(), role="ADMIN")

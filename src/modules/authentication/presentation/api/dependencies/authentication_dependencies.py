@@ -1,3 +1,6 @@
+from src.modules.companies.infrastructure.persistence.company_suspension import (
+    is_company_suspended,
+)
 from src.modules.authentication.application.use_cases.login_user import (
     LoginUserUseCase,
 )
@@ -61,6 +64,7 @@ def get_login_user_use_case() -> LoginUserUseCase:
         user_repository=user_repository,
         password_hasher=password_hasher,
         token_service=token_service,
+        is_company_suspended=is_company_suspended,
     )
 
 

@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from src.modules.authentication.domain.exceptions import (
+    CompanySuspendedError,
     InvalidCredentialsError,
     InactiveUserError,
 )
@@ -42,6 +43,14 @@ class LoginView(APIView):
             return Response(
                 {
                     "detail": "User account is inactive."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        except CompanySuspendedError:
+            return Response(
+                {
+                    "detail": "Your company account is suspended."
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
