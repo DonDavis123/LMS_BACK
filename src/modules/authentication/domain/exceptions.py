@@ -12,3 +12,8 @@ class InactiveUserError(AuthenticationError):
 
 class InvalidRefreshTokenError(AuthenticationError):
     """Raised when a refresh token is invalid, expired, or revoked."""
+
+
+
+class CompanySuspendedError(AuthenticationError):
+    """Raised when a user of a suspended company attempts to authenticate."""

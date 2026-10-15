@@ -1,5 +1,9 @@
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 
+from src.modules.companies.infrastructure.persistence.company_suspension import (
+    SUSPENDED_MESSAGE,
+    is_company_suspended,
+)
 from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.users.domain.entities.role import UserRole
 
@@ -22,6 +26,9 @@ def get_tenant_context(request) -> TenantContext:
         or getattr(user, "company_id", None) is None
     ):
         raise PermissionDenied("A company account is required.")
+
+    if is_company_suspended(user.company_id):
+        raise PermissionDenied(SUSPENDED_MESSAGE)
 
     return TenantContext(
         company_id=user.company_id,
