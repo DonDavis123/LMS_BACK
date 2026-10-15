@@ -16,6 +16,7 @@ from src.modules.meetings.presentation.api.dependencies.meeting_dependencies imp
 
 from ..serializers.meeting import MeetingDetailSerializer
 from ..serializers.update_meeting import UpdateMeetingSerializer
+from src.modules.shared.presentation.permissions import IsCompanyUser
 
 
 def _participant_groups(data) -> tuple[ParticipantGroup, ...]:
@@ -33,10 +34,10 @@ def _participant_groups(data) -> tuple[ParticipantGroup, ...]:
 
 
 class MeetingDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request, meeting_id):
-        result = get_meeting_use_case().execute(meeting_id)
+        result = get_meeting_use_case(get_tenant_context(request)).execute(meeting_id)
         if result is None:
             return Response({"detail": "Meeting not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -86,7 +87,7 @@ class MeetingDetailView(APIView):
 
     def delete(self, request, meeting_id):
         try:
-            get_delete_meeting_use_case().execute(meeting_id, current_user_id=request.user.id)
+            get_delete_meeting_use_case(get_tenant_context(request)).execute(meeting_id, current_user_id=request.user.id)
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 

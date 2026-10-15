@@ -37,33 +37,33 @@ def transaction_manager():
 
 def get_create_reminder_use_case(ctx: TenantContext) -> CreateReminderUseCase:
     return CreateReminderUseCase(
-        DjangoReminderRepository(),
+        DjangoReminderRepository(company_id=ctx.company_id),
         DjangoUserRepository(company_id=ctx.company_id),
-        DjangoTaskRepository(),
-        DjangoMeetingRepository(),
+        DjangoTaskRepository(company_id=ctx.company_id),
+        DjangoMeetingRepository(company_id=ctx.company_id),
         transaction_manager(),
     )
 
 
-def get_get_reminder_use_case() -> GetReminderUseCase:
-    return GetReminderUseCase(DjangoReminderRepository())
+def get_get_reminder_use_case(ctx: TenantContext) -> GetReminderUseCase:
+    return GetReminderUseCase(DjangoReminderRepository(company_id=ctx.company_id))
 
 
-def get_get_reminders_use_case() -> GetRemindersUseCase:
-    return GetRemindersUseCase(DjangoReminderRepository())
+def get_get_reminders_use_case(ctx: TenantContext) -> GetRemindersUseCase:
+    return GetRemindersUseCase(DjangoReminderRepository(company_id=ctx.company_id))
 
 
-def get_update_reminder_use_case() -> UpdateReminderUseCase:
+def get_update_reminder_use_case(ctx: TenantContext) -> UpdateReminderUseCase:
     return UpdateReminderUseCase(
-        DjangoReminderRepository(),
-        DjangoTaskRepository(),
-        DjangoMeetingRepository(),
+        DjangoReminderRepository(company_id=ctx.company_id),
+        DjangoTaskRepository(company_id=ctx.company_id),
+        DjangoMeetingRepository(company_id=ctx.company_id),
         transaction_manager(),
     )
 
 
-def get_delete_reminder_use_case() -> DeleteReminderUseCase:
+def get_delete_reminder_use_case(ctx: TenantContext) -> DeleteReminderUseCase:
     return DeleteReminderUseCase(
-        DjangoReminderRepository(),
+        DjangoReminderRepository(company_id=ctx.company_id),
         transaction_manager(),
     )

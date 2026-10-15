@@ -16,19 +16,19 @@ from src.modules.timeline.infrastructure.persistence.django_timeline_repository 
 from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelineRecorder
 
 
-def recorder():
-    return DefaultTimelineRecorder(DjangoTimelineRepository())
+def recorder(ctx: TenantContext):
+    return DefaultTimelineRecorder(DjangoTimelineRepository(company_id=ctx.company_id))
 
 
 def get_create_lead_use_case(ctx: TenantContext) -> CreateLeadUseCase:
-    return CreateLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(), DjangoTransactionManager())
+    return CreateLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager())
 
 
 def get_update_lead_use_case(ctx: TenantContext) -> UpdateLeadUseCase:
     return UpdateLeadUseCase(
         DjangoLeadRepository(company_id=ctx.company_id),
         DjangoUserRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         DjangoTransactionManager(),
     )
 
@@ -41,11 +41,11 @@ def get_lead_details_use_case(ctx: TenantContext) -> GetLeadDetailsUseCase:
 
 
 def get_delete_lead_use_case(ctx: TenantContext) -> DeleteLeadUseCase:
-    return DeleteLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoTaskRepository(), DjangoTimelineRepository(), DjangoTransactionManager())
+    return DeleteLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoTaskRepository(company_id=ctx.company_id), DjangoTimelineRepository(company_id=ctx.company_id), DjangoTransactionManager())
 
 
 def get_convert_lead_use_case(ctx: TenantContext) -> ConvertLeadUseCase:
-    return ConvertLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoContactRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), DjangoTransactionManager(), recorder())
+    return ConvertLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoContactRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), DjangoTransactionManager(), recorder(ctx))
 
 
 def get_conversion_check_use_case(ctx: TenantContext) -> ConversionCheckUseCase:

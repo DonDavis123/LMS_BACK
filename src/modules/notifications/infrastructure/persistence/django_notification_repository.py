@@ -14,6 +14,14 @@ from .models import DjangoNotificationModel
 
 class DjangoNotificationRepository(NotificationRepository):
 
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoNotificationModel.objects.filter(company_id=self._company_id)
+
     def save(self, notification: Notification) -> Notification:
         notification.validate_state()
 
@@ -23,9 +31,10 @@ class DjangoNotificationRepository(NotificationRepository):
             )
 
         try:
-            model, _ = DjangoNotificationModel.objects.update_or_create(
+            model, _ = self._base_queryset().update_or_create(
                 id=notification.id,
                 defaults={
+                "company_id": self._company_id,
                     "notification_type": notification.notification_type.value,
                     "title": notification.title,
                     "message": notification.message,
@@ -55,14 +64,14 @@ class DjangoNotificationRepository(NotificationRepository):
 
     def get_by_id(self, notification_id: UUID) -> Notification | None:
         try:
-            model = DjangoNotificationModel.objects.get(id=notification_id)
+            model = self._base_queryset().get(id=notification_id)
         except DjangoNotificationModel.DoesNotExist:
             return None
         return self._to_domain(model)
 
     def get_by_user(self, user_id: UUID) -> list[Notification]:
         models = (
-            DjangoNotificationModel.objects
+            self._base_queryset()
             .filter(user_id=user_id)
             .order_by("-scheduled_for", "-id")
         )
@@ -70,7 +79,7 @@ class DjangoNotificationRepository(NotificationRepository):
 
     def get_unread_by_user(self, user_id: UUID) -> list[Notification]:
         models = (
-            DjangoNotificationModel.objects
+            self._base_queryset()
             .filter(user_id=user_id, is_read=False)
             .order_by("-scheduled_for", "-id")
         )
@@ -82,7 +91,7 @@ class DjangoNotificationRepository(NotificationRepository):
         as_of: datetime,
     ) -> list[Notification]:
         models = (
-            DjangoNotificationModel.objects
+            self._base_queryset()
             .filter(
                 user_id=user_id,
                 expires_at__gt=as_of,
@@ -93,7 +102,7 @@ class DjangoNotificationRepository(NotificationRepository):
 
     def get_due(self, as_of: datetime) -> list[Notification]:
         models = (
-            DjangoNotificationModel.objects
+            self._base_queryset()
             .filter(
                 scheduled_for__lte=as_of,
                 expires_at__gt=as_of,
@@ -111,7 +120,7 @@ class DjangoNotificationRepository(NotificationRepository):
         meeting_id: UUID | None = None,
         reminder_id: UUID | None = None,
     ) -> Notification | None:
-        queryset = DjangoNotificationModel.objects.filter(
+        queryset = self._base_queryset().filter(
             notification_type=notification_type.value,
             scheduled_for=scheduled_for,
         )
@@ -135,28 +144,28 @@ class DjangoNotificationRepository(NotificationRepository):
         return self._to_domain(model) if model else None
 
     def delete_by_id(self, notification_id: UUID) -> bool:
-        deleted, _ = DjangoNotificationModel.objects.filter(
+        deleted, _ = self._base_queryset().filter(
             id=notification_id,
         ).delete()
         return deleted > 0
 
     def count_by_user_id(self, user_id: UUID) -> int:
-        return DjangoNotificationModel.objects.filter(
+        return self._base_queryset().filter(
             user_id=user_id,
         ).count()
 
     def delete_by_user_id(self, user_id: UUID) -> int:
-        deleted, _ = DjangoNotificationModel.objects.filter(
+        deleted, _ = self._base_queryset().filter(
             user_id=user_id,
         ).delete()
         return deleted
 
     def delete_expired(self, as_of: datetime) -> int:
-        natural_expired = DjangoNotificationModel.objects.filter(
+        natural_expired = self._base_queryset().filter(
             expires_at__lte=as_of,
             dismissed_at__isnull=True,
         )
-        dismissed_expired = DjangoNotificationModel.objects.filter(
+        dismissed_expired = self._base_queryset().filter(
             dismissed_at__isnull=False,
             dismissed_at__lte=as_of - timedelta(days=15),
         )

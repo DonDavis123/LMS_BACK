@@ -12,13 +12,15 @@ from src.modules.reminders.presentation.api.dependencies.reminder_dependencies i
 
 from ..serializers.reminder import ReminderSerializer
 from ..serializers.update_reminder import UpdateReminderSerializer
+from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.tenant import get_tenant_context
 
 
 class ReminderDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request, reminder_id):
-        reminder = get_get_reminder_use_case().execute(
+        reminder = get_get_reminder_use_case(get_tenant_context(request)).execute(
             reminder_id,
             current_user_id=request.user.id,
         )
@@ -44,7 +46,7 @@ class ReminderDetailView(APIView):
         )
 
         try:
-            reminder = get_update_reminder_use_case().execute(
+            reminder = get_update_reminder_use_case(get_tenant_context(request)).execute(
                 dto,
                 current_user_id=request.user.id,
             )
@@ -61,7 +63,7 @@ class ReminderDetailView(APIView):
 
     def delete(self, request, reminder_id):
         try:
-            get_delete_reminder_use_case().execute(
+            get_delete_reminder_use_case(get_tenant_context(request)).execute(
                 reminder_id,
                 current_user_id=request.user.id,
             )

@@ -24,6 +24,10 @@ from src.modules.shared.infrastructure.persistence.ordering import (
     apply_ordering,
 )
 
+from src.modules.contacts.infrastructure.persistence.django_contact_model import DjangoContactModel
+from src.modules.leads.infrastructure.persistence.django_lead_model import DjangoLeadModel
+from src.modules.users.infrastructure.persistence.models import User as DjangoUserModel
+
 from .models import (
     DjangoMeetingModel,
     DjangoMeetingParticipantModel,
@@ -32,12 +36,20 @@ from .models import (
 
 
 class DjangoMeetingRepository(MeetingRepository):
+    def __init__(self, *, company_id: UUID):
+        if company_id is None:
+            raise ValueError("company_id is required.")
+        self._company_id = company_id
+
+    def _base_queryset(self):
+        return DjangoMeetingModel.objects.filter(company_id=self._company_id)
     """Django persistence implementation of the Meeting repository contract."""
 
     def save(self, meeting: Meeting) -> Meeting:
-        model, _ = DjangoMeetingModel.objects.update_or_create(
+        model, _ = self._base_queryset().update_or_create(
             id=meeting.id,
             defaults={
+                "company_id": self._company_id,
                 "title": meeting.title,
                 "description": meeting.description,
                 "location": meeting.location,
@@ -64,11 +76,11 @@ class DjangoMeetingRepository(MeetingRepository):
             self._replace_relationships_locked(
                 saved.id, related_record_type, related_record_ids, participant_groups,
             )
-            return self._to_domain(DjangoMeetingModel.objects.get(id=saved.id))
+            return self._to_domain(self._base_queryset().get(id=saved.id))
 
     def get_by_id(self, meeting_id: UUID) -> Meeting | None:
         try:
-            model = DjangoMeetingModel.objects.get(id=meeting_id, is_deleted=False)
+            model = self._base_queryset().get(id=meeting_id, is_deleted=False)
         except DjangoMeetingModel.DoesNotExist:
             return None
         return self._to_domain(model)
@@ -76,7 +88,7 @@ class DjangoMeetingRepository(MeetingRepository):
     def get_by_id_with_details(self, meeting_id: UUID) -> GetMeetingDTO | None:
         try:
             model = (
-                DjangoMeetingModel.objects
+                self._base_queryset()
                 .select_related("host", "created_by")
                 .get(id=meeting_id, is_deleted=False)
             )
@@ -85,7 +97,7 @@ class DjangoMeetingRepository(MeetingRepository):
 
         related_rows = (
             DjangoMeetingRelatedRecordModel.objects
-            .filter(meeting_id=meeting_id)
+            .filter(meeting__company_id=self._company_id, meeting_id=meeting_id)
             .filter(
                 Q(lead__isnull=True) | Q(lead__is_deleted=False)
             )
@@ -97,7 +109,7 @@ class DjangoMeetingRepository(MeetingRepository):
         )
         participant_rows = (
             DjangoMeetingParticipantModel.objects
-            .filter(meeting_id=meeting_id)
+            .filter(meeting__company_id=self._company_id, meeting_id=meeting_id)
             .select_related("lead", "contact", "user")
             .order_by("id")
         )
@@ -141,14 +153,14 @@ class DjangoMeetingRepository(MeetingRepository):
 
     def get_all(self, query: ListQuery) -> PaginatedResult[GetMeetingsDTO]:
         queryset = (
-            DjangoMeetingModel.objects
+            self._base_queryset()
             .select_related("host")
             .filter(is_deleted=False)
         )
         if query.sort_by == "related_to":
             first_related_name = (
                 DjangoMeetingRelatedRecordModel.objects
-                .filter(meeting_id=OuterRef("pk"))
+                .filter(meeting__company_id=self._company_id, meeting_id=OuterRef("pk"))
                 .annotate(record_name=Coalesce(Lower("lead__name"), Lower("contact__name")))
                 .order_by("id")
                 .values("record_name")[:1]
@@ -164,7 +176,7 @@ class DjangoMeetingRepository(MeetingRepository):
         if meeting_ids:
             rows = (
                 DjangoMeetingRelatedRecordModel.objects
-                .filter(meeting_id__in=meeting_ids)
+                .filter(meeting__company_id=self._company_id, meeting_id__in=meeting_ids)
                 .filter(Q(lead__isnull=True) | Q(lead__is_deleted=False))
                 .filter(Q(contact__isnull=True) | Q(contact__is_deleted=False))
                 .select_related("lead", "contact")
@@ -180,7 +192,7 @@ class DjangoMeetingRepository(MeetingRepository):
         if meeting_ids:
             rows = (
                 DjangoMeetingParticipantModel.objects
-                .filter(meeting_id__in=meeting_ids, participant_type=MeetingParticipantType.CONTACT.value, contact__is_deleted=False)
+                .filter(meeting__company_id=self._company_id, meeting_id__in=meeting_ids, participant_type=MeetingParticipantType.CONTACT.value, contact__is_deleted=False)
                 .select_related("contact")
                 .order_by("id")
             )
@@ -216,7 +228,7 @@ class DjangoMeetingRepository(MeetingRepository):
 
     def get_by_start_at_range(self, start_at: datetime, end_at: datetime) -> list[Meeting]:
         models = (
-            DjangoMeetingModel.objects
+            self._base_queryset()
             .filter(
                 is_deleted=False,
                 start_at__gte=start_at,
@@ -242,7 +254,7 @@ class DjangoMeetingRepository(MeetingRepository):
     def soft_delete_by_id(self, meeting_id: UUID) -> Meeting | None:
         with transaction.atomic():
             try:
-                model = DjangoMeetingModel.objects.select_for_update().get(id=meeting_id, is_deleted=False)
+                model = self._base_queryset().select_for_update().get(id=meeting_id, is_deleted=False)
             except DjangoMeetingModel.DoesNotExist:
                 return None
             model.is_deleted = True
@@ -250,7 +262,7 @@ class DjangoMeetingRepository(MeetingRepository):
             return self._to_domain(model)
 
     def count_by_host_id(self, host_id: UUID) -> int:
-        return DjangoMeetingModel.objects.filter(host_id=host_id).count()
+        return self._base_queryset().filter(host_id=host_id).count()
 
     def transfer_host(
         self,
@@ -258,7 +270,7 @@ class DjangoMeetingRepository(MeetingRepository):
         to_user_id: UUID,
     ) -> int:
         # Only the host changes; created_by and participants are untouched.
-        return DjangoMeetingModel.objects.filter(
+        return self._base_queryset().filter(
             host_id=from_user_id,
         ).update(
             host_id=to_user_id,
@@ -295,14 +307,14 @@ class DjangoMeetingRepository(MeetingRepository):
             field = "lead_id" if record_type == MeetingRelatedRecordType.LEAD else "contact_id"
             candidate_ids = list(
                 DjangoMeetingRelatedRecordModel.objects
-                .filter(record_type=record_type.value, **{field: record_id})
+                .filter(meeting__company_id=self._company_id, record_type=record_type.value, **{field: record_id})
                 .values_list("meeting_id", flat=True)
                 .distinct()
             )
             deleted_ids: list[UUID] = []
             for meeting_id in candidate_ids:
                 active_related = DjangoMeetingRelatedRecordModel.objects.filter(
-                    meeting_id=meeting_id, record_type=record_type.value
+                    meeting__company_id=self._company_id, meeting_id=meeting_id, record_type=record_type.value
                 )
                 if not active_related.exists():
                     continue
@@ -313,7 +325,7 @@ class DjangoMeetingRepository(MeetingRepository):
                     active_exists = active_related.filter(contact__is_deleted=False).exists()
                 if active_exists:
                     continue
-                updated = DjangoMeetingModel.objects.filter(id=meeting_id, is_deleted=False).update(is_deleted=True)
+                updated = self._base_queryset().filter(id=meeting_id, is_deleted=False).update(is_deleted=True)
                 if updated:
                     deleted_ids.append(meeting_id)
             return deleted_ids
@@ -332,8 +344,8 @@ class DjangoMeetingRepository(MeetingRepository):
             raise ValueError("Duplicate related records are not allowed.")
 
         self._validate_participant_groups(participant_groups)
-        DjangoMeetingRelatedRecordModel.objects.filter(meeting_id=meeting_id).delete()
-        DjangoMeetingParticipantModel.objects.filter(meeting_id=meeting_id).delete()
+        DjangoMeetingRelatedRecordModel.objects.filter(meeting__company_id=self._company_id, meeting_id=meeting_id).delete()
+        DjangoMeetingParticipantModel.objects.filter(meeting__company_id=self._company_id, meeting_id=meeting_id).delete()
 
         if related_record_ids:
             self._add_related_records_locked(meeting_id, related_record_type, related_record_ids)
@@ -355,9 +367,17 @@ class DjangoMeetingRepository(MeetingRepository):
     def _add_related_records_locked(self, meeting_id, record_type, record_ids):
         self._lock_active_meeting(meeting_id)
         self._validate_unique_ids(record_ids, "related records")
-        existing_types = set(DjangoMeetingRelatedRecordModel.objects.filter(meeting_id=meeting_id).values_list("record_type", flat=True))
+        existing_types = set(DjangoMeetingRelatedRecordModel.objects.filter(meeting__company_id=self._company_id, meeting_id=meeting_id).values_list("record_type", flat=True))
         if existing_types and existing_types != {record_type.value}:
             raise ValueError("A Meeting cannot have both Lead and Contact Related To records.")
+        if record_type == MeetingRelatedRecordType.LEAD:
+            valid_ids = set(DjangoLeadModel.objects.filter(company_id=self._company_id, id__in=record_ids, is_deleted=False).values_list("id", flat=True))
+        elif record_type == MeetingRelatedRecordType.CONTACT:
+            valid_ids = set(DjangoContactModel.objects.filter(company_id=self._company_id, id__in=record_ids, is_deleted=False).values_list("id", flat=True))
+        else:
+            raise ValueError(f"Unsupported related record type: {record_type}.")
+        if valid_ids != set(record_ids):
+            raise ValueError("Related record not found.")
         rows = []
         for record_id in record_ids:
             if record_type == MeetingRelatedRecordType.LEAD:
@@ -374,6 +394,16 @@ class DjangoMeetingRepository(MeetingRepository):
     def _add_participants_locked(self, meeting_id, participant_type, participant_ids):
         self._lock_active_meeting(meeting_id)
         self._validate_unique_ids(participant_ids, "participants")
+        if participant_type == MeetingParticipantType.LEAD:
+            valid_ids = set(DjangoLeadModel.objects.filter(company_id=self._company_id, id__in=participant_ids, is_deleted=False).values_list("id", flat=True))
+        elif participant_type == MeetingParticipantType.CONTACT:
+            valid_ids = set(DjangoContactModel.objects.filter(company_id=self._company_id, id__in=participant_ids, is_deleted=False).values_list("id", flat=True))
+        elif participant_type == MeetingParticipantType.USER:
+            valid_ids = set(DjangoUserModel.objects.filter(company_id=self._company_id, id__in=participant_ids, is_active=True).values_list("id", flat=True))
+        else:
+            raise ValueError(f"Unsupported participant type: {participant_type}.")
+        if valid_ids != set(participant_ids):
+            raise ValueError("Meeting participant not found.")
         rows = []
         for participant_id in participant_ids:
             if participant_type == MeetingParticipantType.LEAD:
@@ -397,10 +427,9 @@ class DjangoMeetingRepository(MeetingRepository):
         if len(record_ids) != len(set(record_ids)):
             raise ValueError(f"Duplicate {label} are not allowed.")
 
-    @staticmethod
-    def _lock_active_meeting(meeting_id: UUID) -> DjangoMeetingModel:
+    def _lock_active_meeting(self, meeting_id: UUID) -> DjangoMeetingModel:
         try:
-            return DjangoMeetingModel.objects.select_for_update().get(id=meeting_id, is_deleted=False)
+            return self._base_queryset().select_for_update().get(id=meeting_id, is_deleted=False)
         except DjangoMeetingModel.DoesNotExist as exc:
             raise ValueError("Active Meeting was not found.") from exc
 

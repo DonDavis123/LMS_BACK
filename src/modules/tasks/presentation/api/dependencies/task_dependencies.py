@@ -16,56 +16,56 @@ from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelin
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
 
 
-def recorder():
-    return DefaultTimelineRecorder(DjangoTimelineRepository())
+def recorder(ctx: TenantContext):
+    return DefaultTimelineRecorder(DjangoTimelineRepository(company_id=ctx.company_id))
 
 
 def transaction_manager():
     return DjangoTransactionManager()
 
 
-def reminder_sync_service():
-    return ReminderSyncService(DjangoReminderRepository())
+def reminder_sync_service(ctx: TenantContext):
+    return ReminderSyncService(DjangoReminderRepository(company_id=ctx.company_id))
 
 
 def get_create_task_use_case(ctx: TenantContext) -> CreateTaskUseCase:
     return CreateTaskUseCase(
-        DjangoTaskRepository(),
+        DjangoTaskRepository(company_id=ctx.company_id),
         DjangoUserRepository(company_id=ctx.company_id),
         DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(company_id=ctx.company_id),
         DjangoAccountRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         transaction_manager(),
-        reminder_sync_service(),
+        reminder_sync_service(ctx),
     )
 
 
-def get_task_use_case() -> GetTaskUseCase:
-    return GetTaskUseCase(DjangoTaskRepository())
+def get_task_use_case(ctx: TenantContext) -> GetTaskUseCase:
+    return GetTaskUseCase(DjangoTaskRepository(company_id=ctx.company_id))
 
 
-def get_tasks_use_case() -> GetTasksUseCase:
-    return GetTasksUseCase(DjangoTaskRepository())
+def get_tasks_use_case(ctx: TenantContext) -> GetTasksUseCase:
+    return GetTasksUseCase(DjangoTaskRepository(company_id=ctx.company_id))
 
 
 def get_update_task_use_case(ctx: TenantContext) -> UpdateTaskUseCase:
     return UpdateTaskUseCase(
-        DjangoTaskRepository(),
+        DjangoTaskRepository(company_id=ctx.company_id),
         DjangoUserRepository(company_id=ctx.company_id),
         DjangoLeadRepository(company_id=ctx.company_id),
         DjangoContactRepository(company_id=ctx.company_id),
         DjangoAccountRepository(company_id=ctx.company_id),
-        recorder(),
+        recorder(ctx),
         transaction_manager(),
-        reminder_sync_service(),
+        reminder_sync_service(ctx),
     )
 
 
-def get_delete_task_use_case() -> DeleteTaskUseCase:
+def get_delete_task_use_case(ctx: TenantContext) -> DeleteTaskUseCase:
     return DeleteTaskUseCase(
-        DjangoTaskRepository(),
-        recorder(),
+        DjangoTaskRepository(company_id=ctx.company_id),
+        recorder(ctx),
         transaction_manager(),
-        reminder_sync_service(),
+        reminder_sync_service(ctx),
     )

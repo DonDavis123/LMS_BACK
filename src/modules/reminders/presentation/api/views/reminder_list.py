@@ -12,10 +12,11 @@ from src.modules.reminders.presentation.api.dependencies.reminder_dependencies i
 
 from ..serializers.create_reminder import CreateReminderSerializer
 from ..serializers.reminder import ReminderSerializer
+from src.modules.shared.presentation.permissions import IsCompanyUser
 
 
 class ReminderListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request):
         task_id = request.query_params.get("task_id")
@@ -27,7 +28,7 @@ class ReminderListView(APIView):
             parsed_task_id = UUID(task_id) if task_id else None
             parsed_meeting_id = UUID(meeting_id) if meeting_id else None
 
-            reminders = get_get_reminders_use_case().execute(
+            reminders = get_get_reminders_use_case(get_tenant_context(request)).execute(
                 current_user_id=request.user.id,
                 task_id=parsed_task_id,
                 meeting_id=parsed_meeting_id,

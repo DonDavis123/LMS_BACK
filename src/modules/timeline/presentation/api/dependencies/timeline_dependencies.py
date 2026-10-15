@@ -2,7 +2,7 @@ from src.modules.timeline.application.use_cases.get_timeline import GetTimelineU
 from src.modules.timeline.infrastructure.persistence.django_timeline_repository import DjangoTimelineRepository
 
 
-def get_timeline_use_case() -> GetTimelineUseCase:
+def get_timeline_use_case(ctx: TenantContext) -> GetTimelineUseCase:
     return GetTimelineUseCase(
-        timeline_repository=DjangoTimelineRepository(),
+        timeline_repository=DjangoTimelineRepository(company_id=ctx.company_id),
     )
