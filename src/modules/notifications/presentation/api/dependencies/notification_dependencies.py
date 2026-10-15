@@ -5,6 +5,7 @@ from src.modules.notifications.application.use_cases.get_notifications import Ge
 from src.modules.notifications.application.use_cases.mark_notification_read import MarkNotificationReadUseCase
 from src.modules.notifications.infrastructure.persistence.django_notification_repository import DjangoNotificationRepository
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import DjangoReminderRepository
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
