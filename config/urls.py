@@ -28,6 +28,11 @@ urlpatterns = [
     ),
 
     path(
+        "api/platform/",
+        include("src.modules.companies.presentation.api.platform_urls"),
+    ),
+
+    path(
         "api/leads/",
         include("src.modules.leads.presentation.api.urls"),
     ),

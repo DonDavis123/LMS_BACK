@@ -2,6 +2,7 @@ from uuid import UUID
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -12,7 +13,7 @@ from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
 
 
 class ConversionCheckView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCompanyUser]
 
     def get(self, request, lead_id):
 

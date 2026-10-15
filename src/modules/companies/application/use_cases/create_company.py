@@ -7,6 +7,13 @@ from src.modules.companies.application.dto.company_dto import CreateCompanyDTO
 from src.modules.companies.application.interfaces.company_repository import (
     CompanyRepository,
 )
+from src.modules.companies.application.interfaces.platform_audit_log_repository import (
+    PlatformAuditLogRepository,
+)
+from src.modules.companies.domain.entities.platform_audit_action import (
+    PlatformAuditAction,
+)
+from src.modules.companies.domain.entities.platform_audit_log import PlatformAuditLog
 from src.modules.companies.application.use_cases._guards import require_platform_admin
 from src.modules.companies.domain.entities.company import Company
 from src.modules.shared.application.interfaces.transaction_manager import (
@@ -31,8 +38,10 @@ class CreateCompanyUseCase:
         user_repository_factory: Callable[[UUID], UserRepository],
         audit_log_repository_factory: Callable[[UUID], UserAuditLogRepository],
         transaction_manager: TransactionManager,
+        platform_audit_log_repository: PlatformAuditLogRepository,
     ):
         self.company_repository = company_repository
+        self.platform_audit_log_repository = platform_audit_log_repository
         self.user_repository_factory = user_repository_factory
         self.audit_log_repository_factory = audit_log_repository_factory
         self.transaction_manager = transaction_manager
@@ -92,6 +101,15 @@ class CreateCompanyUseCase:
                         "role": admin.role.value,
                         "created_with_company": True,
                     },
+                )
+            )
+            self.platform_audit_log_repository.add(
+                PlatformAuditLog.create(
+                    action=PlatformAuditAction.COMPANY_CREATED,
+                    actor=current_user,
+                    company_id=company.id,
+                    target=admin,
+                    metadata={"name": company.name, "slug": company.slug},
                 )
             )
             return company, admin

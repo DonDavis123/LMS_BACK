@@ -10,6 +10,8 @@ from src.modules.companies.application.dto.company_dto import (
     CompanyAdminDTO,
     CompanyDetailDTO,
     CompanyListDTO,
+    PlatformOverviewDTO,
+    RecentCompanyDTO,
 )
 from src.modules.companies.application.interfaces.company_repository import (
     CompanyRepository,
@@ -266,4 +268,40 @@ class DjangoCompanyRepository(CompanyRepository):
             status_changed_at=model.status_changed_at,
             status_changed_by_id=model.status_changed_by_id,
             created_by_id=model.created_by_id,
+        )
+
+    def get_overview(self) -> PlatformOverviewDTO:
+        Status = DjangoCompanyModel.Status
+        companies = DjangoCompanyModel.objects.aggregate(
+            total=Count("id"),
+            active=Count("id", filter=Q(status=Status.ACTIVE)),
+            onboarding=Count("id", filter=Q(status=Status.ONBOARDING)),
+            suspended=Count("id", filter=Q(status=Status.SUSPENDED)),
+        )
+        # Company users only: platform admins have no company.
+        users = DjangoUser.objects.filter(
+            company__isnull=False,
+            deleted_at__isnull=True,
+        ).exclude(role=DjangoUser.Role.PLATFORM_SUPERADMIN).aggregate(
+            total=Count("id"),
+            active=Count("id", filter=Q(is_active=True)),
+        )
+        recent = DjangoCompanyModel.objects.order_by("-created_at", "-id")[:5]
+
+        return PlatformOverviewDTO(
+            companies_total=companies["total"],
+            companies_active=companies["active"],
+            companies_onboarding=companies["onboarding"],
+            companies_suspended=companies["suspended"],
+            users_total=users["total"],
+            users_active=users["active"],
+            recent_companies=[
+                RecentCompanyDTO(
+                    id=model.id,
+                    name=model.name,
+                    status=CompanyStatus(model.status),
+                    created_at=model.created_at,
+                )
+                for model in recent
+            ],
         )

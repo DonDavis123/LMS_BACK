@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from src.modules.shared.presentation.permissions import IsCompanyUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -16,6 +17,7 @@ class GetLeadsView(APIView):
 
     permission_classes = [
         IsAuthenticated,
+        IsCompanyUser,
         IsAdmin,
     ]
 

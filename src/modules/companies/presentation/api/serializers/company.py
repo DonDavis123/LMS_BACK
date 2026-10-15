@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from src.modules.users.domain.entities.role import MANAGEABLE_ROLES
+
 from src.modules.users.presentation.api.serializers.enum_value_field import (
     EnumValueField,
 )
@@ -76,3 +78,35 @@ class UpdateCompanySerializer(serializers.Serializer):
 
 class SuspendCompanySerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=1000)
+
+
+class CreateCompanyUserSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        trim_whitespace=False,
+    )
+    role = serializers.ChoiceField(
+        choices=[(role.value, role.name) for role in MANAGEABLE_ROLES],
+    )
+
+
+class PlatformAuditLogSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    action = EnumValueField(read_only=True)
+    actor_id = serializers.UUIDField(read_only=True)
+    actor_email = serializers.EmailField(read_only=True)
+    company_id = serializers.UUIDField(read_only=True, allow_null=True)
+    target_user_id = serializers.UUIDField(read_only=True, allow_null=True)
+    target_email = serializers.CharField(read_only=True, allow_blank=True)
+    metadata = serializers.JSONField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+
+class RecentCompanySerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    status = EnumValueField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)

@@ -3,6 +3,13 @@ from uuid import UUID
 from src.modules.companies.application.interfaces.company_repository import (
     CompanyRepository,
 )
+from src.modules.companies.application.interfaces.platform_audit_log_repository import (
+    PlatformAuditLogRepository,
+)
+from src.modules.companies.domain.entities.platform_audit_action import (
+    PlatformAuditAction,
+)
+from src.modules.companies.domain.entities.platform_audit_log import PlatformAuditLog
 from src.modules.companies.application.use_cases._guards import require_platform_admin
 from src.modules.companies.domain.entities.company import Company
 from src.modules.companies.domain.entities.company_status import CompanyStatus
@@ -20,8 +27,10 @@ class SuspendCompanyUseCase:
         company_repository: CompanyRepository,
         session_revoker: SessionRevoker,
         transaction_manager: TransactionManager,
+        platform_audit_log_repository: PlatformAuditLogRepository,
     ):
         self.company_repository = company_repository
+        self.platform_audit_log_repository = platform_audit_log_repository
         self.session_revoker = session_revoker
         self.transaction_manager = transaction_manager
 
@@ -52,6 +61,14 @@ class SuspendCompanyUseCase:
             )
             for user_id in self.company_repository.get_user_ids(company_id):
                 self.session_revoker.revoke_all_sessions(user_id)
+            self.platform_audit_log_repository.add(
+                PlatformAuditLog.create(
+                    action=PlatformAuditAction.COMPANY_SUSPENDED,
+                    actor=current_user,
+                    company_id=company_id,
+                    metadata={"reason": reason},
+                )
+            )
             return updated
 
         return self.transaction_manager.execute(suspend)
