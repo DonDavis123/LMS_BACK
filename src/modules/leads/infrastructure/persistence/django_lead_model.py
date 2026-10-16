@@ -282,6 +282,13 @@ class DjangoLeadModel(models.Model):
 
     class Meta:
         db_table = "leads"
+        indexes = [
+            # Serves the dashboard aggregates (company + open leads, by date).
+            models.Index(
+                fields=["company", "is_deleted", "is_converted", "created_at"],
+                name="leads_dashboard_idx",
+            ),
+        ]
 
     def __str__(self):
         return self.name
