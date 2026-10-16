@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     "src.modules.reminders.apps.RemindersConfig",
     "src.modules.notifications.apps.NotificationsConfig",
     "src.modules.companies.apps.CompaniesConfig",
+    "src.modules.dashboard.apps.DashboardConfig",
 ]
 
 
