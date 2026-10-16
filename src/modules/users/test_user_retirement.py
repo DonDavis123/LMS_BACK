@@ -5,6 +5,7 @@ from uuid import uuid4
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
+from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.shared.tests.tenancy.factories import default_test_company
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
@@ -317,29 +318,35 @@ class UserRetirementWorkflowTests(TestCase):
         )
 
     def _task(self, owner, subject="Task"):
-        return DjangoTaskModel.objects.create(
+        return DjangoTaskModel.objects.create(company=default_test_company(), 
             subject=subject, owner=owner, created_by=owner,
         )
 
     def _meeting(self, host, created_by=None, title="Meeting"):
-        return DjangoMeetingModel.objects.create(
+        return DjangoMeetingModel.objects.create(company=default_test_company(), 
             title=title, host=host, created_by=created_by or host,
             start_at=self.now, end_at=self.now + timedelta(hours=1),
         )
 
     def _reminder(self, user, subject="Reminder"):
-        return DjangoReminderModel.objects.create(
+        return DjangoReminderModel.objects.create(company=default_test_company(), 
             subject=subject, remind_at=self.now + timedelta(days=1), user=user,
         )
 
     def _notification(self, user, title="Notification"):
-        return DjangoNotificationModel.objects.create(
+        return DjangoNotificationModel.objects.create(company=default_test_company(), 
             notification_type="REMINDER", title=title, message="m", user=user,
             scheduled_for=self.now, expires_at=self.now + timedelta(days=1),
         )
 
     def _retire(self, replacement=None):
-        get_delete_user_use_case().execute(
+        get_delete_user_use_case(
+            TenantContext(
+                company_id=default_test_company().id,
+                user_id=self.superadmin.id,
+                role=self.superadmin.role,
+            )
+        ).execute(
             current_user=DjangoUserRepository(company_id=default_test_company().id).get_by_id(self.superadmin.id),
             user_id=self.target.id,
             replacement_user_id=(replacement or self.replacement).id,
@@ -355,7 +362,7 @@ class UserRetirementWorkflowTests(TestCase):
         meetings = [self._meeting(self.target, title="M1"), self._meeting(self.target, title="M2")]
         reminders = [self._reminder(self.target), self._reminder(self.target)]
         notifications = [self._notification(self.target) for _ in range(3)]
-        DjangoTimelineRepository().record(
+        DjangoTimelineRepository(company_id=default_test_company().id).record(
             event_type="LEAD_CREATED", actor_id=self.target.id,
             message="created", metadata={}, targets=[("LEAD", leads[0].id)],
         )

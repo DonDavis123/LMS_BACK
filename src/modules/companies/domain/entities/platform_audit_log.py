@@ -19,7 +19,7 @@ class PlatformAuditLog:
     """
 
     id: UUID
-    action: PlatformAuditAction
+    action: PlatformAuditAction | str
     actor_id: UUID
     actor_email: str
     created_at: datetime

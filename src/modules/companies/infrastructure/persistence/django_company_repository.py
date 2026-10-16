@@ -203,7 +203,8 @@ class DjangoCompanyRepository(CompanyRepository):
         website: str | None,
         update_website: bool,
     ) -> Company:
-        model = self._get_model(company_id)
+        # Lock the row so two concurrent edits cannot overwrite each other.
+        model = self._get_model(company_id, for_update=True)
         fields = ["updated_at"]
         if name is not None:
             model.name = name
@@ -248,9 +249,12 @@ class DjangoCompanyRepository(CompanyRepository):
         )
 
     @staticmethod
-    def _get_model(company_id: UUID) -> DjangoCompanyModel:
+    def _get_model(company_id: UUID, for_update: bool = False) -> DjangoCompanyModel:
+        queryset = DjangoCompanyModel.objects
+        if for_update:
+            queryset = queryset.select_for_update()
         try:
-            return DjangoCompanyModel.objects.get(id=company_id)
+            return queryset.get(id=company_id)
         except DjangoCompanyModel.DoesNotExist:
             raise ValueError("Company not found.")
 

@@ -180,7 +180,7 @@ class TaskApiTests(APITestCase):
     def test_tasks_are_paginated_and_filterable(self):
         self.client.force_authenticate(self.user)
 
-        first_task = DjangoTaskModel.objects.create(
+        first_task = DjangoTaskModel.objects.create(company=default_test_company(), 
             subject="Alpha follow up",
             owner=self.user,
             contact=self.contact,
@@ -189,7 +189,7 @@ class TaskApiTests(APITestCase):
             status="Not Started",
             created_by=self.user,
         )
-        second_task = DjangoTaskModel.objects.create(
+        second_task = DjangoTaskModel.objects.create(company=default_test_company(), 
             subject="Beta review",
             owner=self.user,
             lead=self.lead,
@@ -229,7 +229,7 @@ class TaskApiTests(APITestCase):
 
     def test_task_related_to_filter_matches_lead_contact_or_account_name(self):
         self.client.force_authenticate(self.user)
-        DjangoTaskModel.objects.create(
+        DjangoTaskModel.objects.create(company=default_test_company(), 
             subject="Account task",
             owner=self.user,
             account=self.account,

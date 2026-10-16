@@ -331,5 +331,6 @@ class LeadListFilterApiTests(APITestCase):
             self._get(filters, page_size=50)
 
 
-# count + page fetch (+ auth lookups already forced by force_authenticate = 0)
-_QUERY_BUDGET = 2
+# count + page fetch + one company-suspension check (auth lookups are
+# already forced by force_authenticate = 0)
+_QUERY_BUDGET = 3

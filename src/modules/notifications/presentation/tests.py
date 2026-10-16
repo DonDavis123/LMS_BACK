@@ -28,7 +28,7 @@ class NotificationAPITests(TestCase):
             password="test-password",
             name="Other User",
         )
-        self.repository = DjangoNotificationRepository()
+        self.repository = DjangoNotificationRepository(company_id=default_test_company().id)
         self.client.force_authenticate(user=self.user)
 
     def _create(self, user_id, *, is_read=False, expires_at=None):
@@ -120,11 +120,11 @@ class NotificationCronEndpointTests(TestCase):
         )
         self.secret = "test-cron-secret"
         self.cron_url = "/api/internal/notifications/process/"
-        self.repository = DjangoNotificationRepository()
+        self.repository = DjangoNotificationRepository(company_id=default_test_company().id)
 
     @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
     def test_valid_cron_secret_processes_notifications(self):
-        reminder = DjangoReminderModel.objects.create(
+        reminder = DjangoReminderModel.objects.create(company=default_test_company(), 
             subject="Call customer",
             remind_at=timezone.now() - timedelta(minutes=1),
             user=self.user,
@@ -151,7 +151,7 @@ class NotificationCronEndpointTests(TestCase):
 
     @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
     def test_repeated_cron_processing_consumes_reminder_only_once(self):
-        reminder = DjangoReminderModel.objects.create(
+        reminder = DjangoReminderModel.objects.create(company=default_test_company(), 
             subject="Call customer",
             remind_at=timezone.now() - timedelta(minutes=1),
             user=self.user,
@@ -179,7 +179,7 @@ class NotificationCronEndpointTests(TestCase):
 
     @override_settings(NOTIFICATION_CRON_SECRET="test-cron-secret")
     def test_processing_failure_keeps_due_reminder(self):
-        reminder = DjangoReminderModel.objects.create(
+        reminder = DjangoReminderModel.objects.create(company=default_test_company(), 
             subject="Call customer",
             remind_at=timezone.now() - timedelta(minutes=1),
             user=self.user,

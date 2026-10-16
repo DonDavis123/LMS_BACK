@@ -82,20 +82,20 @@ class UserRetirementApiTests(APITestCase):
                 created_at=self.now, updated_at=self.now,
             )
         for i in range(2):
-            DjangoTaskModel.objects.create(subject=f"T{i}", owner=self.target, created_by=self.target)
-            DjangoMeetingModel.objects.create(
+            DjangoTaskModel.objects.create(company=default_test_company(), subject=f"T{i}", owner=self.target, created_by=self.target)
+            DjangoMeetingModel.objects.create(company=default_test_company(), 
                 title=f"M{i}", host=self.target, created_by=self.target,
                 start_at=self.now, end_at=self.now + timedelta(hours=1),
             )
-            DjangoReminderModel.objects.create(
+            DjangoReminderModel.objects.create(company=default_test_company(), 
                 subject=f"R{i}", remind_at=self.now + timedelta(days=1), user=self.target,
             )
         for i in range(3):
-            DjangoNotificationModel.objects.create(
+            DjangoNotificationModel.objects.create(company=default_test_company(), 
                 notification_type="REMINDER", title=f"N{i}", message="m", user=self.target,
                 scheduled_for=self.now, expires_at=self.now + timedelta(days=1),
             )
-        DjangoTimelineRepository().record(
+        DjangoTimelineRepository(company_id=default_test_company().id).record(
             event_type="LEAD_CREATED", actor_id=self.target.id,
             message="created", metadata={}, targets=[("LEAD", lead.id)],
         )

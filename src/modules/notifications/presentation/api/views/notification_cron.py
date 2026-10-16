@@ -72,6 +72,7 @@ class NotificationCronProcessView(APIView):
 
         try:
             result = ProcessNotificationsResult()
+            failed_company_ids = []
             for company_id in get_active_company_ids():
                 try:
                     company_result = ProcessNotificationsUseCase(
@@ -85,11 +86,23 @@ class NotificationCronProcessView(APIView):
                     result = result + company_result
                 except Exception:
                     logger.exception("Notification processing failed for company_id=%s", company_id)
+                    failed_company_ids.append(company_id)
                     result = result + ProcessNotificationsResult(failures=1)
         except Exception:
             logger.exception("Notification cron processing failed")
             return Response(
                 {"detail": "Notification processing failed."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if failed_company_ids:
+            # Other companies were still processed, but the scheduler must
+            # see that something failed instead of a silent 200.
+            return Response(
+                {
+                    "detail": "Notification processing failed.",
+                    "failed_companies": len(failed_company_ids),
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

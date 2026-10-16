@@ -127,7 +127,7 @@ class MeetingInfrastructureTests(TestCase):
             modified_by=self.user,
             updated_at=now,
         )
-        self.repository = DjangoMeetingRepository()
+        self.repository = DjangoMeetingRepository(company_id=default_test_company().id)
 
     def _meeting(self):
         now = timezone.now()

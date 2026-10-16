@@ -2,7 +2,7 @@ from rest_framework.permissions import BasePermission
 
 from src.modules.companies.infrastructure.persistence.company_suspension import (
     SUSPENDED_MESSAGE,
-    is_company_suspended,
+    is_request_company_suspended,
 )
 from src.modules.users.domain.entities.role import UserRole
 
@@ -30,7 +30,7 @@ class IsCompanyUser(BasePermission):
             self.message = IsCompanyUser.message
             return False
 
-        if is_company_suspended(user.company_id):
+        if is_request_company_suspended(request, user.company_id):
             self.message = SUSPENDED_MESSAGE
             return False
 

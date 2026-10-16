@@ -46,10 +46,21 @@ DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
+def _env_list(name: str) -> list[str]:
+    """Comma-separated environment variable -> list of non-empty strings."""
+    return [
+        item.strip()
+        for item in os.getenv(name, "").split(",")
+        if item.strip()
+    ]
+
+
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     ".onrender.com",
+    # Extra hosts for other deployments (e.g. ".ngrok-free.dev"), comma-separated.
+    *_env_list("DJANGO_EXTRA_ALLOWED_HOSTS"),
 ]
 
 
@@ -90,6 +101,11 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    # Unexpected errors are answered with JSON ({"detail": ...}) instead of
+    # Django's HTML 500 page, so the frontend can always show a message.
+    "EXCEPTION_HANDLER": (
+        "src.modules.shared.presentation.exception_handler.api_exception_handler"
+    ),
 }
 
 
@@ -119,6 +135,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://snipping-foothill-nursery.ngrok-free.dev",
     "https://crm-sage-psi-73.vercel.app",
     "https://lms-front-delta.vercel.app",
+    # Extra frontend origins (e.g. a new Vercel domain), comma-separated.
+    *_env_list("CORS_EXTRA_ALLOWED_ORIGINS"),
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -139,6 +157,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://snipping-foothill-nursery.ngrok-free.dev",
+    *_env_list("CORS_EXTRA_ALLOWED_ORIGINS"),
 ]
 
 

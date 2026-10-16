@@ -166,7 +166,7 @@ class NotificationRepositoryTests(TestCase):
             password="test-password",
             name="Notification User",
         )
-        self.repository = DjangoNotificationRepository()
+        self.repository = DjangoNotificationRepository(company_id=default_test_company().id)
 
     def _notification(self, **kwargs):
         defaults = {
