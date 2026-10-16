@@ -54,9 +54,15 @@ class DjangoPlatformAuditLogRepository(PlatformAuditLogRepository):
 
     @staticmethod
     def _to_domain(model: PlatformAuditLogModel) -> PlatformAuditLog:
+        try:
+            action = PlatformAuditAction(model.action)
+        except ValueError:
+            # A row written with an action this build does not know must not
+            # make the whole list fail; keep the raw value.
+            action = model.action
         return PlatformAuditLog(
             id=model.id,
-            action=PlatformAuditAction(model.action),
+            action=action,
             actor_id=model.actor_id,
             actor_email=model.actor_email,
             created_at=model.created_at,

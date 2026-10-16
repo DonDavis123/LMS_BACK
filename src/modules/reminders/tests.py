@@ -60,7 +60,7 @@ class ReminderRepositoryTests(TestCase):
             password="test-password",
             name="Reminder Repository User",
         )
-        self.repository = DjangoReminderRepository()
+        self.repository = DjangoReminderRepository(company_id=default_test_company().id)
 
     def test_save_and_get_by_id(self):
         reminder = Reminder.create(
@@ -611,7 +611,7 @@ class ReminderEnabledStateTests(TestCase):
             name="Enabled Reminder User",
         )
         self.client.force_authenticate(user=self.user)
-        self.repository = DjangoReminderRepository()
+        self.repository = DjangoReminderRepository(company_id=default_test_company().id)
 
     def test_reminders_are_enabled_by_default(self):
         reminder = Reminder.create(

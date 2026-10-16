@@ -21,11 +21,11 @@ class TaskMeetingTimelineTests(TestCase):
             name="Timeline User",
             role=User.Role.ADMIN,
         )
-        self.repository = DjangoTimelineRepository()
+        self.repository = DjangoTimelineRepository(company_id=default_test_company().id)
         self.recorder = DefaultTimelineRecorder(self.repository)
 
     def test_task_is_a_valid_timeline_entity(self):
-        task = DjangoTaskModel.objects.create(
+        task = DjangoTaskModel.objects.create(company=default_test_company(), 
             subject="Timeline Task",
             owner=self.user,
             created_by=self.user,
@@ -55,7 +55,7 @@ class TaskMeetingTimelineTests(TestCase):
 
     def test_meeting_is_a_valid_timeline_entity(self):
         now = timezone.now()
-        meeting = DjangoMeetingModel.objects.create(
+        meeting = DjangoMeetingModel.objects.create(company=default_test_company(), 
             title="Timeline Meeting",
             start_at=now,
             end_at=now + timedelta(hours=1),

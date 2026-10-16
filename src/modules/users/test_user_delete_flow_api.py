@@ -80,29 +80,29 @@ class UserDeleteFlowTestCase(APITestCase):
         )
 
     def meeting(self):
-        return DjangoMeetingModel.objects.create(
+        return DjangoMeetingModel.objects.create(company=default_test_company(), 
             title="Meeting", host=self.target, created_by=self.target,
             start_at=self.now, end_at=self.now + timedelta(hours=1),
         )
 
     def task(self):
-        return DjangoTaskModel.objects.create(
+        return DjangoTaskModel.objects.create(company=default_test_company(), 
             subject="Task", owner=self.target, created_by=self.target,
         )
 
     def reminder(self):
-        return DjangoReminderModel.objects.create(
+        return DjangoReminderModel.objects.create(company=default_test_company(), 
             subject="Reminder", remind_at=self.now + timedelta(days=1), user=self.target,
         )
 
     def notification(self):
-        return DjangoNotificationModel.objects.create(
+        return DjangoNotificationModel.objects.create(company=default_test_company(), 
             notification_type="REMINDER", title="N", message="m", user=self.target,
             scheduled_for=self.now, expires_at=self.now + timedelta(days=1),
         )
 
     def timeline_event(self):
-        DjangoTimelineRepository().record(
+        DjangoTimelineRepository(company_id=default_test_company().id).record(
             event_type="LEAD_CREATED", actor_id=self.target.id,
             message="created", metadata={}, targets=[("LEAD", uuid.uuid4())],
         )
@@ -292,7 +292,7 @@ class OptionalReplacementTests(UserDeleteFlowTestCase):
         self.assertEqual(DjangoReminderModel.objects.filter(user=self.target).count(), 0)
         self.assertEqual(DjangoNotificationModel.objects.filter(user=self.target).count(), 0)
         self.assertEqual(
-            DjangoTimelineRepository().count_by_actor_id(self.target.id), 1,
+            DjangoTimelineRepository(company_id=default_test_company().id).count_by_actor_id(self.target.id), 1,
         )
         self.assertEqual(
             DjangoUserAuditLogModel.objects.filter(action="USER_RETIRED").count(), 1,

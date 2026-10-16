@@ -133,40 +133,40 @@ class ManageUsersFlowTests(APITestCase):
             created_by=t, modified_by=t,
             created_at=self.now, updated_at=self.now,
         )
-        self.task1 = DjangoTaskModel.objects.create(subject="Task 1", owner=t, created_by=t)
-        self.task2 = DjangoTaskModel.objects.create(subject="Task 2", owner=t, created_by=t)
+        self.task1 = DjangoTaskModel.objects.create(company=default_test_company(), subject="Task 1", owner=t, created_by=t)
+        self.task2 = DjangoTaskModel.objects.create(company=default_test_company(), subject="Task 2", owner=t, created_by=t)
         # Owned by someone else but created by the retired user: must survive.
-        self.foreign_task = DjangoTaskModel.objects.create(
+        self.foreign_task = DjangoTaskModel.objects.create(company=default_test_company(), 
             subject="Foreign task", owner=a, created_by=t,
         )
         self.reminders = [
-            DjangoReminderModel.objects.create(
+            DjangoReminderModel.objects.create(company=default_test_company(), 
                 subject="Standalone", remind_at=self.now + timedelta(days=1), user=t,
             ),
-            DjangoReminderModel.objects.create(
+            DjangoReminderModel.objects.create(company=default_test_company(), 
                 subject="On task", remind_at=self.now + timedelta(days=1),
                 user=t, task=self.task1,
             ),
         ]
-        self.notification = DjangoNotificationModel.objects.create(
+        self.notification = DjangoNotificationModel.objects.create(company=default_test_company(), 
             notification_type="REMINDER", title="N", message="m", user=t,
             scheduled_for=self.now, expires_at=self.now + timedelta(days=1),
         )
-        self.foreign_notification = DjangoNotificationModel.objects.create(
+        self.foreign_notification = DjangoNotificationModel.objects.create(company=default_test_company(), 
             notification_type="REMINDER", title="N", message="m", user=a,
             scheduled_for=self.now, expires_at=self.now + timedelta(days=1),
         )
         window = {"start_at": self.now, "end_at": self.now + timedelta(hours=1)}
-        self.hosted_meeting = DjangoMeetingModel.objects.create(
+        self.hosted_meeting = DjangoMeetingModel.objects.create(company=default_test_company(), 
             title="Hosted", host=t, created_by=t, **window,
         )
-        self.participant_meeting = DjangoMeetingModel.objects.create(
+        self.participant_meeting = DjangoMeetingModel.objects.create(company=default_test_company(), 
             title="Participant only", host=a, created_by=a, **window,
         )
         DjangoMeetingParticipantModel.objects.create(
             meeting=self.participant_meeting, participant_type="USER", user=t,
         )
-        DjangoTimelineRepository().record(
+        DjangoTimelineRepository(company_id=self.superadmin.company_id).record(
             event_type="LEAD_CREATED", actor_id=t.id, message="created",
             metadata={}, targets=[("LEAD", self.leads[0].id)],
         )
@@ -230,6 +230,11 @@ class ManageUsersFlowTests(APITestCase):
                 "name": "Super Admin",
                 "email": "superadmin@example.com",
                 "role": "SUPERADMIN",
+                "company": {
+                    "id": str(self.superadmin.company_id),
+                    "name": self.superadmin.company.name,
+                    "status": "ACTIVE",
+                },
             },
         )
         self.assertEqual(admin_client.get("/api/users/me/").data["role"], "ADMIN")

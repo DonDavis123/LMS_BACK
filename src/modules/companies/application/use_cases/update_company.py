@@ -58,21 +58,27 @@ class UpdateCompanyUseCase:
         if update_website and isinstance(website, str):
             new_website = website.strip() or None
 
-        if self.company_repository.get_by_id(company_id) is None:
+        company = self.company_repository.get_by_id(company_id)
+        if company is None:
             raise ValueError("Company not found.")
 
+        # Only fields whose value really changes are written and audited, so
+        # saving an unchanged form does not leave a misleading audit entry.
         changed_fields = []
-        if update_name:
+        if update_name and new_name != company.name:
             changed_fields.append("name")
-        if update_website:
+        if update_website and new_website != (company.website or None):
             changed_fields.append("website")
 
+        if not changed_fields:
+            return company
+
         def update() -> Company:
-            company = self.company_repository.update(
+            updated = self.company_repository.update(
                 company_id=company_id,
-                name=new_name,
+                name=new_name if "name" in changed_fields else None,
                 website=new_website,
-                update_website=update_website,
+                update_website="website" in changed_fields,
             )
             self.platform_audit_log_repository.add(
                 PlatformAuditLog.create(
@@ -82,6 +88,6 @@ class UpdateCompanyUseCase:
                     metadata={"changed_fields": changed_fields},
                 )
             )
-            return company
+            return updated
 
         return self.transaction_manager.execute(update)
