@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.db import connection
+from django.utils import timezone
 from django.test.utils import CaptureQueriesContext
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
@@ -55,8 +58,14 @@ class PlatformOverviewApiTests(APITestCase):
         self.assertEqual(response.data["users"], {"total": 3, "active": 2})
 
     def test_recent_companies_are_the_last_five_newest_first(self):
+        # Distinct, explicit creation times: back-to-back inserts can share
+        # one timestamp on platforms with a coarse clock (e.g. Windows).
+        base = timezone.now() - timedelta(days=1)
         for index in range(7):
-            make_company(f"Company {index}")
+            company = make_company(f"Company {index}")
+            DjangoCompanyModel.objects.filter(pk=company.pk).update(
+                created_at=base + timedelta(minutes=index)
+            )
 
         recent = self.client.get(OVERVIEW).data["recent_companies"]
 
