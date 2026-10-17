@@ -72,4 +72,11 @@ Never contains passwords or tokens. `400` for an invalid `company_id`/`action`/p
  "users": {"total": 3, "active": 2},
  "recent_companies": [{"id": "uuid", "name": "Acme", "status": "ACTIVE", "created_at": "…"}]}
 ```
+Extra fields for the dashboard charts:
+```json
+{"companies_growth": [{"month": "2026-05", "count": 1}],
+ "users_by_role": [{"role": "ADMIN", "count": 2}],
+ "top_companies": [{"id": "uuid", "name": "Acme", "status": "ACTIVE", "users_count": 12}]}
+```
+`companies_growth`: new companies per month for the last 6 months (oldest first, zero-filled). `users_by_role`: company users by role, largest first. `top_companies`: top 5 by user count.
 `users` counts company users only (platform admins and retired users excluded). `recent_companies`: newest 5.

@@ -105,6 +105,23 @@ class PlatformAuditLogSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
+class MonthlyCountSerializer(serializers.Serializer):
+    month = serializers.CharField(read_only=True)
+    count = serializers.IntegerField(read_only=True)
+
+
+class RoleCountSerializer(serializers.Serializer):
+    role = serializers.CharField(read_only=True)
+    count = serializers.IntegerField(read_only=True)
+
+
+class TopCompanySerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    status = EnumValueField(read_only=True)
+    users_count = serializers.IntegerField(read_only=True)
+
+
 class RecentCompanySerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)

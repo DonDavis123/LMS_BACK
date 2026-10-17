@@ -57,6 +57,26 @@ class RecentCompanyDTO:
 
 
 @dataclass(frozen=True)
+class MonthlyCountDTO:
+    month: str  # "YYYY-MM"
+    count: int
+
+
+@dataclass(frozen=True)
+class RoleCountDTO:
+    role: str
+    count: int
+
+
+@dataclass(frozen=True)
+class TopCompanyDTO:
+    id: UUID
+    name: str
+    status: CompanyStatus
+    users_count: int
+
+
+@dataclass(frozen=True)
 class PlatformOverviewDTO:
     companies_total: int
     companies_active: int
@@ -65,3 +85,6 @@ class PlatformOverviewDTO:
     users_total: int
     users_active: int
     recent_companies: list[RecentCompanyDTO] = field(default_factory=list)
+    companies_growth: list[MonthlyCountDTO] = field(default_factory=list)
+    users_by_role: list[RoleCountDTO] = field(default_factory=list)
+    top_companies: list[TopCompanyDTO] = field(default_factory=list)

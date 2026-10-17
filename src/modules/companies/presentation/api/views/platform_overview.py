@@ -6,7 +6,12 @@ from rest_framework.views import APIView
 from src.modules.shared.presentation.permissions import IsPlatformSuperAdmin
 
 from ..dependencies.company_dependencies import get_platform_overview_use_case
-from ..serializers.company import RecentCompanySerializer
+from ..serializers.company import (
+    MonthlyCountSerializer,
+    RecentCompanySerializer,
+    RoleCountSerializer,
+    TopCompanySerializer,
+)
 from ._common import error_response, load_actor
 
 
@@ -35,6 +40,15 @@ class PlatformOverviewView(APIView):
                 },
                 "recent_companies": RecentCompanySerializer(
                     overview.recent_companies, many=True
+                ).data,
+                "companies_growth": MonthlyCountSerializer(
+                    overview.companies_growth, many=True
+                ).data,
+                "users_by_role": RoleCountSerializer(
+                    overview.users_by_role, many=True
+                ).data,
+                "top_companies": TopCompanySerializer(
+                    overview.top_companies, many=True
                 ).data,
             },
             status=status.HTTP_200_OK,

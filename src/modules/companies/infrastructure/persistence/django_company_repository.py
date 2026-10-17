@@ -2,7 +2,7 @@ from uuid import UUID
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
-from django.db.models.functions import Lower
+from django.db.models.functions import Lower, TruncMonth
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -10,8 +10,11 @@ from src.modules.companies.application.dto.company_dto import (
     CompanyAdminDTO,
     CompanyDetailDTO,
     CompanyListDTO,
+    MonthlyCountDTO,
     PlatformOverviewDTO,
     RecentCompanyDTO,
+    RoleCountDTO,
+    TopCompanyDTO,
 )
 from src.modules.companies.application.interfaces.company_repository import (
     CompanyRepository,
@@ -33,6 +36,7 @@ from .django_company_model import DjangoCompanyModel
 
 SLUG_MAX_LENGTH = 100
 _MAX_SLUG_ATTEMPTS = 5
+GROWTH_MONTHS = 6
 
 
 class DjangoCompanyRepository(CompanyRepository):
@@ -292,6 +296,40 @@ class DjangoCompanyRepository(CompanyRepository):
         )
         recent = DjangoCompanyModel.objects.order_by("-created_at", "-id")[:5]
 
+        company_users = DjangoUser.objects.filter(
+            company__isnull=False,
+            deleted_at__isnull=True,
+        ).exclude(role=DjangoUser.Role.PLATFORM_SUPERADMIN)
+        roles = (
+            company_users.values("role")
+            .annotate(count=Count("id"))
+            .order_by("-count", "role")
+        )
+        top = self._with_users_count().order_by("-users_count", "name", "id")[:5]
+
+        # New companies per calendar month for the last six months (inclusive),
+        # zero-filled so the chart always has a continuous axis.
+        local_now = timezone.localtime()
+        months = []
+        year, month = local_now.year, local_now.month
+        for _ in range(GROWTH_MONTHS):
+            months.append((year, month))
+            month -= 1
+            if month == 0:
+                year, month = year - 1, 12
+        months.reverse()
+        window_start = local_now.replace(
+            year=months[0][0], month=months[0][1], day=1,
+            hour=0, minute=0, second=0, microsecond=0,
+        )
+        monthly = {
+            (row["month"].year, row["month"].month): row["count"]
+            for row in DjangoCompanyModel.objects.filter(created_at__gte=window_start)
+            .annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(count=Count("id"))
+        }
+
         return PlatformOverviewDTO(
             companies_total=companies["total"],
             companies_active=companies["active"],
@@ -307,5 +345,22 @@ class DjangoCompanyRepository(CompanyRepository):
                     created_at=model.created_at,
                 )
                 for model in recent
+            ],
+            companies_growth=[
+                MonthlyCountDTO(month=f"{y:04d}-{m:02d}", count=monthly.get((y, m), 0))
+                for y, m in months
+            ],
+            users_by_role=[
+                RoleCountDTO(role=str(row["role"]), count=row["count"])
+                for row in roles
+            ],
+            top_companies=[
+                TopCompanyDTO(
+                    id=model.id,
+                    name=model.name,
+                    status=CompanyStatus(model.status),
+                    users_count=model.users_count,
+                )
+                for model in top
             ],
         )
