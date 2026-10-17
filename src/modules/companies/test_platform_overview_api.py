@@ -76,14 +76,36 @@ class PlatformOverviewApiTests(APITestCase):
         )
         self.assertEqual(set(recent[0]), {"id", "name", "status", "created_at"})
 
+    def test_chart_data(self):
+        a = make_company("Alpha", status=Status.ACTIVE)
+        b = make_company("Beta", status=Status.ACTIVE)
+        make_user(a, role=User.Role.SUPERADMIN)
+        make_user(a, role=User.Role.ADMIN)
+        make_user(b, role=User.Role.ADMIN)
+
+        data = self.client.get(OVERVIEW).data
+
+        self.assertEqual(len(data["companies_growth"]), 6)
+        self.assertEqual(data["companies_growth"][-1]["count"], 2)
+        self.assertEqual(sum(row["count"] for row in data["companies_growth"]), 2)
+        self.assertEqual(
+            {row["role"]: row["count"] for row in data["users_by_role"]},
+            {"ADMIN": 2, "SUPERADMIN": 1},
+        )
+        self.assertEqual(
+            [(c["name"], c["users_count"]) for c in data["top_companies"]],
+            [("Alpha", 2), ("Beta", 1)],
+        )
+
     def test_query_count_is_constant(self):
         for index in range(6):
             make_user(make_company(f"C{index}"))
 
-        # actor lookup + 2 aggregates + recent list; independent of data size.
+        # actor lookup + 2 aggregates + recent list + growth + roles + top
+        # companies; independent of data size.
         with CaptureQueriesContext(connection) as queries:
             self.client.get(OVERVIEW)
-        self.assertLessEqual(len(queries), 5)
+        self.assertLessEqual(len(queries), 8)
 
     def test_non_platform_users_are_forbidden(self):
         company = make_company("Tenant")
