@@ -149,6 +149,26 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     "ngrok-skip-browser-warning",
 ]
 
+# The frontend edits records with PATCH (e.g. PATCH /api/leads/<id>/update/).
+# django-cors-headers allows PATCH by default, but it is listed explicitly so
+# the preflight answer can never silently drop it (a preflight that omits
+# PATCH makes the browser block the request with "Method PATCH is not allowed
+# by Access-Control-Allow-Methods in preflight response").
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+# Browsers cache each preflight answer (default: 24 hours). A browser that
+# cached a bad/old answer keeps failing after the server is fixed, which looks
+# like "works on some computers, fails on others". Keep the cache short so a
+# fix reaches every browser within minutes.
+CORS_PREFLIGHT_MAX_AGE = 600
+
 
 # -------------------------------------------------------------------
 # CSRF
