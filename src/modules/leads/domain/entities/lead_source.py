@@ -19,3 +19,4 @@ class LeadSource(str, Enum):
     CHAT = "Chat"
     X_TWITTER = "X (Twitter)"
     FACEBOOK = "Facebook"
+    OTHER = "Other"

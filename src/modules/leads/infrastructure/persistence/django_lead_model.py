@@ -24,6 +24,7 @@ class DjangoLeadModel(models.Model):
         CHAT = "Chat", "Chat"
         X_TWITTER = "X (Twitter)", "X (Twitter)"
         FACEBOOK = "Facebook", "Facebook"
+        OTHER = "Other", "Other"
 
     class LeadStatus(models.TextChoices):
         NONE = "None", "None"
