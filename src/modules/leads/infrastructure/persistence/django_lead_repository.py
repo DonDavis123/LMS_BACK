@@ -20,10 +20,7 @@ from src.modules.leads.application.interfaces.lead_repository import (
     LeadRepository,
 )
 from src.modules.leads.domain.entities.lead import Lead
-from src.modules.leads.domain.entities.lead_industry import LeadIndustry
-from src.modules.leads.domain.entities.lead_rating import LeadRating
-from src.modules.leads.domain.entities.lead_source import LeadSource
-from src.modules.leads.domain.entities.lead_status import LeadStatus
+from src.modules.leads.domain.entities.option_text import option_text
 
 from .django_lead_model import DjangoLeadModel
 
@@ -65,10 +62,10 @@ class DjangoLeadRepository(LeadRepository):
                 "phone": lead.phone,
 
                 # Lead information
-                "lead_source": lead.lead_source.value,
-                "lead_status": lead.lead_status.value,
-                "industry": lead.industry.value,
-                "rating": lead.rating.value,
+                "lead_source": option_text(lead.lead_source),
+                "lead_status": option_text(lead.lead_status),
+                "industry": option_text(lead.industry),
+                "rating": option_text(lead.rating),
 
                 # Business information
                 "website": lead.website,
@@ -280,17 +277,19 @@ class DjangoLeadRepository(LeadRepository):
 
     @staticmethod
     def _apply_choice_filter(queryset, db_field, operator, value, field):
-        allowed = {
-            key: label
-            for key, label in DjangoLeadModel._meta.get_field(db_field).choices
-        }
+        # Options are editable per company, so there is no fixed list to check
+        # against. Filtering on a value nobody uses simply matches nothing.
         if operator in {"equals", "not_equals"}:
-            if not isinstance(value, str) or value not in allowed:
+            if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"Invalid value for choice field '{field}'.")
             lookup = {db_field: value}
             return queryset.filter(**lookup) if operator == "equals" else queryset.exclude(**lookup)
         if operator in {"in", "not_in"}:
-            if not isinstance(value, list) or not value or any(v not in allowed for v in value):
+            if (
+                not isinstance(value, list)
+                or not value
+                or any(not isinstance(v, str) or not v.strip() for v in value)
+            ):
                 raise ValueError(f"Value for '{field}' must be a non-empty list of valid choices.")
             lookup = {f"{db_field}__in": value}
             return queryset.filter(**lookup) if operator == "in" else queryset.exclude(**lookup)
@@ -494,10 +493,10 @@ class DjangoLeadRepository(LeadRepository):
             phone=model.phone,
 
             # Lead information
-            lead_source=LeadSource(model.lead_source),
-            lead_status=LeadStatus(model.lead_status),
-            industry=LeadIndustry(model.industry),
-            rating=LeadRating(model.rating),
+            lead_source=model.lead_source,
+            lead_status=model.lead_status,
+            industry=model.industry,
+            rating=model.rating,
 
             # Business information
             website=model.website,

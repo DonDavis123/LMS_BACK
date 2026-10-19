@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from src.modules.shared.presentation.tenant import get_tenant_context
+from src.modules.leads.domain.entities.option_text import option_text
 from src.modules.leads.application.dto.lead_detail import (
     LeadDetailResponseDTO,
 )
@@ -46,10 +47,10 @@ class GetLeadDetailsView(APIView):
             email=lead.email,
             mobile_number=lead.mobile_number,
             phone=lead.phone,
-            lead_source=lead.lead_source.value,
-            lead_status=lead.lead_status.value,
-            industry=lead.industry.value,
-            rating=lead.rating.value,
+            lead_source=option_text(lead.lead_source),
+            lead_status=option_text(lead.lead_status),
+            industry=option_text(lead.industry),
+            rating=option_text(lead.rating),
             website=lead.website,
             number_of_employees=lead.number_of_employees,
             annual_revenue=lead.annual_revenue,

@@ -77,4 +77,9 @@ urlpatterns = [
         include("src.modules.notifications.presentation.api.urls"),
     ),
 
+    path(
+        "api/picklists/",
+        include("src.modules.picklists.presentation.api.urls"),
+    ),
+
 ]

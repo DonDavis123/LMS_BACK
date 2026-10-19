@@ -3,10 +3,9 @@ from uuid import UUID
 from src.modules.leads.application.dto.create_lead_dto import CreateLeadDTO
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 from src.modules.leads.domain.entities.lead import Lead
-from src.modules.leads.domain.entities.lead_industry import LeadIndustry
-from src.modules.leads.domain.entities.lead_rating import LeadRating
-from src.modules.leads.domain.entities.lead_source import LeadSource
-from src.modules.leads.domain.entities.lead_status import LeadStatus
+from src.modules.leads.domain.entities.option_text import option_text
+from src.modules.picklists.application.interfaces.picklist_repository import PicklistRepository
+from src.modules.picklists.application.services.option_validation import resolve_option_value
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
@@ -20,11 +19,21 @@ class CreateLeadUseCase:
         user_repository: UserRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        picklist_repository: PicklistRepository | None = None,
     ):
         self.lead_repository = lead_repository
         self.user_repository = user_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        # The company's own dropdown options. When given, Lead Source /
+        # Status / Industry / Rating must be one of them.
+        self.picklist_repository = picklist_repository
+
+    def _option(self, field: str, value) -> str:
+        value = option_text(value)
+        if self.picklist_repository is None:
+            return value or "None"
+        return resolve_option_value(self.picklist_repository, "leads", field, value)
 
     def execute(
         self,
@@ -51,6 +60,11 @@ class CreateLeadUseCase:
                 "Selected owner must be an ADMIN or SUPERADMIN."
             )
 
+        lead_source = self._option("lead_source", data.lead_source)
+        lead_status = self._option("lead_status", data.lead_status)
+        industry = self._option("industry", data.industry)
+        rating = self._option("rating", data.rating)
+
         lead = Lead.create(
             name=data.name,
             title=data.title,
@@ -58,10 +72,10 @@ class CreateLeadUseCase:
             email=data.email,
             mobile_number=data.mobile_number,
             phone=data.phone,
-            lead_source=data.lead_source or LeadSource.NONE,
-            lead_status=data.lead_status or LeadStatus.NONE,
-            industry=data.industry or LeadIndustry.NONE,
-            rating=data.rating or LeadRating.NONE,
+            lead_source=lead_source,
+            lead_status=lead_status,
+            industry=industry,
+            rating=rating,
             website=data.website,
             number_of_employees=data.number_of_employees,
             annual_revenue=data.annual_revenue,

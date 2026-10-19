@@ -1,10 +1,6 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from src.modules.leads.domain.entities.lead_industry import LeadIndustry
-from src.modules.leads.domain.entities.lead_rating import LeadRating
-from src.modules.leads.domain.entities.lead_source import LeadSource
-from src.modules.leads.domain.entities.lead_status import LeadStatus
 
 
 _UNSET = object()
@@ -22,10 +18,10 @@ class UpdateLeadDTO:
     mobile_number: str | None | object = _UNSET
     phone: str | None | object = _UNSET
 
-    lead_source: LeadSource | object = _UNSET
-    lead_status: LeadStatus | object = _UNSET
-    industry: LeadIndustry | object = _UNSET
-    rating: LeadRating | object = _UNSET
+    lead_source: str | object = _UNSET
+    lead_status: str | object = _UNSET
+    industry: str | object = _UNSET
+    rating: str | object = _UNSET
 
     website: str | None | object = _UNSET
     number_of_employees: int | None | object = _UNSET

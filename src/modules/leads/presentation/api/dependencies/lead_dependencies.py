@@ -14,6 +14,7 @@ from src.modules.tasks.infrastructure.persistence.django_task_repository import 
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
 from src.modules.timeline.infrastructure.persistence.django_timeline_repository import DjangoTimelineRepository
 from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelineRecorder
+from src.modules.picklists.infrastructure.persistence.django_picklist_repository import DjangoPicklistRepository
 
 
 def recorder(ctx: TenantContext):
@@ -21,7 +22,7 @@ def recorder(ctx: TenantContext):
 
 
 def get_create_lead_use_case(ctx: TenantContext) -> CreateLeadUseCase:
-    return CreateLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager())
+    return CreateLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager(), picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id))
 
 
 def get_update_lead_use_case(ctx: TenantContext) -> UpdateLeadUseCase:
@@ -30,6 +31,7 @@ def get_update_lead_use_case(ctx: TenantContext) -> UpdateLeadUseCase:
         DjangoUserRepository(company_id=ctx.company_id),
         recorder(ctx),
         DjangoTransactionManager(),
+        picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id),
     )
 
 def get_leads_use_case(ctx: TenantContext) -> GetLeadsUseCase:

@@ -1,9 +1,5 @@
 from rest_framework import serializers
 
-from src.modules.leads.domain.entities.lead_industry import LeadIndustry
-from src.modules.leads.domain.entities.lead_rating import LeadRating
-from src.modules.leads.domain.entities.lead_source import LeadSource
-from src.modules.leads.domain.entities.lead_status import LeadStatus
 
 
 class CreateLeadSerializer(serializers.Serializer):
@@ -46,35 +42,26 @@ class CreateLeadSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-    lead_source = serializers.ChoiceField(
-        choices=[
-            (source.value, source.value)
-            for source in LeadSource
-        ],
+    # Allowed values are the company's own options (editable by its
+    # superadmins), so they are checked per company in the use case rather
+    # than against a fixed list here.
+    lead_source = serializers.CharField(
+        max_length=100,
         required=False,
     )
 
-    lead_status = serializers.ChoiceField(
-        choices=[
-            (status.value, status.value)
-            for status in LeadStatus
-        ],
+    lead_status = serializers.CharField(
+        max_length=100,
         required=False,
     )
 
-    industry = serializers.ChoiceField(
-        choices=[
-            (industry.value, industry.value)
-            for industry in LeadIndustry
-        ],
+    industry = serializers.CharField(
+        max_length=150,
         required=False,
     )
 
-    rating = serializers.ChoiceField(
-        choices=[
-            (rating.value, rating.value)
-            for rating in LeadRating
-        ],
+    rating = serializers.CharField(
+        max_length=100,
         required=False,
     )
 

@@ -164,27 +164,26 @@ class DjangoLeadModel(models.Model):
 
     # Lead information
 
+    # The allowed values for these four fields are each company's own
+    # options (see the picklists module), so they are not fixed `choices`.
+    # The enums above are only the built-in defaults.
     lead_source = models.CharField(
         max_length=100,
-        choices=LeadSource.choices,
         default=LeadSource.NONE,
     )
 
     lead_status = models.CharField(
         max_length=100,
-        choices=LeadStatus.choices,
         default=LeadStatus.NONE,
     )
 
     industry = models.CharField(
         max_length=150,
-        choices=LeadIndustry.choices,
         default=LeadIndustry.NONE,
     )
 
     rating = models.CharField(
         max_length=100,
-        choices=LeadRating.choices,
         default=LeadRating.NONE,
     )
 

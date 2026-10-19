@@ -1,6 +1,7 @@
 from src.modules.leads.application.dto.get_leads import LeadResponseDTO
 from src.modules.leads.application.dto.owner_response import OwnerResponseDTO
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
+from src.modules.leads.domain.entities.option_text import option_text
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
 
@@ -21,8 +22,8 @@ class GetLeadsUseCase:
                     email=lead.email,
                     phone=lead.phone,
                     mobile_number=lead.mobile_number,
-                    lead_source=lead.lead_source.value,
-                    lead_status=lead.lead_status.value,
+                    lead_source=option_text(lead.lead_source),
+                    lead_status=option_text(lead.lead_status),
                     owner=OwnerResponseDTO(
                         id=lead.owner_id,
                         name=owner_name,

@@ -1,10 +1,6 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from src.modules.leads.domain.entities.lead_industry import LeadIndustry
-from src.modules.leads.domain.entities.lead_rating import LeadRating
-from src.modules.leads.domain.entities.lead_source import LeadSource
-from src.modules.leads.domain.entities.lead_status import LeadStatus
 
 
 @dataclass
@@ -15,10 +11,10 @@ class CreateLeadDTO:
     email: str | None
     mobile_number: str | None
     phone: str | None
-    lead_source: LeadSource | None
-    lead_status: LeadStatus | None
-    industry: LeadIndustry | None
-    rating: LeadRating | None
+    lead_source: str | None
+    lead_status: str | None
+    industry: str | None
+    rating: str | None
     website: str | None
     number_of_employees: int | None
     annual_revenue: int | None

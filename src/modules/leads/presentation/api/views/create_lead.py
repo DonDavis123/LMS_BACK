@@ -6,10 +6,6 @@ from rest_framework.views import APIView
 
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.application.dto.create_lead_dto import CreateLeadDTO
-from src.modules.leads.domain.entities.lead_industry import LeadIndustry
-from src.modules.leads.domain.entities.lead_rating import LeadRating
-from src.modules.leads.domain.entities.lead_source import LeadSource
-from src.modules.leads.domain.entities.lead_status import LeadStatus
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_create_lead_use_case,
 )
@@ -41,29 +37,13 @@ class CreateLeadView(APIView):
             mobile_number=data.get("mobile_number"),
             phone=data.get("phone"),
 
-            lead_source=(
-                LeadSource(data["lead_source"])
-                if data.get("lead_source")
-                else None
-            ),
+            lead_source=data.get("lead_source") or None,
 
-            lead_status=(
-                LeadStatus(data["lead_status"])
-                if data.get("lead_status")
-                else None
-            ),
+            lead_status=data.get("lead_status") or None,
 
-            industry=(
-                LeadIndustry(data["industry"])
-                if data.get("industry")
-                else None
-            ),
+            industry=data.get("industry") or None,
 
-            rating=(
-                LeadRating(data["rating"])
-                if data.get("rating")
-                else None
-            ),
+            rating=data.get("rating") or None,
 
             website=data.get("website"),
             number_of_employees=data.get(

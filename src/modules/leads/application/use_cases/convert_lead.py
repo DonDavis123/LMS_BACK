@@ -9,6 +9,7 @@ from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
 from src.modules.contacts.domain.entities.contact import Contact
+from src.modules.leads.domain.entities.option_text import option_text
 
 from src.modules.leads.application.dto.convert_lead import (
     ConvertLeadDTO,
@@ -231,9 +232,9 @@ class ConvertLeadUseCase:
                 account_site=None,
                 account_number=None,
                 account_type=None,
-                industry=lead.industry.value,
+                industry=option_text(lead.industry),
                 annual_revenue=lead.annual_revenue,
-                rating=lead.rating.value,
+                rating=option_text(lead.rating),
                 phone=lead.phone,
                 website=lead.website,
                 ticker_symbol=None,
@@ -360,7 +361,7 @@ class ConvertLeadUseCase:
                 assistant_phone=None,
                 title=lead.title,
                 department=None,
-                lead_source=lead.lead_source.value,
+                lead_source=option_text(lead.lead_source),
                 vendor_name=None,
                 date_of_birth=None,
                 assistant=None,

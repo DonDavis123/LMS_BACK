@@ -2,10 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from .lead_industry import LeadIndustry
-from .lead_rating import LeadRating
-from .lead_source import LeadSource
-from .lead_status import LeadStatus
+from .option_text import option_text
 
 
 @dataclass
@@ -17,10 +14,12 @@ class Lead:
     email: str | None
     mobile_number: str | None
     phone: str | None
-    lead_source: LeadSource
-    lead_status: LeadStatus
-    industry: LeadIndustry
-    rating: LeadRating
+    # Chosen from the company's own options (see the picklists module), so
+    # these are plain text rather than fixed enums.
+    lead_source: str
+    lead_status: str
+    industry: str
+    rating: str
     website: str | None
     number_of_employees: int | None
     annual_revenue: int | None
@@ -36,6 +35,12 @@ class Lead:
     created_at: datetime
     updated_at: datetime
 
+    def __post_init__(self) -> None:
+        self.lead_source = option_text(self.lead_source)
+        self.lead_status = option_text(self.lead_status)
+        self.industry = option_text(self.industry)
+        self.rating = option_text(self.rating)
+
     @classmethod
     def create(
         cls,
@@ -45,10 +50,10 @@ class Lead:
         email: str | None,
         mobile_number: str | None,
         phone: str | None,
-        lead_source: LeadSource,
-        lead_status: LeadStatus,
-        industry: LeadIndustry,
-        rating: LeadRating,
+        lead_source: str,
+        lead_status: str,
+        industry: str,
+        rating: str,
         website: str | None,
         number_of_employees: int | None,
         annual_revenue: int | None,

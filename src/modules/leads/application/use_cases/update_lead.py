@@ -1,5 +1,8 @@
 from src.modules.leads.application.dto.update_lead import UpdateLeadDTO, _UNSET
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
+from src.modules.leads.domain.entities.option_text import option_text
+from src.modules.picklists.application.interfaces.picklist_repository import PicklistRepository
+from src.modules.picklists.application.services.option_validation import resolve_option_value
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
@@ -18,11 +21,25 @@ class UpdateLeadUseCase:
         user_repository: UserRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        picklist_repository: PicklistRepository | None = None,
     ):
         self.lead_repository = lead_repository
         self.user_repository = user_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        # The company's own dropdown options. When given, Lead Source /
+        # Status / Industry / Rating must be one of them.
+        self.picklist_repository = picklist_repository
+
+    def _option(self, field: str, value, current_value):
+        value = option_text(value)
+        if self.picklist_repository is None:
+            return value
+        # Keeping the record's current value is always allowed, even if an
+        # admin has hidden that option since.
+        return resolve_option_value(
+            self.picklist_repository, "leads", field, value, current_value=current_value
+        )
 
     def execute(self, data: UpdateLeadDTO, current_user_id=None):
         existing_lead = self.lead_repository.get_by_id(data.lead_id)
@@ -36,6 +53,13 @@ class UpdateLeadUseCase:
                 "This lead has been converted and can no longer be edited. "
                 "Update the related Contact or Account instead."
             )
+
+        # Checked up front so a bad value fails before anything is changed.
+        chosen = {
+            field: self._option(field, getattr(data, field), getattr(existing_lead, field))
+            for field in ("lead_source", "lead_status", "industry", "rating")
+            if getattr(data, field) is not _UNSET
+        }
 
         updateable_fields = (
             "name", "title", "company_name", "email", "mobile_number", "phone",
@@ -58,14 +82,14 @@ class UpdateLeadUseCase:
                 existing_lead.mobile_number = data.mobile_number
             if data.phone is not _UNSET:
                 existing_lead.phone = data.phone
-            if data.lead_source is not _UNSET:
-                existing_lead.lead_source = data.lead_source
-            if data.lead_status is not _UNSET:
-                existing_lead.lead_status = data.lead_status
-            if data.industry is not _UNSET:
-                existing_lead.industry = data.industry
-            if data.rating is not _UNSET:
-                existing_lead.rating = data.rating
+            if "lead_source" in chosen:
+                existing_lead.lead_source = chosen["lead_source"]
+            if "lead_status" in chosen:
+                existing_lead.lead_status = chosen["lead_status"]
+            if "industry" in chosen:
+                existing_lead.industry = chosen["industry"]
+            if "rating" in chosen:
+                existing_lead.rating = chosen["rating"]
             if data.website is not _UNSET:
                 existing_lead.website = data.website
             if data.number_of_employees is not _UNSET:

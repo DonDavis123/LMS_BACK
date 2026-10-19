@@ -10,10 +10,6 @@ from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.application.dto.update_lead import (
     UpdateLeadDTO,
 )
-from src.modules.leads.domain.entities.lead_industry import LeadIndustry
-from src.modules.leads.domain.entities.lead_rating import LeadRating
-from src.modules.leads.domain.entities.lead_source import LeadSource
-from src.modules.leads.domain.entities.lead_status import LeadStatus
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_update_lead_use_case,
 )
@@ -60,24 +56,16 @@ class UpdateLeadView(APIView):
             dto_data["phone"] = data["phone"]
 
         if "lead_source" in data:
-            dto_data["lead_source"] = LeadSource(
-                data["lead_source"]
-            )
+            dto_data["lead_source"] = data["lead_source"]
 
         if "lead_status" in data:
-            dto_data["lead_status"] = LeadStatus(
-                data["lead_status"]
-            )
+            dto_data["lead_status"] = data["lead_status"]
 
         if "industry" in data:
-            dto_data["industry"] = LeadIndustry(
-                data["industry"]
-            )
+            dto_data["industry"] = data["industry"]
 
         if "rating" in data:
-            dto_data["rating"] = LeadRating(
-                data["rating"]
-            )
+            dto_data["rating"] = data["rating"]
 
         if "website" in data:
             dto_data["website"] = data["website"]
