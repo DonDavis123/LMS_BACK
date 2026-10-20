@@ -4,6 +4,8 @@ from uuid import UUID
 from src.modules.accounts.application.interfaces.account_repository import AccountRepository
 from src.modules.contacts.application.dto.update_contact import UpdateContactDTO
 from src.modules.contacts.application.interfaces.contact_repository import ContactRepository
+from src.modules.picklists.application.interfaces.picklist_repository import PicklistRepository
+from src.modules.picklists.application.services.option_validation import resolve_option_value
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
@@ -23,19 +25,39 @@ class UpdateContactUseCase:
         user_repository: UserRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        picklist_repository: PicklistRepository | None = None,
     ):
         self.contact_repository = contact_repository
         self.account_repository = account_repository
         self.user_repository = user_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        # The company's own dropdown options. When given, Lead Source must
+        # be one of them.
+        self.picklist_repository = picklist_repository
+
+    def _option(self, field: str, value, current_value):
+        if self.picklist_repository is None:
+            return value
+        # Keeping the record's current value is always allowed, even if an
+        # admin has hidden that option since.
+        return resolve_option_value(
+            self.picklist_repository, "contacts", field, value, current_value=current_value
+        )
 
     def execute(self, data: UpdateContactDTO, current_user_id: UUID):
         contact = self.contact_repository.get_by_id(data.contact_id)
         if contact is None:
             raise ValueError("Contact not found.")
 
-        fields = data.fields
+        fields = dict(data.fields)
+
+        # Checked up front so a bad dropdown value fails before anything changes.
+        if "lead_source" in fields:
+            fields["lead_source"] = self._option(
+                "lead_source", fields["lead_source"], contact.lead_source
+            )
+
         updateable_fields = (
             "account_id", "contact_owner_id", "name", "email", "secondary_email",
             "phone", "other_phone", "mobile", "home_phone", "assistant_phone", "title",

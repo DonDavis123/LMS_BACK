@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from src.modules.contacts.domain.entities.contact_lead_source import (
+    ContactLeadSource,
+)
 from src.modules.leads.domain.entities.lead_industry import LeadIndustry
 from src.modules.leads.domain.entities.lead_rating import LeadRating
 from src.modules.leads.domain.entities.lead_source import LeadSource
@@ -36,6 +39,9 @@ _FIELDS = (
     PicklistField("leads", "lead_status", "Lead Status", 100, _values(LeadStatus)),
     PicklistField("leads", "industry", "Industry", 150, _values(LeadIndustry)),
     PicklistField("leads", "rating", "Rating", 100, _values(LeadRating)),
+    PicklistField(
+        "contacts", "lead_source", "Lead Source", 100, _values(ContactLeadSource)
+    ),
 )
 
 _BY_KEY = {(field.module, field.key): field for field in _FIELDS}

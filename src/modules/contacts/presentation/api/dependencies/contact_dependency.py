@@ -6,6 +6,7 @@ from src.modules.contacts.application.use_cases.update_contact import UpdateCont
 from src.modules.contacts.application.use_cases.delete_contact import DeleteContactUseCase
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
+from src.modules.picklists.infrastructure.persistence.django_picklist_repository import DjangoPicklistRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
@@ -36,6 +37,7 @@ def get_update_contact_use_case(ctx: TenantContext) -> UpdateContactUseCase:
         DjangoUserRepository(company_id=ctx.company_id),
         recorder(ctx),
         DjangoTransactionManager(),
+        picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id),
     )
 
 def get_delete_contact_use_case(ctx: TenantContext) -> DeleteContactUseCase:

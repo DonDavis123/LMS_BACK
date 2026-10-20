@@ -2,6 +2,9 @@ from uuid import UUID
 
 from django.db.models import Count
 
+from src.modules.contacts.infrastructure.persistence.django_contact_model import (
+    DjangoContactModel,
+)
 from src.modules.leads.infrastructure.persistence.django_lead_model import (
     DjangoLeadModel,
 )
@@ -16,6 +19,7 @@ _TARGETS = {
     ("leads", "lead_status"): [(DjangoLeadModel, "lead_status")],
     ("leads", "industry"): [(DjangoLeadModel, "industry")],
     ("leads", "rating"): [(DjangoLeadModel, "rating")],
+    ("contacts", "lead_source"): [(DjangoContactModel, "lead_source")],
 }
 
 
