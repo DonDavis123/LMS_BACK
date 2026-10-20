@@ -3,6 +3,8 @@ from uuid import UUID
 
 from src.modules.accounts.application.dto.update_account import UpdateAccountDTO
 from src.modules.accounts.application.interfaces.account_repository import AccountRepository
+from src.modules.picklists.application.interfaces.picklist_repository import PicklistRepository
+from src.modules.picklists.application.services.option_validation import resolve_option_value
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 from src.modules.timeline.application.services.change_tracker import (
     build_field_changes,
@@ -12,15 +14,30 @@ from src.modules.shared.application.interfaces.transaction_manager import Transa
 
 
 class UpdateAccountUseCase:
+    OPTION_FIELDS = ("account_type", "industry", "rating", "ownership")
+
     def __init__(
         self,
         account_repository: AccountRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        picklist_repository: PicklistRepository | None = None,
     ):
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        # The company's own dropdown options. When given, Account Type /
+        # Industry / Rating / Ownership must be one of them.
+        self.picklist_repository = picklist_repository
+
+    def _option(self, field: str, value, current_value):
+        if self.picklist_repository is None:
+            return value
+        # Keeping the record's current value is always allowed, even if an
+        # admin has hidden that option since.
+        return resolve_option_value(
+            self.picklist_repository, "accounts", field, value, current_value=current_value
+        )
 
     def execute(self, data: UpdateAccountDTO, current_user_id: UUID):
         account = self.account_repository.get_by_id(data.account_id)
@@ -37,9 +54,18 @@ class UpdateAccountUseCase:
         )
         old_values = {field: getattr(account, field) for field in updateable_fields}
 
+        # Checked up front so a bad dropdown value fails before anything changes.
+        chosen = {
+            field: self._option(field, getattr(data, field), getattr(account, field))
+            for field in self.OPTION_FIELDS
+        }
+
         def update():
             for field in updateable_fields:
-                setattr(account, field, getattr(data, field))
+                if field in chosen:
+                    setattr(account, field, chosen[field])
+                else:
+                    setattr(account, field, getattr(data, field))
 
             account.modified_by_id = current_user_id
             account.updated_at = datetime.now(timezone.utc)

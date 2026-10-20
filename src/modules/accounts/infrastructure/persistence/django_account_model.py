@@ -77,8 +77,7 @@ class DjangoAccountModel(models.Model):
     )
     ownership = models.CharField(
         max_length=50,
-        choices=Ownership.choices,
-        default=Ownership.NONE,
+        default="None",
     )
     employees = models.PositiveIntegerField(
         blank=True,
