@@ -23,7 +23,6 @@ _TARGETS = {
     ("leads", "industry"): [(DjangoLeadModel, "industry")],
     ("leads", "rating"): [(DjangoLeadModel, "rating")],
     ("contacts", "lead_source"): [(DjangoContactModel, "lead_source")],
-    ("accounts", "account_type"): [(DjangoAccountModel, "account_type")],
     ("accounts", "industry"): [(DjangoAccountModel, "industry")],
     ("accounts", "rating"): [(DjangoAccountModel, "rating")],
     ("accounts", "ownership"): [(DjangoAccountModel, "ownership")],

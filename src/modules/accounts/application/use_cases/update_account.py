@@ -14,7 +14,7 @@ from src.modules.shared.application.interfaces.transaction_manager import Transa
 
 
 class UpdateAccountUseCase:
-    OPTION_FIELDS = ("account_type", "industry", "rating", "ownership")
+    OPTION_FIELDS = ("industry", "rating", "ownership")
 
     def __init__(
         self,
@@ -26,8 +26,8 @@ class UpdateAccountUseCase:
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
-        # The company's own dropdown options. When given, Account Type /
-        # Industry / Rating / Ownership must be one of them.
+        # The company's own dropdown options. When given, Industry /
+        # Rating / Ownership must be one of them. Account Type stays free text.
         self.picklist_repository = picklist_repository
 
     def _option(self, field: str, value, current_value):

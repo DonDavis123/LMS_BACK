@@ -13,7 +13,7 @@ from src.modules.shared.tests.tenancy.factories import (
 from src.modules.users.infrastructure.persistence.models import User
 
 PICKLISTS = "/api/picklists/accounts/"
-FIELDS = ["account_type", "industry", "rating", "ownership"]
+FIELDS = ["industry", "rating", "ownership"]
 
 
 def make_account(company, owner, name, **extra):
@@ -60,9 +60,19 @@ class AccountDropdownUpdateTests(APITestCase):
         response = self.adm.get(PICKLISTS)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([f["field"] for f in response.data["fields"]], FIELDS)
-        types = [o["value"] for o in self.adm.get(f"{PICKLISTS}account_type/").data["options"]]
-        self.assertEqual(types[0], "None")
-        self.assertIn("Customer", types)
+        ratings = [o["value"] for o in self.adm.get(f"{PICKLISTS}rating/").data["options"]]
+        self.assertEqual(ratings[0], "None")
+        self.assertIn("Active", ratings)
+
+    def test_account_type_is_not_a_dropdown(self):
+        self.assertEqual(self.sa.get(f"{PICKLISTS}account_type/").status_code, 404)
+
+    def test_account_type_stays_free_text(self):
+        account = make_account(self.company_a, self.super_a, "Acme")
+        response = self.put(self.sa, account, account_type="Strategic Reseller 2026")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        account.refresh_from_db()
+        self.assertEqual(account.account_type, "Strategic Reseller 2026")
 
     def test_accounts_and_leads_options_are_independent(self):
         self.sa.post(f"{PICKLISTS}industry/create/", {"value": "Aerospace"}, format="json")
@@ -73,13 +83,13 @@ class AccountDropdownUpdateTests(APITestCase):
         account = make_account(self.company_a, self.super_a, "Acme")
         response = self.put(
             self.sa, account,
-            account_type="customer", industry="isv", rating="active", ownership="privately held",
+            industry="isv", rating="active", ownership="privately held",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         account.refresh_from_db()
         self.assertEqual(
-            (account.account_type, account.industry, account.rating, account.ownership),
-            ("Customer", "ISV", "Active", "Privately Held"),
+            (account.industry, account.rating, account.ownership),
+            ("ISV", "Active", "Privately Held"),
         )
 
     def test_update_accepts_company_custom_option(self):
@@ -91,54 +101,54 @@ class AccountDropdownUpdateTests(APITestCase):
         self.assertEqual(account.ownership, "Cooperative")
 
     def test_update_rejects_unknown_value_and_changes_nothing(self):
-        account = make_account(self.company_a, self.super_a, "Acme", account_type="Partner")
-        response = self.put(self.sa, account, account_type="Partner", rating="Platinum")
+        account = make_account(self.company_a, self.super_a, "Acme", industry="ISV")
+        response = self.put(self.sa, account, industry="ISV", rating="Platinum")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         account.refresh_from_db()
         self.assertIsNone(account.rating)
 
     def test_other_company_option_is_not_valid(self):
-        self.sb.post(f"{PICKLISTS}account_type/create/", {"value": "Only B"}, format="json")
+        self.sb.post(f"{PICKLISTS}industry/create/", {"value": "Only B"}, format="json")
         account = make_account(self.company_a, self.super_a, "Acme")
-        response = self.put(self.sa, account, account_type="Only B")
+        response = self.put(self.sa, account, industry="Only B")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_hidden_option_rejected_but_kept_when_unchanged(self):
-        account = make_account(self.company_a, self.super_a, "Acme", account_type="Press")
-        option_id = self.option_id(self.sa, "account_type", "Press")
+        account = make_account(self.company_a, self.super_a, "Acme", rating="Shut Down")
+        option_id = self.option_id(self.sa, "rating", "Shut Down")
         hide = self.sa.patch(f"/api/picklists/options/{option_id}/update/", {"is_active": False}, format="json")
         self.assertEqual(hide.status_code, status.HTTP_200_OK, hide.content)
 
-        keep = self.put(self.sa, account, account_type="Press", phone="12345")
+        keep = self.put(self.sa, account, rating="Shut Down", phone="12345")
         self.assertEqual(keep.status_code, status.HTTP_200_OK, keep.content)
 
         other = make_account(self.company_a, self.super_a, "Beta")
-        rejected = self.put(self.sa, other, account_type="Press")
+        rejected = self.put(self.sa, other, rating="Shut Down")
         self.assertEqual(rejected.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_blank_or_missing_dropdown_becomes_none_option(self):
         account = make_account(
-            self.company_a, self.super_a, "Acme", account_type="Partner", rating="Active"
+            self.company_a, self.super_a, "Acme", industry="ISV", rating="Active"
         )
-        response = self.put(self.sa, account, account_type="")
+        response = self.put(self.sa, account, industry="")
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         account.refresh_from_db()
-        self.assertEqual(account.account_type, "None")
+        self.assertEqual(account.industry, "None")
         self.assertEqual(account.rating, "None")
         self.assertEqual(account.ownership, "None")
 
     def test_renaming_option_moves_accounts_of_that_company_only(self):
-        mine = make_account(self.company_a, self.super_a, "Acme", account_type="Vendor")
-        theirs = make_account(self.company_b, self.super_b, "Zed", account_type="Vendor")
-        option_id = self.option_id(self.sa, "account_type", "Vendor")
+        mine = make_account(self.company_a, self.super_a, "Acme", industry="ISV")
+        theirs = make_account(self.company_b, self.super_b, "Zed", industry="ISV")
+        option_id = self.option_id(self.sa, "industry", "ISV")
         response = self.sa.patch(
-            f"/api/picklists/options/{option_id}/update/", {"value": "Supplier Vendor"}, format="json"
+            f"/api/picklists/options/{option_id}/update/", {"value": "Independent Software Vendor"}, format="json"
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         mine.refresh_from_db()
         theirs.refresh_from_db()
-        self.assertEqual(mine.account_type, "Supplier Vendor")
-        self.assertEqual(theirs.account_type, "Vendor")
+        self.assertEqual(mine.industry, "Independent Software Vendor")
+        self.assertEqual(theirs.industry, "ISV")
 
     def test_deleting_option_in_use_needs_replacement(self):
         make_account(self.company_a, self.super_a, "Acme", ownership="Public")

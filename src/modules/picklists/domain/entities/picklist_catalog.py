@@ -4,7 +4,6 @@ from src.modules.accounts.domain.entities.account_options import (
     AccountIndustry,
     AccountOwnership,
     AccountRating,
-    AccountType,
 )
 from src.modules.contacts.domain.entities.contact_lead_source import (
     ContactLeadSource,
@@ -48,7 +47,6 @@ _FIELDS = (
     PicklistField(
         "contacts", "lead_source", "Lead Source", 100, _values(ContactLeadSource)
     ),
-    PicklistField("accounts", "account_type", "Account Type", 100, _values(AccountType)),
     PicklistField("accounts", "industry", "Industry", 150, _values(AccountIndustry)),
     PicklistField("accounts", "rating", "Rating", 100, _values(AccountRating)),
     PicklistField("accounts", "ownership", "Ownership", 50, _values(AccountOwnership)),

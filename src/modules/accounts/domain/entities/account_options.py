@@ -6,23 +6,6 @@ from enum import Enum
 # module's defaults never affects another.
 
 
-class AccountType(str, Enum):
-    NONE = "None"
-    ANALYST = "Analyst"
-    COMPETITOR = "Competitor"
-    CUSTOMER = "Customer"
-    DISTRIBUTOR = "Distributor"
-    INTEGRATOR = "Integrator"
-    INVESTOR = "Investor"
-    OTHER = "Other"
-    PARTNER = "Partner"
-    PRESS = "Press"
-    PROSPECT = "Prospect"
-    RESELLER = "Reseller"
-    SUPPLIER = "Supplier"
-    VENDOR = "Vendor"
-
-
 class AccountIndustry(str, Enum):
     NONE = "None"
     ASP_APPLICATION_SERVICE_PROVIDER = "ASP (Application Service Provider)"
