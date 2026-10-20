@@ -139,6 +139,32 @@ class ReadingOptionsTests(PicklistTestCase):
         self.assertEqual(cold["usage_count"], 2)
 
 
+    def test_usage_count_ignores_deleted_and_converted_leads(self):
+        self.make_lead(self.company_a, self.super_a, "Visible", lead_source="Cold Call")
+        self.make_lead(
+            self.company_a, self.super_a, "Deleted", lead_source="Cold Call", is_deleted=True
+        )
+        self.make_lead(
+            self.company_a, self.super_a, "Converted", lead_source="Cold Call", is_converted=True
+        )
+
+        options = self.options(self.sa, "lead_source", include_inactive="true")
+        cold = next(o for o in options if o["value"] == "Cold Call")
+        self.assertEqual(cold["usage_count"], 1)
+
+    def test_option_only_used_by_deleted_leads_can_be_deleted(self):
+        hidden = self.make_lead(
+            self.company_a, self.super_a, "Gone", lead_source="Cold Call", is_deleted=True
+        )
+        option_id = self.option_id(self.sa, "lead_source", "Cold Call")
+
+        response = self.sa.delete(delete_url(option_id))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        hidden.refresh_from_db()
+        self.assertEqual(hidden.lead_source, "None")
+
+
 class CreatingOptionsTests(PicklistTestCase):
     def test_superadmin_can_add_an_option(self):
         created = self.add(self.sa, "lead_source", "LinkedIn")

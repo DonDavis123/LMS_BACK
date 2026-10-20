@@ -42,15 +42,30 @@ class DjangoPicklistUsageGateway(PicklistUsageGateway):
         return targets
 
     def _rows(self, model, column: str):
-        # ``_base_manager`` so soft-deleted and converted rows count too:
-        # they still hold the text and must stay consistent.
+        # ``_base_manager`` so soft-deleted and converted rows are included:
+        # they still hold the text and must stay consistent on rename/replace.
         return model._base_manager.filter(company_id=self._company_id)
+
+    def _live_rows(self, model, column: str):
+        """Only the records people can actually see.
+
+        Soft-deleted records (and leads already converted) no longer appear in
+        any list, so counting them would show numbers that match nothing on
+        screen and would block deleting an option over invisible records.
+        """
+        rows = self._rows(model, column)
+        names = {field.name for field in model._meta.get_fields()}
+        if "is_deleted" in names:
+            rows = rows.filter(is_deleted=False)
+        if "is_converted" in names:
+            rows = rows.filter(is_converted=False)
+        return rows
 
     def count_by_value(self, module: str, field: str) -> dict[str, int]:
         totals: dict[str, int] = {}
         for model, column in self._targets(module, field):
             rows = (
-                self._rows(model, column)
+                self._live_rows(model, column)
                 .values(column)
                 .annotate(total=Count("pk"))
             )
@@ -60,13 +75,15 @@ class DjangoPicklistUsageGateway(PicklistUsageGateway):
 
     def count(self, module: str, field: str, value: str) -> int:
         return sum(
-            self._rows(model, column).filter(**{column: value}).count()
+            self._live_rows(model, column).filter(**{column: value}).count()
             for model, column in self._targets(module, field)
         )
 
     def replace_value(
         self, module: str, field: str, old_value: str, new_value: str
     ) -> int:
+        # Every row, deleted or converted too, so none is left pointing at a
+        # value that no longer exists.
         changed = 0
         for model, column in self._targets(module, field):
             changed += (

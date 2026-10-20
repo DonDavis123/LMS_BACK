@@ -6,6 +6,7 @@ from src.modules.picklists.application.interfaces.picklist_repository import (
 from src.modules.picklists.application.interfaces.picklist_usage_gateway import (
     PicklistUsageGateway,
 )
+from src.modules.picklists.domain.entities.picklist_catalog import SYSTEM_VALUE
 from src.modules.picklists.domain.exceptions import PicklistOptionInUseError
 from src.modules.shared.application.interfaces.transaction_manager import (
     TransactionManager,
@@ -62,12 +63,15 @@ class DeletePicklistOptionUseCase:
             )
 
         def apply() -> int:
-            moved = 0
-            if usage > 0 and replacement is not None:
-                moved = self.usage_gateway.replace_value(
-                    option.module, option.field, option.value, replacement.value
-                )
+            # Visible records move to the chosen replacement. Records nobody
+            # sees any more (deleted / converted) are moved too, or parked on
+            # the built-in "None" when no replacement was given, so none is
+            # left pointing at an option that no longer exists.
+            target = replacement.value if replacement is not None else SYSTEM_VALUE
+            changed = self.usage_gateway.replace_value(
+                option.module, option.field, option.value, target
+            )
             self.picklist_repository.delete(option.id)
-            return moved
+            return changed if replacement is not None else 0
 
         return self.transaction_manager.execute(apply)
