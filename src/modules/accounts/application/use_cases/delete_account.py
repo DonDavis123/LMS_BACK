@@ -5,6 +5,9 @@ from src.modules.accounts.application.dto.delete_account import DeleteAccountDTO
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
+from src.modules.calls.application.interfaces.call_repository import (
+    CallRepository,
+)
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
@@ -26,12 +29,14 @@ class DeleteAccountUseCase:
         account_repository: AccountRepository,
         contact_repository: ContactRepository,
         task_repository: TaskRepository,
+        call_repository: CallRepository,
         timeline_repository: TimelineRepository,
         transaction_manager: TransactionManager,
     ):
         self.account_repository = account_repository
         self.contact_repository = contact_repository
         self.task_repository = task_repository
+        self.call_repository = call_repository
         self.timeline_repository = timeline_repository
         self.transaction_manager = transaction_manager
 
@@ -96,7 +101,26 @@ class DeleteAccountUseCase:
             )
 
             # --------------------------------------------------
-            # 6. Soft-delete Timeline events for the Account
+            # 6. Handle Calls associated with the Account
+            # --------------------------------------------------
+
+            # Same rule as Tasks: a Call carrying an Account always belongs
+            # to a Contact, so it stays a Contact call and only the optional
+            # Account link is removed. Any legacy/invalid Account-only call
+            # is soft-deleted together with its Timeline events.
+            for call_id in self.call_repository.soft_delete_by_account_id(
+                account.id,
+            ):
+                self.timeline_repository.soft_delete_by_entity(
+                    "CALL",
+                    call_id,
+                )
+            self.call_repository.unlink_account_from_contact_calls(
+                account.id,
+            )
+
+            # --------------------------------------------------
+            # 7. Soft-delete Timeline events for the Account
             # --------------------------------------------------
 
             self.timeline_repository.soft_delete_by_entity(

@@ -19,6 +19,7 @@ class DeletionImpactDTO:
     reminders: int
     notifications: int
     timeline: int
+    calls: int = 0
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class PermanentDeletionsDTO:
     tasks: int
     reminders: int
     notifications: int
+    calls: int = 0
 
 
 @dataclass(frozen=True)

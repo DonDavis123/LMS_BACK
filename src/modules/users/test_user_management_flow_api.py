@@ -462,11 +462,12 @@ class ManageUsersFlowTests(APITestCase):
                     "leads": 2, "contacts": 1, "accounts": 1, "tasks": 2,
                     # Hosted meetings only: participating in one is not counted.
                     "meetings": 1, "reminders": 2, "notifications": 1, "timeline": 1,
+                    "calls": 0,
                 },
                 "transfer_required": {
                     "leads": True, "contacts": True, "accounts": True, "meetings": True,
                 },
-                "permanent_deletions": {"tasks": 2, "reminders": 2, "notifications": 1},
+                "permanent_deletions": {"tasks": 2, "reminders": 2, "notifications": 1, "calls": 0},
                 "user_action": {"type": "SOFT_DELETE"},
                 "can_retire": True,
                 "blockers": [],

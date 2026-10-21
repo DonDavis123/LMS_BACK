@@ -36,4 +36,10 @@ urlpatterns = [
         {"entity_type": TimelineEntityType.MEETING.value},
         name="meeting-timeline",
     ),
+    path(
+        "calls/<uuid:entity_id>/",
+        TimelineView.as_view(),
+        {"entity_type": TimelineEntityType.CALL.value},
+        name="call-timeline",
+    ),
 ]

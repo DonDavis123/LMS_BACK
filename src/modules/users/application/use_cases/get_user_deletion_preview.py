@@ -3,6 +3,9 @@ from uuid import UUID
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
+from src.modules.calls.application.interfaces.call_repository import (
+    CallRepository,
+)
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
@@ -51,6 +54,7 @@ class GetUserDeletionPreviewUseCase:
         account_repository: AccountRepository,
         meeting_repository: MeetingRepository,
         task_repository: TaskRepository,
+        call_repository: CallRepository,
         reminder_repository: ReminderRepository,
         notification_repository: NotificationRepository,
         timeline_repository: TimelineRepository,
@@ -61,6 +65,7 @@ class GetUserDeletionPreviewUseCase:
         self.account_repository = account_repository
         self.meeting_repository = meeting_repository
         self.task_repository = task_repository
+        self.call_repository = call_repository
         self.reminder_repository = reminder_repository
         self.notification_repository = notification_repository
         self.timeline_repository = timeline_repository
@@ -83,6 +88,7 @@ class GetUserDeletionPreviewUseCase:
         accounts = self.account_repository.count_by_owner_id(user_id)
         meetings = self.meeting_repository.count_by_host_id(user_id)
         tasks = self.task_repository.count_by_owner_id(user_id)
+        calls = self.call_repository.count_by_owner_id(user_id)
         reminders = self.reminder_repository.count_by_user_id(user_id)
         notifications = self.notification_repository.count_by_user_id(user_id)
         timeline = self.timeline_repository.count_by_actor_id(user_id)
@@ -101,6 +107,7 @@ class GetUserDeletionPreviewUseCase:
                 accounts,
                 meetings,
                 tasks,
+                calls,
                 reminders,
                 notifications,
             )
@@ -128,6 +135,7 @@ class GetUserDeletionPreviewUseCase:
                 reminders=reminders,
                 notifications=notifications,
                 timeline=timeline,
+                calls=calls,
             ),
             transfer_required=TransferRequiredDTO(
                 leads=leads > 0,
@@ -139,6 +147,7 @@ class GetUserDeletionPreviewUseCase:
                 tasks=tasks,
                 reminders=reminders,
                 notifications=notifications,
+                calls=calls,
             ),
             user_action=UserActionDTO(type="SOFT_DELETE"),
             can_retire=can_retire,

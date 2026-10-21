@@ -4,6 +4,9 @@ from uuid import UUID
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
+from src.modules.calls.application.interfaces.call_repository import (
+    CallRepository,
+)
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
@@ -41,7 +44,7 @@ class DeleteUserUseCase:
 
     Leads, Contacts, Accounts and Meeting hosting are transferred to an
     explicitly chosen replacement user (optional only when none of them
-    exist). Tasks, Reminders and Notifications
+    exist). Tasks, Calls, Reminders and Notifications
     belonging to the retired user are permanently deleted. Timeline is
     untouched. The User row is kept and marked as deleted/inactive.
     The whole workflow runs in one transaction.
@@ -57,6 +60,7 @@ class DeleteUserUseCase:
         account_repository: AccountRepository,
         meeting_repository: MeetingRepository,
         task_repository: TaskRepository,
+        call_repository: CallRepository,
         reminder_repository: ReminderRepository,
         notification_repository: NotificationRepository,
         audit_log_repository: UserAuditLogRepository,
@@ -69,6 +73,7 @@ class DeleteUserUseCase:
         self.account_repository = account_repository
         self.meeting_repository = meeting_repository
         self.task_repository = task_repository
+        self.call_repository = call_repository
         self.reminder_repository = reminder_repository
         self.notification_repository = notification_repository
         self.audit_log_repository = audit_log_repository
@@ -131,6 +136,7 @@ class DeleteUserUseCase:
             # Permanent cleanup. Tasks first so their dependent
             # reminders/notifications are removed before the user-scoped ones.
             self.task_repository.delete_by_owner_id(target_user.id)
+            self.call_repository.delete_by_owner_id(target_user.id)
             self.reminder_repository.delete_by_user_id(target_user.id)
             self.notification_repository.delete_by_user_id(target_user.id)
 

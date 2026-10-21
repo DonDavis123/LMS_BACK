@@ -1,0 +1,20 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/calls/
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "contact_id": "00000000-0000-0000-0000-000000000002",
+      "account_id": null,
+      "outcome": "Callback Requested",
+      "call_type": "Inbound",
+      "call_start_time": "2026-10-21T11:00:00+05:30",
+      "duration_seconds": 95,
+      "entry_method": "TIMER"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 4000000000000002

@@ -1,0 +1,8 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/calls/?filters=[{"field":"lead_id","operator":"equals","value":"00000000-0000-0000-0000-000000000001"}]&sort_by=call_start_time&sort_direction=desc&page_size=50
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 4000000000000003

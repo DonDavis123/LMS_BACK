@@ -9,6 +9,7 @@ from src.modules.accounts.infrastructure.persistence.django_account_repository i
 from src.modules.picklists.infrastructure.persistence.django_picklist_repository import DjangoPicklistRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
+from src.modules.calls.infrastructure.persistence.django_call_repository import DjangoCallRepository
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
 from src.modules.timeline.infrastructure.persistence.django_timeline_repository import DjangoTimelineRepository
 from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelineRecorder
@@ -41,4 +42,4 @@ def get_update_contact_use_case(ctx: TenantContext) -> UpdateContactUseCase:
     )
 
 def get_delete_contact_use_case(ctx: TenantContext) -> DeleteContactUseCase:
-    return DeleteContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoTaskRepository(company_id=ctx.company_id), DjangoTimelineRepository(company_id=ctx.company_id), DjangoTransactionManager())
+    return DeleteContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoTaskRepository(company_id=ctx.company_id), DjangoCallRepository(company_id=ctx.company_id), DjangoTimelineRepository(company_id=ctx.company_id), DjangoTransactionManager())

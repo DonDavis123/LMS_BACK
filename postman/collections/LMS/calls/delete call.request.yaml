@@ -1,0 +1,8 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/calls/00000000-0000-0000-0000-000000000003/
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 4000000000000008

@@ -1,0 +1,20 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/calls/
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "lead_id": "00000000-0000-0000-0000-000000000001",
+      "outcome": "Connected",
+      "call_type": "Outbound",
+      "call_start_time": "2026-10-21T10:30:00+05:30",
+      "duration_seconds": 250,
+      "description": "Discussed pricing and next steps.",
+      "entry_method": "MANUAL"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 4000000000000001

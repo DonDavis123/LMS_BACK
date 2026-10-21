@@ -1,5 +1,8 @@
 from uuid import UUID
 
+from src.modules.calls.application.interfaces.call_repository import (
+    CallRepository,
+)
 from src.modules.leads.application.interfaces.lead_repository import (
     LeadRepository,
 )
@@ -20,11 +23,13 @@ class DeleteLeadUseCase:
         self,
         lead_repository: LeadRepository,
         task_repository: TaskRepository,
+        call_repository: CallRepository,
         timeline_repository: TimelineRepository,
         transaction_manager: TransactionManager,
     ):
         self.lead_repository = lead_repository
         self.task_repository = task_repository
+        self.call_repository = call_repository
         self.timeline_repository = timeline_repository
         self.transaction_manager = transaction_manager
 
@@ -54,7 +59,20 @@ class DeleteLeadUseCase:
             )
 
             # --------------------------------------------------
-            # 3. Soft-delete Timeline events for the Lead
+            # 3. Soft-delete Calls logged on the Lead, together with
+            #    the Timeline events of every deleted Call
+            # --------------------------------------------------
+
+            for call_id in self.call_repository.soft_delete_by_lead_id(
+                lead_id,
+            ):
+                self.timeline_repository.soft_delete_by_entity(
+                    "CALL",
+                    call_id,
+                )
+
+            # --------------------------------------------------
+            # 4. Soft-delete Timeline events for the Lead
             # --------------------------------------------------
 
             self.timeline_repository.soft_delete_by_entity(

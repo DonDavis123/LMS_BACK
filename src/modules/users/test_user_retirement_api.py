@@ -146,6 +146,7 @@ class UserRetirementApiTests(APITestCase):
             {
                 "leads": 2, "contacts": 2, "accounts": 1, "tasks": 2,
                 "meetings": 2, "reminders": 2, "notifications": 3, "timeline": 1,
+                "calls": 0,
             },
         )
         self.assertEqual(
@@ -154,7 +155,7 @@ class UserRetirementApiTests(APITestCase):
         )
         self.assertEqual(
             dict(data["permanent_deletions"]),
-            {"tasks": 2, "reminders": 2, "notifications": 3},
+            {"tasks": 2, "reminders": 2, "notifications": 3, "calls": 0},
         )
         self.assertEqual(data["user_action"], {"type": "SOFT_DELETE"})
         self.assertTrue(data["can_retire"])

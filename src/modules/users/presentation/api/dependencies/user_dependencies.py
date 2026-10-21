@@ -16,6 +16,9 @@ from src.modules.notifications.infrastructure.persistence.django_notification_re
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import (
     DjangoReminderRepository,
 )
+from src.modules.calls.infrastructure.persistence.django_call_repository import (
+    DjangoCallRepository,
+)
 from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import (
     DjangoTransactionManager,
@@ -163,6 +166,7 @@ def get_delete_user_use_case(ctx: TenantContext) -> DeleteUserUseCase:
         account_repository=DjangoAccountRepository(company_id=ctx.company_id),
         meeting_repository=DjangoMeetingRepository(company_id=ctx.company_id),
         task_repository=DjangoTaskRepository(company_id=ctx.company_id),
+        call_repository=DjangoCallRepository(company_id=ctx.company_id),
         reminder_repository=DjangoReminderRepository(company_id=ctx.company_id),
         notification_repository=DjangoNotificationRepository(company_id=ctx.company_id),
         audit_log_repository=get_user_audit_log_repository(ctx),
@@ -179,6 +183,7 @@ def get_user_deletion_preview_use_case(ctx: TenantContext) -> GetUserDeletionPre
         account_repository=DjangoAccountRepository(company_id=ctx.company_id),
         meeting_repository=DjangoMeetingRepository(company_id=ctx.company_id),
         task_repository=DjangoTaskRepository(company_id=ctx.company_id),
+        call_repository=DjangoCallRepository(company_id=ctx.company_id),
         reminder_repository=DjangoReminderRepository(company_id=ctx.company_id),
         notification_repository=DjangoNotificationRepository(company_id=ctx.company_id),
         timeline_repository=DjangoTimelineRepository(company_id=ctx.company_id),

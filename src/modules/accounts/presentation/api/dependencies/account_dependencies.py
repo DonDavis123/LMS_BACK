@@ -7,6 +7,7 @@ from src.modules.accounts.application.use_cases.delete_account import DeleteAcco
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
+from src.modules.calls.infrastructure.persistence.django_call_repository import DjangoCallRepository
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
 from src.modules.picklists.infrastructure.persistence.django_picklist_repository import DjangoPicklistRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
@@ -52,6 +53,7 @@ def get_delete_account_use_case(ctx: TenantContext) -> DeleteAccountUseCase:
         DjangoAccountRepository(company_id=ctx.company_id),
         DjangoContactRepository(company_id=ctx.company_id),
         DjangoTaskRepository(company_id=ctx.company_id),
+        DjangoCallRepository(company_id=ctx.company_id),
         DjangoTimelineRepository(company_id=ctx.company_id),
         DjangoTransactionManager(),
     )

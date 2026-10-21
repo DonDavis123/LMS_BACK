@@ -6,6 +6,7 @@ from src.modules.accounts.application.dto.delete_account import DeleteAccountDTO
 from src.modules.accounts.application.use_cases.delete_account import DeleteAccountUseCase
 from src.modules.accounts.infrastructure.persistence.django_account_model import DjangoAccountModel
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
+from src.modules.calls.infrastructure.persistence.django_call_repository import DjangoCallRepository
 from src.modules.contacts.application.dto.delete_contact import DeleteContactDTO
 from src.modules.contacts.application.use_cases.delete_contact import DeleteContactUseCase
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
@@ -87,6 +88,7 @@ class TimelineCascadeDeletionTests(TestCase):
         DeleteLeadUseCase(
             DjangoLeadRepository(company_id=default_test_company().id),
             DjangoTaskRepository(company_id=default_test_company().id),
+            DjangoCallRepository(company_id=default_test_company().id),
             DjangoTimelineRepository(company_id=default_test_company().id),
             DjangoTransactionManager(),
         ).execute(self.lead.id)
@@ -115,6 +117,7 @@ class TimelineCascadeDeletionTests(TestCase):
         DeleteContactUseCase(
             DjangoContactRepository(company_id=default_test_company().id),
             DjangoTaskRepository(company_id=default_test_company().id),
+            DjangoCallRepository(company_id=default_test_company().id),
             DjangoTimelineRepository(company_id=default_test_company().id),
             DjangoTransactionManager(),
         ).execute(DeleteContactDTO(contact_id=self.contact.id))
@@ -150,6 +153,7 @@ class TimelineCascadeDeletionTests(TestCase):
             DjangoAccountRepository(company_id=default_test_company().id),
             DjangoContactRepository(company_id=default_test_company().id),
             DjangoTaskRepository(company_id=default_test_company().id),
+            DjangoCallRepository(company_id=default_test_company().id),
             DjangoTimelineRepository(company_id=default_test_company().id),
             DjangoTransactionManager(),
         ).execute(
@@ -196,6 +200,7 @@ class TimelineCascadeDeletionTests(TestCase):
             DjangoAccountRepository(company_id=default_test_company().id),
             DjangoContactRepository(company_id=default_test_company().id),
             DjangoTaskRepository(company_id=default_test_company().id),
+            DjangoCallRepository(company_id=default_test_company().id),
             DjangoTimelineRepository(company_id=default_test_company().id),
             DjangoTransactionManager(),
         ).execute(
@@ -215,6 +220,7 @@ class TimelineCascadeDeletionTests(TestCase):
         use_case = DeleteLeadUseCase(
             DjangoLeadRepository(company_id=default_test_company().id),
             DjangoTaskRepository(company_id=default_test_company().id),
+            DjangoCallRepository(company_id=default_test_company().id),
             FailingTimelineRepository(),
             DjangoTransactionManager(),
         )

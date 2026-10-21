@@ -16,6 +16,7 @@ class _ImpactSerializer(serializers.Serializer):
     reminders = serializers.IntegerField()
     notifications = serializers.IntegerField()
     timeline = serializers.IntegerField()
+    calls = serializers.IntegerField()
 
 
 class _TransferRequiredSerializer(serializers.Serializer):
@@ -29,6 +30,7 @@ class _PermanentDeletionsSerializer(serializers.Serializer):
     tasks = serializers.IntegerField()
     reminders = serializers.IntegerField()
     notifications = serializers.IntegerField()
+    calls = serializers.IntegerField()
 
 
 class _UserActionSerializer(serializers.Serializer):

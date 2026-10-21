@@ -83,6 +83,7 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.account_repository = Mock()
         self.meeting_repository = Mock()
         self.task_repository = Mock()
+        self.call_repository = Mock()
         self.reminder_repository = Mock()
         self.notification_repository = Mock()
         self.audit_log_repository = Mock()
@@ -106,6 +107,7 @@ class DeleteUserValidationTests(SimpleTestCase):
             self.account_repository,
             self.meeting_repository,
             self.task_repository,
+            self.call_repository,
             self.reminder_repository,
             self.notification_repository,
             self.audit_log_repository,
@@ -121,6 +123,7 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.account_repository.transfer_ownership.assert_not_called()
         self.meeting_repository.transfer_host.assert_not_called()
         self.task_repository.delete_by_owner_id.assert_not_called()
+        self.call_repository.delete_by_owner_id.assert_not_called()
         self.reminder_repository.delete_by_user_id.assert_not_called()
         self.notification_repository.delete_by_user_id.assert_not_called()
         self.user_repository.soft_delete.assert_not_called()
@@ -169,6 +172,7 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.account_repository.transfer_ownership.assert_not_called()
         self.meeting_repository.transfer_host.assert_not_called()
         self.task_repository.delete_by_owner_id.assert_called_once_with(self.target.id)
+        self.call_repository.delete_by_owner_id.assert_called_once_with(self.target.id)
         self.reminder_repository.delete_by_user_id.assert_called_once_with(self.target.id)
         self.notification_repository.delete_by_user_id.assert_called_once_with(self.target.id)
         self.user_repository.soft_delete.assert_called_once()
@@ -250,6 +254,7 @@ class DeleteUserValidationTests(SimpleTestCase):
         self.account_repository.transfer_ownership.assert_called_once_with(**kwargs)
         self.meeting_repository.transfer_host.assert_called_once_with(**kwargs)
         self.task_repository.delete_by_owner_id.assert_called_once_with(self.target.id)
+        self.call_repository.delete_by_owner_id.assert_called_once_with(self.target.id)
         self.reminder_repository.delete_by_user_id.assert_called_once_with(self.target.id)
         self.notification_repository.delete_by_user_id.assert_called_once_with(self.target.id)
         self.user_repository.soft_delete.assert_called_once()

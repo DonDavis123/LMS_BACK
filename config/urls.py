@@ -50,6 +50,10 @@ urlpatterns = [
         include("src.modules.tasks.presentation.api.urls"),
     ),
     path(
+        "api/calls/",
+        include("src.modules.calls.presentation.api.urls"),
+    ),
+    path(
         "api/dashboard/",
         include("src.modules.dashboard.presentation.api.urls"),
     ),

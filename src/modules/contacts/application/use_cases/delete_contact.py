@@ -1,5 +1,8 @@
 from uuid import UUID
 
+from src.modules.calls.application.interfaces.call_repository import (
+    CallRepository,
+)
 from src.modules.contacts.application.dto.delete_contact import DeleteContactDTO
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
@@ -20,11 +23,13 @@ class DeleteContactUseCase:
         self,
         contact_repository: ContactRepository,
         task_repository: TaskRepository,
+        call_repository: CallRepository,
         timeline_repository: TimelineRepository,
         transaction_manager: TransactionManager,
     ):
         self.contact_repository = contact_repository
         self.task_repository = task_repository
+        self.call_repository = call_repository
         self.timeline_repository = timeline_repository
         self.transaction_manager = transaction_manager
 
@@ -55,6 +60,19 @@ class DeleteContactUseCase:
             self.task_repository.soft_delete_by_contact_id(
                 data.contact_id,
             )
+
+            # --------------------------------------------------
+            # Soft-delete Calls logged on the Contact, together with
+            # the Timeline events of every deleted Call
+            # --------------------------------------------------
+
+            for call_id in self.call_repository.soft_delete_by_contact_id(
+                data.contact_id,
+            ):
+                self.timeline_repository.soft_delete_by_entity(
+                    "CALL",
+                    call_id,
+                )
 
             # --------------------------------------------------
             # Soft-delete Timeline events for the Contact
