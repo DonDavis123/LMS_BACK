@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from django.db.models import Q
+from django.db.models import Q, UUIDField
 from django.db.models.functions import Coalesce, Lower
 
 from src.modules.tasks.application.dto.get_task import GetTaskDTO
@@ -225,6 +225,21 @@ class DjangoTaskRepository(TaskRepository):
             elif field in uuid_fields:
                 queryset = DjangoTaskRepository._apply_uuid_filter(
                     queryset, uuid_fields[field], operator, value, field
+                )
+            elif field == "responsible":
+                # The user a task is actually for: its assignee when there
+                # is one, otherwise its owner. Used by the dashboard so an
+                # assigned task shows for the assignee, not for the owner.
+                if "responsible_id" not in queryset.query.annotations:
+                    queryset = queryset.annotate(
+                        responsible_id=Coalesce(
+                            "assigned_to_id",
+                            "owner_id",
+                            output_field=UUIDField(),
+                        )
+                    )
+                queryset = DjangoTaskRepository._apply_uuid_filter(
+                    queryset, "responsible_id", operator, value, field
                 )
             elif field == "related_to":
                 queryset = DjangoTaskRepository._apply_related_to_filter(
