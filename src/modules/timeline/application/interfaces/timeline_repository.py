@@ -43,3 +43,17 @@ class TimelineRepository(ABC):
     @abstractmethod
     def count_by_actor_id(self, actor_id: UUID) -> int:
         pass
+
+    def get_latest_for_entities(
+        self,
+        entity_type: str,
+        entity_ids: list[UUID],
+        event_type_prefix: str | None = None,
+    ) -> dict[UUID, dict]:
+        """Newest active timeline event of each entity (``{entity_id: event}``).
+
+        ``event_type_prefix`` limits the events considered (e.g. ``"CALL_"``).
+        Entities without a matching event are left out. Not abstract so
+        existing in-memory test doubles keep working.
+        """
+        raise NotImplementedError

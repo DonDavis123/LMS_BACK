@@ -101,6 +101,47 @@ class DjangoTimelineRepository(TimelineRepository):
             })
         return result
 
+    def get_latest_for_entities(
+        self,
+        entity_type: str,
+        entity_ids: list[UUID],
+        event_type_prefix: str | None = None,
+    ) -> dict[UUID, dict]:
+        ids = list(entity_ids)
+        if not ids:
+            return {}
+
+        rows = TimelineEventTarget.objects.filter(
+            event__company_id=self._company_id,
+            entity_type=entity_type,
+            entity_id__in=ids,
+            is_deleted=False,
+            event__is_deleted=False,
+        )
+        if event_type_prefix:
+            rows = rows.filter(event__event_type__startswith=event_type_prefix)
+
+        # One row per entity: the newest event (DISTINCT ON entity_id).
+        rows = (
+            rows.select_related("event", "event__actor")
+            .order_by("entity_id", "-event__created_at", "-event__id")
+            .distinct("entity_id")
+        )
+
+        latest: dict[UUID, dict] = {}
+        for row in rows:
+            event = row.event
+            actor_name = getattr(event.actor, "name", None) or event.actor.email
+            latest[row.entity_id] = {
+                "id": event.id,
+                "event_type": event.event_type,
+                "actor": {"id": event.actor_id, "name": actor_name},
+                "message": event.message,
+                "metadata": event.metadata,
+                "created_at": event.created_at,
+            }
+        return latest
+
     def soft_delete_by_entity(
         self,
         entity_type: str,

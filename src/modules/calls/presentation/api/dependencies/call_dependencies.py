@@ -3,6 +3,8 @@ from src.modules.accounts.infrastructure.persistence.django_account_repository i
 from src.modules.calls.application.use_cases.create_call import CreateCallUseCase
 from src.modules.calls.application.use_cases.delete_call import DeleteCallUseCase
 from src.modules.calls.application.use_cases.get_call import GetCallDetailUseCase
+from src.modules.calls.application.use_cases.get_call_record_history import GetCallRecordHistoryUseCase
+from src.modules.calls.application.use_cases.get_call_records import GetCallRecordsUseCase
 from src.modules.calls.application.use_cases.get_calls import GetCallsUseCase
 from src.modules.calls.application.use_cases.update_call import UpdateCallUseCase
 from src.modules.calls.infrastructure.persistence.django_call_repository import DjangoCallRepository
@@ -43,6 +45,20 @@ def get_call_detail_use_case(ctx: TenantContext) -> GetCallDetailUseCase:
 
 def get_calls_use_case(ctx: TenantContext) -> GetCallsUseCase:
     return GetCallsUseCase(DjangoCallRepository(company_id=ctx.company_id))
+
+
+def get_call_records_use_case(ctx: TenantContext) -> GetCallRecordsUseCase:
+    return GetCallRecordsUseCase(
+        DjangoCallRepository(company_id=ctx.company_id),
+        DjangoTimelineRepository(company_id=ctx.company_id),
+    )
+
+
+def get_call_record_history_use_case(ctx: TenantContext) -> GetCallRecordHistoryUseCase:
+    return GetCallRecordHistoryUseCase(
+        DjangoCallRepository(company_id=ctx.company_id),
+        DjangoTimelineRepository(company_id=ctx.company_id),
+    )
 
 
 def get_update_call_use_case(ctx: TenantContext) -> UpdateCallUseCase:

@@ -1,7 +1,24 @@
 from datetime import date, datetime
 from uuid import UUID
 
+from django.db.models import (
+    Case,
+    Count,
+    DateTimeField,
+    F,
+    IntegerField,
+    Max,
+    OuterRef,
+    Q,
+    Subquery,
+    UUIDField,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
+
 from src.modules.calls.application.dto.get_call import GetCallDTO
+from src.modules.calls.application.dto.get_call_record import GetCallRecordDTO
 from src.modules.calls.application.interfaces.call_repository import (
     CallRepository,
 )
@@ -37,6 +54,16 @@ class DjangoCallRepository(CallRepository):
     }
 
     DEFAULT_ORDERING = ("-call_start_time", "-id")
+
+    # Columns of the one-row-per-record list. The call columns sort by the
+    # record's latest call; the other two by annotations built below.
+    RECORD_SORTABLE_FIELDS = {
+        **SORTABLE_FIELDS,
+        "call_count": SortableField("record_call_count"),
+        "last_updated_at": SortableField("record_last_updated_at"),
+    }
+
+    RECORD_DEFAULT_ORDERING = ("-record_last_updated_at", "-id")
 
     def save(self, call: Call) -> Call:
         model, created = self._base_queryset().update_or_create(
@@ -101,6 +128,76 @@ class DjangoCallRepository(CallRepository):
 
         return PaginatedResult(
             results=[self._to_dto(model) for model in models],
+            page=query.page,
+            page_size=query.page_size,
+            total=total,
+        )
+
+    def get_record_summaries(
+        self,
+        query: ListQuery,
+    ) -> PaginatedResult[GetCallRecordDTO]:
+        """One row per lead / contact instead of one row per call.
+
+        Each call row is kept only when it is the newest call of its lead or
+        contact (a call belongs to exactly one of them). The record's call
+        count and last-updated time are computed over the same (filtered)
+        calls, so they always agree with the row that is shown.
+        """
+        filtered = self._apply_filters(
+            self._base_queryset().filter(is_deleted=False),
+            query.filters,
+        )
+
+        def per_record(field: str):
+            return filtered.filter(**{field: OuterRef(field)}).order_by()
+
+        def newest_id(field: str):
+            return per_record(field).order_by("-call_start_time", "-id").values("id")[:1]
+
+        def call_count(field: str):
+            return per_record(field).values(field).annotate(total=Count("id")).values("total")
+
+        def last_updated(field: str):
+            return per_record(field).values(field).annotate(latest=Max("updated_at")).values("latest")
+
+        def by_record(builder, output_field):
+            # A call has a lead XOR a contact (CheckConstraint).
+            return Case(
+                When(
+                    Q(lead_id__isnull=False),
+                    then=Subquery(builder("lead_id"), output_field=output_field),
+                ),
+                default=Subquery(builder("contact_id"), output_field=output_field),
+                output_field=output_field,
+            )
+
+        queryset = (
+            filtered.annotate(
+                record_latest_call_id=by_record(newest_id, UUIDField()),
+                record_call_count=Coalesce(
+                    by_record(call_count, IntegerField()),
+                    Value(0),
+                ),
+                record_last_updated_at=by_record(last_updated, DateTimeField()),
+            )
+            .filter(id=F("record_latest_call_id"))
+            .select_related("owner", "lead", "contact", "account")
+        )
+
+        total = queryset.count()
+        queryset = apply_ordering(
+            queryset,
+            query,
+            self.RECORD_SORTABLE_FIELDS,
+            default_ordering=self.RECORD_DEFAULT_ORDERING,
+        )
+
+        offset = (query.page - 1) * query.page_size
+        models = queryset[offset:offset + query.page_size]
+
+        return PaginatedResult(
+            results=[self._to_record_dto(model) for model in models],
             page=query.page,
             page_size=query.page_size,
             total=total,
@@ -367,6 +464,26 @@ class DjangoCallRepository(CallRepository):
             contact_name=model.contact.name if model.contact else None,
             account_name=model.account.account_name if model.account else None,
             owner_name=model.owner.name if model.owner else None,
+        )
+
+    @staticmethod
+    def _to_record_dto(model: DjangoCallModel) -> GetCallRecordDTO:
+        latest_call = DjangoCallRepository._to_dto(model)
+
+        if model.lead_id:
+            record_type, record_id = "LEAD", model.lead_id
+            record_name = latest_call.lead_name
+        else:
+            record_type, record_id = "CONTACT", model.contact_id
+            record_name = latest_call.contact_name
+
+        return GetCallRecordDTO(
+            record_type=record_type,
+            record_id=record_id,
+            record_name=record_name,
+            call_count=model.record_call_count,
+            last_updated_at=model.record_last_updated_at,
+            latest_call=latest_call,
         )
 
     @staticmethod

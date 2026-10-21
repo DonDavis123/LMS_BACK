@@ -18,7 +18,9 @@ Unauthenticated requests get `401`/`403`.
 |---|---|---|
 | `GET` | `/api/calls/` | Paginated, filterable list (no history in the rows). |
 | `POST` | `/api/calls/` | Log a call from a lead or from a contact. |
+| `GET` | `/api/calls/records/` | **One row per lead / contact** (latest call, call count, latest update). Powers the Calls table. |
 | `GET` | `/api/calls/<call_id>/` | Call detail with `change_history` and `related_calls`. |
+| `GET` | `/api/calls/<call_id>/history/` | Detailed history of **every call** on the same lead / contact (date and time, duration, notes, edits). |
 | `PATCH` | `/api/calls/<call_id>/` | Edit start time, duration, type, outcome or description. |
 | `DELETE` | `/api/calls/<call_id>/` | Soft delete. |
 | `GET` | `/api/timeline/calls/<call_id>/` | Raw timeline events of one call (`CALL` entity type). |
@@ -170,6 +172,118 @@ Response `200`:
 ```
 
 List rows never include history; use the detail endpoint for that.
+
+## `GET /api/calls/records/`
+
+The Calls table lists every lead / contact **once**, however many calls were
+logged on it. Same query parameters as `GET /api/calls/` (`page`, `page_size`,
+`sort_by`, `sort_direction`, `filters`) and the same filter fields. Filters apply
+to the calls first, so a record is listed when at least one of its calls
+matches, and `call_count` / `latest_call` are computed over the matching calls.
+
+Without `sort_by` the list is the most recently logged-or-edited record first
+(`last_updated_at` descending).
+
+Sortable columns: `call_start_time`, `duration_seconds`, `outcome`, `call_type`,
+`created_at` (all of the record's latest call), plus `call_count` and
+`last_updated_at`.
+
+Response `200`:
+
+```json
+{
+  "results": [
+    {
+      "record_type": "LEAD",
+      "record_id": "6d1f0c3e-0f4c-4a52-9a67-3c2f3b0c9a11",
+      "record_name": "Priya Nair",
+      "call_count": 3,
+      "last_updated_at": "2026-10-21T12:02:40.118204+05:30",
+      "latest_call": {
+        "id": "f4c7d1a0-3b52-4a68-8f0e-2f6a9c1d7e44",
+        "lead_id": "6d1f0c3e-0f4c-4a52-9a67-3c2f3b0c9a11",
+        "lead_name": "Priya Nair",
+        "contact_id": null,
+        "contact_name": null,
+        "account_id": null,
+        "account_name": null,
+        "owner_id": "2f9b6a64-5a3e-4d27-b0a1-9c6f7e2d1a55",
+        "owner_name": "Asha Verma",
+        "call_type": "Outbound",
+        "outcome": "Connected",
+        "call_start_time": "2026-10-21T10:30:00+05:30",
+        "duration_seconds": 300,
+        "duration_label": "5 min 0 sec",
+        "description": "Customer asked for a revised quote.",
+        "entry_method": "MANUAL",
+        "created_by_id": "2f9b6a64-5a3e-4d27-b0a1-9c6f7e2d1a55",
+        "created_at": "2026-10-21T10:36:12.482911+05:30",
+        "updated_at": "2026-10-21T12:02:40.118204+05:30"
+      },
+      "latest_update": {
+        "id": "9c2d51a8-6f0b-4b79-8a41-1d3e5f7a9b01",
+        "event_type": "CALL_UPDATED",
+        "actor": { "id": "2f9b6a64-5a3e-4d27-b0a1-9c6f7e2d1a55", "name": "Asha Verma" },
+        "message": "Call was updated. Changes: Duration (seconds): 250 → 300",
+        "call_id": "f4c7d1a0-3b52-4a68-8f0e-2f6a9c1d7e44",
+        "changes": { "duration_seconds": { "old_value": 250, "new_value": 300 } },
+        "created_at": "2026-10-21T12:02:40.131552+05:30"
+      }
+    }
+  ],
+  "pagination": { "page": 1, "page_size": 10, "total": 1, "total_pages": 1 }
+}
+```
+
+- `latest_call` has exactly the fields of a `GET /api/calls/` row; open
+  `/api/calls/<latest_call.id>/` for its detail.
+- `latest_update` is the newest call event on the record (`CALL_LOGGED`,
+  `CALL_UPDATED` or `CALL_DELETED`); `changes` is `{}` unless it is a
+  `CALL_UPDATED`. It is `null` for calls that have no timeline event.
+- `GET /api/calls/` is unchanged and still returns one row per call (used by the
+  per-lead / per-contact call panels).
+
+## `GET /api/calls/<call_id>/history/`
+
+Detailed history of the lead / contact the call belongs to: every call that was
+logged, edited or deleted on it, newest first. Each event carries a `call`
+snapshot — the call **as it was at that moment** (rebuilt by undoing later edits,
+so it is exact for older calls too). `duration_seconds` is `0` when no duration
+was entered and `description` is `null` when there are no notes; clients show
+them only when present. `call.*` fields can be `null` for a deleted call whose
+original values were never recorded.
+
+Response `200`:
+
+```json
+{
+  "related_record": { "type": "LEAD", "id": "6d1f0c3e-0f4c-4a52-9a67-3c2f3b0c9a11", "name": "Priya Nair" },
+  "total_calls_for_record": 2,
+  "events": [
+    {
+      "id": "9c2d51a8-6f0b-4b79-8a41-1d3e5f7a9b01",
+      "event_type": "CALL_UPDATED",
+      "call_id": "f4c7d1a0-3b52-4a68-8f0e-2f6a9c1d7e44",
+      "actor": { "id": "2f9b6a64-5a3e-4d27-b0a1-9c6f7e2d1a55", "name": "Asha Verma" },
+      "message": "Call was updated. Changes: Duration (seconds): 250 → 300",
+      "changes": { "duration_seconds": { "old_value": 250, "new_value": 300 } },
+      "created_at": "2026-10-21T12:02:40.131552+05:30",
+      "call": {
+        "call_start_time": "2026-10-21T10:30:00+05:30",
+        "call_type": "Outbound",
+        "outcome": "Connected",
+        "duration_seconds": 300,
+        "duration_label": "5 min 0 sec",
+        "description": "Customer asked for a revised quote.",
+        "owner_name": "Asha Verma"
+      }
+    }
+  ]
+}
+```
+
+A call of another company, a deleted call or an unknown id returns `404`
+`{"detail": "Call not found."}`.
 
 ## `GET /api/calls/<call_id>/`
 

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from src.modules.calls.application.dto.get_call import GetCallDTO
+from src.modules.calls.application.dto.get_call_record import GetCallRecordDTO
 from src.modules.calls.domain.entities.call import Call
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
@@ -23,6 +24,18 @@ class CallRepository(ABC):
     @abstractmethod
     def get_all_with_relations(self, query: ListQuery) -> PaginatedResult[GetCallDTO]:
         pass
+
+    def get_record_summaries(
+        self,
+        query: ListQuery,
+    ) -> PaginatedResult[GetCallRecordDTO]:
+        """One row per lead/contact: its latest call, call count and last update.
+
+        Filters apply to the calls first, so a record only appears when at
+        least one of its calls matches. Not abstract so existing in-memory
+        test doubles keep working.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def get_by_related_record(
