@@ -66,6 +66,7 @@ MISMATCH_CHECKS: tuple[tuple[str, type[Model], str, str], ...] = (
     ("contact vs account", DjangoContactModel, "company", "account__company"),
     ("contact vs contact_owner", DjangoContactModel, "company", "contact_owner__company"),
     ("task vs owner", DjangoTaskModel, "company", "owner__company"),
+    ("task vs assigned_to", DjangoTaskModel, "company", "assigned_to__company"),
     ("task vs lead", DjangoTaskModel, "company", "lead__company"),
     ("task vs contact", DjangoTaskModel, "company", "contact__company"),
     ("task vs account", DjangoTaskModel, "company", "account__company"),

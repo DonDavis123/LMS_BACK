@@ -129,12 +129,12 @@ class DjangoNotificationModel(models.Model):
                 name="notification_read_state_match",
             ),
             models.UniqueConstraint(
-                fields=["notification_type", "scheduled_for", "reminder"],
+                fields=["notification_type", "scheduled_for", "reminder", "user"],
                 condition=models.Q(reminder__isnull=False),
                 name="notification_reminder_event_unique",
             ),
             models.UniqueConstraint(
-                fields=["notification_type", "scheduled_for", "task"],
+                fields=["notification_type", "scheduled_for", "task", "user"],
                 condition=models.Q(task__isnull=False),
                 name="notification_task_event_unique",
             ),

@@ -58,7 +58,17 @@ class CreateNotificationUseCase:
             if reminder is None:
                 raise ValueError("Selected reminder not found.")
             if reminder.user_id != data.user_id:
-                raise ValueError("Selected reminder does not belong to the notification user.")
+                # A task reminder is also delivered to the task's assignee.
+                reminder_task = (
+                    self.task_repository.get_by_id(reminder.task_id)
+                    if reminder.task_id is not None
+                    else None
+                )
+                if (
+                    reminder_task is None
+                    or reminder_task.assigned_to_id != data.user_id
+                ):
+                    raise ValueError("Selected reminder does not belong to the notification user.")
 
         notification = Notification.create(
             notification_type=data.notification_type,
@@ -78,6 +88,7 @@ class CreateNotificationUseCase:
                 task_id=notification.task_id,
                 meeting_id=notification.meeting_id,
                 reminder_id=notification.reminder_id,
+                user_id=notification.user_id,
             )
             if existing is not None:
                 return existing

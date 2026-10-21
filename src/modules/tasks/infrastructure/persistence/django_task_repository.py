@@ -39,6 +39,7 @@ class DjangoTaskRepository(TaskRepository):
         # the list is actually sorted by "Related To".
         "related_to": SortableField("related_to_sort"),
         "owner": SortableField("owner__name", is_text=True),
+        "assigned_to": SortableField("assigned_to__name", is_text=True),
         "created_at": SortableField("created_at"),
     }
 
@@ -63,6 +64,7 @@ class DjangoTaskRepository(TaskRepository):
                 "due_date": task.due_date,
                 "priority": task.priority.value,
                 "owner_id": task.owner_id,
+                "assigned_to_id": task.assigned_to_id,
                 "reminder_at": task.reminder_at,
                 "lead_id": task.lead_id,
                 "contact_id": task.contact_id,
@@ -88,7 +90,7 @@ class DjangoTaskRepository(TaskRepository):
         try:
             model = (
                 self._base_queryset()
-                .select_related("owner", "lead", "contact", "account")
+                .select_related("owner", "assigned_to", "lead", "contact", "account")
                 .get(id=task_id, is_deleted=False)
             )
         except DjangoTaskModel.DoesNotExist:
@@ -100,6 +102,7 @@ class DjangoTaskRepository(TaskRepository):
             contact_name=model.contact.name if model.contact else None,
             account_name=model.account.account_name if model.account else None,
             owner_name=model.owner.name if model.owner else None,
+            assigned_to_name=model.assigned_to.name if model.assigned_to else None,
         )
 
     def get_by_due_date_range(self, start_date: date, end_date: date) -> list[Task]:
@@ -119,6 +122,7 @@ class DjangoTaskRepository(TaskRepository):
             self._base_queryset()
             .select_related(
                 "owner",
+                "assigned_to",
                 "created_by",
                 "lead",
                 "contact",
@@ -145,7 +149,7 @@ class DjangoTaskRepository(TaskRepository):
     def get_all_with_relations(self, query: ListQuery) -> PaginatedResult[GetTaskDTO]:
         queryset = (
             self._base_queryset()
-            .select_related("owner", "lead", "contact", "account")
+            .select_related("owner", "assigned_to", "lead", "contact", "account")
             .filter(is_deleted=False)
         )
 
@@ -165,6 +169,7 @@ class DjangoTaskRepository(TaskRepository):
                     contact_name=model.contact.name if model.contact else None,
                     account_name=model.account.account_name if model.account else None,
                     owner_name=model.owner.name if model.owner else None,
+                    assigned_to_name=model.assigned_to.name if model.assigned_to else None,
                 )
                 for model in models
             ],
@@ -193,6 +198,7 @@ class DjangoTaskRepository(TaskRepository):
         uuid_fields = {
             "created_by": "created_by_id",
             "owner": "owner_id",
+            "assigned_to": "assigned_to_id",
         }
 
         for condition in filters:
@@ -443,4 +449,5 @@ class DjangoTaskRepository(TaskRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
             is_deleted=model.is_deleted,
+            assigned_to_id=model.assigned_to_id,
         )

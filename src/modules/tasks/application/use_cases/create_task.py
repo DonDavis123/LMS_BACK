@@ -68,6 +68,15 @@ class CreateTaskUseCase:
                 "Task owner must be an ADMIN or SUPERADMIN."
             )
 
+        if data.assigned_to_id is not None:
+            assignee = self.user_repository.get_by_id(data.assigned_to_id)
+
+            if assignee is None or assignee.is_deleted:
+                raise ValueError("Assigned user does not exist.")
+
+            if not assignee.is_active:
+                raise ValueError("Assigned user is inactive.")
+
         creator = self.user_repository.get_by_id(data.created_by_id)
 
         if creator is None:
@@ -121,6 +130,7 @@ class CreateTaskUseCase:
             account_id=data.account_id,
             status=data.status,
             description=data.description,
+            assigned_to_id=data.assigned_to_id,
         )
 
         def creation():

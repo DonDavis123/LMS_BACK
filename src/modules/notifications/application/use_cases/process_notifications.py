@@ -65,7 +65,22 @@ class ProcessNotificationsUseCase:
             reminders_processed += 1
             try:
                 def process_reminder():
-                    _, duplicate = self._create_reminder_notification(reminder)
+                    # The reminder's user (task owner) and, for task
+                    # reminders, the assigned user both get a notification.
+                    recipients = self._reminder_recipients(reminder)
+                    results = [
+                        self._create_reminder_notification(reminder, recipients[0])
+                    ]
+                    # The owner's notification is required; an unavailable
+                    # assignee (e.g. inactive) must not block it.
+                    for user_id in recipients[1:]:
+                        try:
+                            results.append(
+                                self._create_reminder_notification(reminder, user_id)
+                            )
+                        except ValueError:
+                            pass
+                    duplicate = all(was_duplicate for _, was_duplicate in results)
 
                     # A reminder is a one-time scheduling record. Once its
                     # notification has been successfully created (or an
@@ -93,18 +108,22 @@ class ProcessNotificationsUseCase:
                 else NotificationType.TASK_DUE_ONE_DAY
             )
             scheduled_for = self._local_midnight(today if task.due_date == today else tomorrow, local_now.tzinfo)
-            try:
-                created, duplicate = self._create_task_notification(
-                    task,
-                    notification_type,
-                    scheduled_for,
-                )
-                if duplicate:
-                    duplicates += 1
-                elif created:
-                    task_created += 1
-            except ValueError:
-                failures += 1
+            # Owner and assigned user are each notified independently, so a
+            # failure for one recipient never blocks the other.
+            for user_id in self._task_recipients(task):
+                try:
+                    created, duplicate = self._create_task_notification(
+                        task,
+                        notification_type,
+                        scheduled_for,
+                        user_id,
+                    )
+                    if duplicate:
+                        duplicates += 1
+                    elif created:
+                        task_created += 1
+                except ValueError:
+                    failures += 1
 
         start_today = self._local_midnight(today, local_now.tzinfo)
         start_after_tomorrow = self._local_midnight(tomorrow + timedelta(days=1), local_now.tzinfo)
@@ -149,13 +168,36 @@ class ProcessNotificationsUseCase:
             failures=failures,
         )
 
-    def _create_reminder_notification(self, reminder):
+    @staticmethod
+    def _task_recipients(task):
+        recipients = [task.owner_id]
+        assigned_to_id = getattr(task, "assigned_to_id", None)
+        if assigned_to_id is not None and assigned_to_id != task.owner_id:
+            recipients.append(assigned_to_id)
+        return recipients
+
+    def _reminder_recipients(self, reminder):
+        recipients = [reminder.user_id]
+        if reminder.task_id is not None:
+            task = self.task_repository.get_by_id(reminder.task_id)
+            assigned_to_id = getattr(task, "assigned_to_id", None)
+            if (
+                task is not None
+                and not task.is_deleted
+                and assigned_to_id is not None
+                and assigned_to_id != reminder.user_id
+            ):
+                recipients.append(assigned_to_id)
+        return recipients
+
+    def _create_reminder_notification(self, reminder, user_id):
         existing = self.notification_repository.get_existing_for_source(
             notification_type=NotificationType.REMINDER,
             scheduled_for=reminder.remind_at,
             task_id=reminder.task_id,
             meeting_id=reminder.meeting_id,
             reminder_id=reminder.id,
+            user_id=user_id,
         )
         if existing is not None:
             return existing, True
@@ -164,7 +206,7 @@ class ProcessNotificationsUseCase:
                 notification_type=NotificationType.REMINDER,
                 title="Reminder",
                 message=reminder.subject,
-                user_id=reminder.user_id,
+                user_id=user_id,
                 scheduled_for=reminder.remind_at,
                 task_id=reminder.task_id,
                 meeting_id=reminder.meeting_id,
@@ -173,11 +215,12 @@ class ProcessNotificationsUseCase:
         )
         return notification, False
 
-    def _create_task_notification(self, task, notification_type, scheduled_for):
+    def _create_task_notification(self, task, notification_type, scheduled_for, user_id):
         existing = self.notification_repository.get_existing_for_source(
             notification_type=notification_type,
             scheduled_for=scheduled_for,
             task_id=task.id,
+            user_id=user_id,
         )
         if existing is not None:
             return existing, True
@@ -190,7 +233,7 @@ class ProcessNotificationsUseCase:
                     if notification_type == NotificationType.TASK_DUE_TODAY
                     else f"{task.subject} is due tomorrow."
                 ),
-                user_id=task.owner_id,
+                user_id=user_id,
                 scheduled_for=scheduled_for,
                 task_id=task.id,
             )

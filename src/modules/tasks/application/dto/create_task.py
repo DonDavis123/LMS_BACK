@@ -19,3 +19,4 @@ class CreateTaskDTO:
     account_id: UUID | None = None
     status: TaskStatus = TaskStatus.NOT_STARTED
     description: str | None = None
+    assigned_to_id: UUID | None = None

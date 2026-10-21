@@ -30,6 +30,9 @@ from src.modules.users.application.use_cases.block_user import BlockUserUseCase
 from src.modules.users.application.use_cases.create_user import CreateUserUseCase
 from src.modules.users.application.use_cases.delete_user import DeleteUserUseCase
 from src.modules.users.application.use_cases.get_current_user import GetCurrentUserUseCase
+from src.modules.users.application.use_cases.get_assignable_users import (
+    GetAssignableUsersUseCase,
+)
 from src.modules.users.application.use_cases.get_lead_owners import GetLeadOwnersUseCase
 from src.modules.users.application.use_cases.get_user_details import GetUserDetailsUseCase
 from src.modules.users.application.use_cases.get_user_deletion_preview import (
@@ -184,6 +187,12 @@ def get_user_deletion_preview_use_case(ctx: TenantContext) -> GetUserDeletionPre
 
 def get_lead_owners_use_case(ctx: TenantContext) -> GetLeadOwnersUseCase:
     return GetLeadOwnersUseCase(
+        user_repository=get_user_repository(ctx),
+    )
+
+
+def get_assignable_users_use_case(ctx: TenantContext) -> GetAssignableUsersUseCase:
+    return GetAssignableUsersUseCase(
         user_repository=get_user_repository(ctx),
     )
 

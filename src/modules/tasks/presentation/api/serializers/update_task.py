@@ -15,6 +15,7 @@ class UpdateTaskSerializer(serializers.Serializer):
         required=False,
     )
     owner_id = serializers.UUIDField(required=False)
+    assigned_to_id = serializers.UUIDField(required=False, allow_null=True)
     reminder_at = serializers.DateTimeField(required=False, allow_null=True)
     lead_id = serializers.UUIDField(required=False, allow_null=True)
     contact_id = serializers.UUIDField(required=False, allow_null=True)

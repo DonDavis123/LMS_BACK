@@ -15,6 +15,8 @@ class TaskReadSerializer(serializers.Serializer):
     priority = serializers.CharField(source="task.priority.value")
     owner_id = serializers.UUIDField(source="task.owner_id")
     owner_name = serializers.CharField(allow_null=True)
+    assigned_to_id = serializers.UUIDField(source="task.assigned_to_id", allow_null=True)
+    assigned_to_name = serializers.CharField(allow_null=True)
     reminder_at = serializers.DateTimeField(source="task.reminder_at", allow_null=True)
 
     lead_id = serializers.UUIDField(source="task.lead_id", allow_null=True)

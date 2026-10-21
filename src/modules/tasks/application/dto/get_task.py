@@ -18,3 +18,4 @@ class GetTaskDTO:
     contact_name: str | None
     account_name: str | None
     owner_name: str | None = None
+    assigned_to_name: str | None = None

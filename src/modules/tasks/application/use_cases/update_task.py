@@ -50,6 +50,7 @@ class UpdateTaskUseCase:
             "due_date",
             "priority",
             "owner_id",
+            "assigned_to_id",
             "reminder_at",
             "lead_id",
             "contact_id",
@@ -88,6 +89,18 @@ class UpdateTaskUseCase:
                     raise ValueError(
                         "Task owner must be an ADMIN or SUPERADMIN."
                     )
+
+            # Validate the assignee (optional; null clears the assignment).
+            if fields.get("assigned_to_id") is not None:
+                assignee = self.user_repository.get_by_id(
+                    fields["assigned_to_id"]
+                )
+
+                if assignee is None or assignee.is_deleted:
+                    raise ValueError("Assigned user does not exist.")
+
+                if not assignee.is_active:
+                    raise ValueError("Assigned user is inactive.")
 
             # Apply requested changes.
             for field in updateable_fields:
@@ -167,6 +180,13 @@ class UpdateTaskUseCase:
                         )
                         else None
                     ),
+                    "assigned_to_id": lambda user_id: (
+                        user.name
+                        if (
+                            user := self.user_repository.get_by_id(user_id)
+                        )
+                        else None
+                    ),
                     "lead_id": lambda lead_id: (
                         lead.name
                         if (
@@ -223,6 +243,7 @@ class UpdateTaskUseCase:
                         "due_date": "Due Date",
                         "priority": "Priority",
                         "owner_id": "Task Owner",
+                        "assigned_to_id": "Assigned To",
                         "reminder_at": "Reminder",
                         "lead_id": "Lead",
                         "contact_id": "Contact",

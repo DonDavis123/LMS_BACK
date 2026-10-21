@@ -38,6 +38,10 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
+    def get_assignable_users(self) -> list[User]:
+        pass
+
+    @abstractmethod
     def get_all(
         self,
         query: ListQuery,

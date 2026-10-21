@@ -47,6 +47,14 @@ class DjangoTaskModel(models.Model):
         related_name="owned_tasks",
     )
 
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="assigned_tasks",
+        blank=True,
+        null=True,
+    )
+
     reminder_at = models.DateTimeField(
         blank=True,
         null=True,

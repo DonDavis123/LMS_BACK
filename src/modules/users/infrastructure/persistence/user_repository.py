@@ -119,6 +119,18 @@ class DjangoUserRepository(UserRepository):
             for django_user in django_users
         ]
 
+    def get_assignable_users(self) -> list[User]:
+
+        django_users = self._base_queryset().filter(
+            is_active=True,
+            deleted_at__isnull=True,
+        ).order_by("name")
+
+        return [
+            self._to_domain(django_user)
+            for django_user in django_users
+        ]
+
     def get_all(
         self,
         query: ListQuery,

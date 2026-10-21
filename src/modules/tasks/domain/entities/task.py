@@ -23,6 +23,7 @@ class Task:
     created_at: datetime
     updated_at: datetime
     is_deleted: bool
+    assigned_to_id: UUID | None = None
 
     def soft_delete(self) -> None:
         if self.is_deleted:
@@ -44,6 +45,7 @@ class Task:
         account_id: UUID | None = None,
         status: TaskStatus = TaskStatus.NOT_STARTED,
         description: str | None = None,
+        assigned_to_id: UUID | None = None,
     ) -> "Task":
         now = datetime.utcnow()
 
@@ -63,4 +65,5 @@ class Task:
             created_at=now,
             updated_at=now,
             is_deleted=False,
+            assigned_to_id=assigned_to_id,
         )

@@ -65,6 +65,7 @@ class TaskListView(APIView):
             account_id=data.get("account_id"),
             status=TaskStatus(data["status"]),
             description=data.get("description"),
+            assigned_to_id=data.get("assigned_to_id"),
         )
 
         try:

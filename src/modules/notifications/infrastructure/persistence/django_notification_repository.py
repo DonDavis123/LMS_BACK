@@ -56,6 +56,7 @@ class DjangoNotificationRepository(NotificationRepository):
                 task_id=notification.task_id,
                 meeting_id=notification.meeting_id,
                 reminder_id=notification.reminder_id,
+                user_id=notification.user_id,
             )
             if existing is None:
                 raise
@@ -119,11 +120,15 @@ class DjangoNotificationRepository(NotificationRepository):
         task_id: UUID | None = None,
         meeting_id: UUID | None = None,
         reminder_id: UUID | None = None,
+        user_id: UUID | None = None,
     ) -> Notification | None:
         queryset = self._base_queryset().filter(
             notification_type=notification_type.value,
             scheduled_for=scheduled_for,
         )
+
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
 
         if task_id is not None:
             queryset = queryset.filter(task_id=task_id)

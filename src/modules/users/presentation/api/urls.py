@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .views.assignable_users import GetAssignableUsersView
 from .views.block_user import BlockUserView
 from .views.create_user import CreateUserView
 from .views.get_current_user import GetCurrentUserView
@@ -22,6 +23,11 @@ urlpatterns = [
         "users/me/",
         GetCurrentUserView.as_view(),
         name="current-user",
+    ),
+    path(
+        "users/assignable/",
+        GetAssignableUsersView.as_view(),
+        name="assignable-users",
     ),
     path(
         "users/audit-logs/",
