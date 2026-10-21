@@ -5,6 +5,7 @@ from django.db.models import F, Model
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
+from src.modules.calls.infrastructure.persistence.models import DjangoCallModel
 from src.modules.contacts.infrastructure.persistence.django_contact_model import (
     DjangoContactModel,
 )
@@ -52,6 +53,7 @@ NULL_COMPANY_CHECKS: tuple[tuple[str, type[Model]], ...] = (
     ("contacts", DjangoContactModel),
     ("tasks", DjangoTaskModel),
     ("meetings", DjangoMeetingModel),
+    ("calls", DjangoCallModel),
     ("reminders", DjangoReminderModel),
     ("notifications", DjangoNotificationModel),
     ("timeline events", TimelineEvent),
@@ -70,6 +72,10 @@ MISMATCH_CHECKS: tuple[tuple[str, type[Model], str, str], ...] = (
     ("task vs lead", DjangoTaskModel, "company", "lead__company"),
     ("task vs contact", DjangoTaskModel, "company", "contact__company"),
     ("task vs account", DjangoTaskModel, "company", "account__company"),
+    ("call vs owner", DjangoCallModel, "company", "owner__company"),
+    ("call vs lead", DjangoCallModel, "company", "lead__company"),
+    ("call vs contact", DjangoCallModel, "company", "contact__company"),
+    ("call vs account", DjangoCallModel, "company", "account__company"),
     ("meeting vs host", DjangoMeetingModel, "company", "host__company"),
     (
         "meeting participant (user) vs meeting",

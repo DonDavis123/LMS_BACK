@@ -8,6 +8,7 @@ from django.utils import timezone
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
+from src.modules.calls.infrastructure.persistence.models import DjangoCallModel
 from src.modules.companies.infrastructure.persistence.django_company_model import (
     DjangoCompanyModel,
 )
@@ -115,6 +116,16 @@ class AuditTenantDataTests(TestCase):
             **relations,
         )
 
+    def make_call(self, owner, company, **relations):
+        return DjangoCallModel.objects.create(
+            owner=owner,
+            created_by=owner,
+            company=company,
+            outcome="Connected",
+            call_start_time=self.now,
+            **relations,
+        )
+
     def make_meeting(self, host, company):
         return DjangoMeetingModel.objects.create(
             title="Meeting",
@@ -138,6 +149,8 @@ class AuditTenantDataTests(TestCase):
             contact=contact,
             account=account,
         )
+        self.make_call(user, company, lead=lead)
+        self.make_call(user, company, contact=contact, account=account)
         meeting = self.make_meeting(user, company)
 
         DjangoMeetingParticipantModel.objects.create(
@@ -309,6 +322,21 @@ class AuditTenantDataTests(TestCase):
         self.assertEqual(
             {name for name, count in counts.items() if count},
             {"task vs lead"},
+        )
+
+    def test_call_with_contact_from_another_company_exits_one(self):
+        foreign_owner = self.make_user("foreign@example.com", self.other_company)
+        foreign_contact = self.make_contact(foreign_owner, self.other_company)
+        self.make_call(self.user, self.company, contact=foreign_contact)
+
+        code, output = run_audit_command()
+        counts = self.counts(run_tenant_data_audit())
+
+        self.assertEqual(code, 1, output)
+        self.assertEqual(counts["call vs contact"], 1)
+        self.assertEqual(
+            {name for name, count in counts.items() if count},
+            {"call vs contact"},
         )
 
     def test_lead_owned_by_user_of_another_company_is_reported(self):
