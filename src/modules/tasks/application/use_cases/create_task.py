@@ -77,6 +77,9 @@ class CreateTaskUseCase:
             if not assignee.is_active:
                 raise ValueError("Assigned user is inactive.")
 
+            if data.assigned_to_id == data.created_by_id:
+                raise ValueError("A task cannot be assigned to yourself.")
+
         creator = self.user_repository.get_by_id(data.created_by_id)
 
         if creator is None:

@@ -38,7 +38,10 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    def get_assignable_users(self) -> list[User]:
+    def get_assignable_users(
+        self,
+        exclude_user_id: UUID | None = None,
+    ) -> list[User]:
         pass
 
     @abstractmethod

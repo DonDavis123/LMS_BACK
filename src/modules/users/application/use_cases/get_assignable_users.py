@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from src.modules.users.application.dto.assignable_users import (
     AssignableUserResponseDTO,
 )
@@ -11,9 +13,14 @@ class GetAssignableUsersUseCase:
     def __init__(self, user_repository: UserRepository):
         self.user_repository = user_repository
 
-    def execute(self) -> list[AssignableUserResponseDTO]:
+    def execute(
+        self,
+        exclude_user_id: UUID | None = None,
+    ) -> list[AssignableUserResponseDTO]:
 
-        users = self.user_repository.get_assignable_users()
+        users = self.user_repository.get_assignable_users(
+            exclude_user_id=exclude_user_id,
+        )
 
         return [
             AssignableUserResponseDTO(

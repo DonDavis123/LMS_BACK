@@ -102,6 +102,15 @@ class UpdateTaskUseCase:
                 if not assignee.is_active:
                     raise ValueError("Assigned user is inactive.")
 
+                # Only a *new* self-assignment is rejected, so the assignee
+                # can still edit other fields of a task assigned to them.
+                if (
+                    current_user_id is not None
+                    and fields["assigned_to_id"] == current_user_id
+                    and fields["assigned_to_id"] != task.assigned_to_id
+                ):
+                    raise ValueError("A task cannot be assigned to yourself.")
+
             # Apply requested changes.
             for field in updateable_fields:
                 if field in fields:

@@ -119,12 +119,19 @@ class DjangoUserRepository(UserRepository):
             for django_user in django_users
         ]
 
-    def get_assignable_users(self) -> list[User]:
+    def get_assignable_users(
+        self,
+        exclude_user_id: UUID | None = None,
+    ) -> list[User]:
 
-        django_users = self._base_queryset().filter(
+        queryset = self._base_queryset().filter(
             is_active=True,
             deleted_at__isnull=True,
-        ).order_by("name")
+        )
+        if exclude_user_id is not None:
+            queryset = queryset.exclude(id=exclude_user_id)
+
+        django_users = queryset.order_by("name")
 
         return [
             self._to_domain(django_user)

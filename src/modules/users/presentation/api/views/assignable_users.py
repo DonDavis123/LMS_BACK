@@ -13,7 +13,11 @@ from ..serializers.assignable_user import AssignableUserSerializer
 
 
 class GetAssignableUsersView(APIView):
-    """Dropdown source for "Assigned To": active users of the caller's company."""
+    """Dropdown source for "Assigned To": active users of the caller's company.
+
+    ``?exclude_self=true`` leaves the logged-in user out (a task cannot be
+    assigned to yourself); without it every active company user is listed.
+    """
 
     permission_classes = [
         IsAuthenticated,
@@ -25,7 +29,15 @@ class GetAssignableUsersView(APIView):
 
         use_case = get_assignable_users_use_case(ctx)
 
-        users = use_case.execute()
+        exclude_self = request.query_params.get("exclude_self", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+
+        users = use_case.execute(
+            exclude_user_id=request.user.id if exclude_self else None,
+        )
 
         serializer = AssignableUserSerializer(
             users,
