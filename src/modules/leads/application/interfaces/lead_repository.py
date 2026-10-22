@@ -42,3 +42,12 @@ class LeadRepository(ABC):
     @abstractmethod
     def count_by_owner_id(self, owner_id: UUID) -> int:
         pass
+
+    @abstractmethod
+    def get_by_email(self, email: str) -> Lead | None:
+        """The most recently created non-deleted lead with this email
+        (case-insensitive) in the repository's company, or ``None``.
+
+        Converted leads are returned too; the caller decides what to do.
+        """
+        pass

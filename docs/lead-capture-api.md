@@ -209,6 +209,16 @@ eligible rotation owner after `last_assigned_position` (wrapping around).
 Each submission locks the form row, so concurrent submissions rotate correctly;
 `submission_count` and `last_submission_at` are updated in the same transaction.
 
+The form must also render a hidden, empty `fax_number` field (a honeypot): real
+visitors never fill it, so if it is non-empty the API answers the usual `201`
+but stores nothing and changes no counter. If a non-deleted lead in the company
+already has the same email (case-insensitive), that lead is updated instead of
+a new one being created: `name` and `phone` are replaced and the new message is
+appended to `description` under a dated separator; owner, source and status stay
+the same, the rotation pointer does not move, and the response is identical so
+the visitor cannot tell the email already existed. If the matching lead has
+already been converted it is left untouched and a new lead is created as usual.
+
 ### Protection against abuse
 
 **Throttling (per client IP).** Only the public form is throttled; no other

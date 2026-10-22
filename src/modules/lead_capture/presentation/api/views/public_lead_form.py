@@ -24,6 +24,9 @@ from ..throttles import PublicLeadFormThrottle
 # Far above any valid submission (the field limits add up to ~2.5 KB).
 MAX_BODY_BYTES = 10 * 1024
 
+HONEYPOT_FIELD = "fax_number"
+SUCCESS_MESSAGE = "Thanks, we've received your details."
+
 
 class RequestBodyTooLarge(APIException):
     status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
@@ -78,23 +81,46 @@ class PublicLeadFormView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @staticmethod
+    def _success() -> Response:
+        # Never return the lead or any id. The same body for a new lead, a
+        # duplicate email and a honeypot hit, so nobody can tell them apart.
+        return Response(
+            {"detail": SUCCESS_MESSAGE},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @staticmethod
+    def _honeypot_filled(data) -> bool:
+        value = data.get(HONEYPOT_FIELD) if hasattr(data, "get") else None
+        return isinstance(value, str) and bool(value.strip())
+
     def post(self, request, token):
+        # Honeypot first: no token lookup, no validation, no database work.
+        # A bot gets the same 201 as a real visitor and nothing is stored.
+        if self._honeypot_filled(request.data):
+            return self._success()
+
         target = self._target(token)
 
         serializer = PublicLeadSubmissionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # The honeypot is never part of the submission itself (here it is
+        # blank or absent).
+        fields = {
+            key: value
+            for key, value in serializer.validated_data.items()
+            if key != HONEYPOT_FIELD
+        }
+
         try:
             get_submit_public_lead_use_case(target.company_id).execute(
-                PublicLeadSubmissionDTO(**serializer.validated_data)
+                PublicLeadSubmissionDTO(**fields)
             )
         except FormNotAcceptingResponses:
             return Response(
                 {"detail": NOT_ACCEPTING_MESSAGE}, status=status.HTTP_410_GONE
             )
 
-        # Never return the lead or any id.
-        return Response(
-            {"detail": "Thanks, we've received your details."},
-            status=status.HTTP_201_CREATED,
-        )
+        return self._success()

@@ -121,6 +121,18 @@ class DjangoLeadRepository(LeadRepository):
             model.owner.name,
         )
 
+    def get_by_email(self, email: str) -> Lead | None:
+        email = (email or "").strip()
+        if not email:
+            return None
+        model = (
+            self._base_queryset()
+            .filter(email__iexact=email, is_deleted=False)
+            .order_by("-created_at")
+            .first()
+        )
+        return self._to_domain(model) if model is not None else None
+
     def get_all(self) -> list[Lead]:
         models = self._base_queryset().filter(
             is_deleted=False,

@@ -221,3 +221,115 @@ class PublicLeadFormTests(APITestCase):
         self.assertEqual(form.daily_submission_count, 1)
         self.assertEqual(form.submission_count, 2)
         self.assertEqual(DjangoLeadModel.objects.count(), 2)
+
+    # ------------------------------------------------- honeypot / duplicates
+
+    def test_honeypot_filled_is_201_and_creates_nothing(self):
+        token = self.configure()
+        url = f"{PUBLIC}{token}/"
+
+        response = self.visitor.post(url, payload(fax_number="12345"), format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        self.assertEqual(response.json(), {"detail": "Thanks, we've received your details."})
+
+        self.assertEqual(DjangoLeadModel.objects.count(), 0)
+        form = DjangoLeadFormModel.objects.get(company_id=self.company.id)
+        self.assertEqual(form.submission_count, 0)
+        self.assertEqual(form.daily_submission_count, 0)
+        self.assertIsNone(form.last_submission_at)
+
+        # A blank honeypot is a normal submission; other unknown fields still fail.
+        blank = self.visitor.post(url, payload(fax_number=""), format="json")
+        self.assertEqual(blank.status_code, status.HTTP_201_CREATED, blank.content)
+        self.assertEqual(DjangoLeadModel.objects.count(), 1)
+        bad = self.visitor.post(url, payload(email="x@example.com", other="1"), format="json")
+        self.assertEqual(bad.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_duplicate_email_updates_existing_lead_with_identical_response(self):
+        token = self.configure()
+        url = f"{PUBLIC}{token}/"
+
+        first = self.visitor.post(url, payload(), format="json")
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED, first.content)
+        before = DjangoLeadModel.objects.get()
+
+        second = self.visitor.post(
+            url,
+            payload(
+                email="VISITOR@Example.COM",
+                name="Visitor Renamed",
+                phone="1112223333",
+                description="Please call me instead.",
+            ),
+            format="json",
+        )
+        self.assertEqual(second.status_code, first.status_code)
+        self.assertEqual(second.content, first.content)
+
+        self.assertEqual(DjangoLeadModel.objects.count(), 1)
+        lead = DjangoLeadModel.objects.get()
+        self.assertEqual(lead.id, before.id)
+        self.assertEqual(lead.name, "Visitor Renamed")
+        self.assertEqual(lead.phone, "1112223333")
+        self.assertEqual(
+            lead.description,
+            f"{MESSAGE}\n\n--- {timezone.localdate():%d %b %Y} ---\nPlease call me instead.",
+        )
+        self.assertEqual(lead.email, before.email)
+        self.assertEqual(lead.owner_id, before.owner_id)
+        self.assertEqual(lead.lead_source, before.lead_source)
+        self.assertEqual(lead.lead_status, before.lead_status)
+
+    def test_duplicate_does_not_advance_rotation_but_counts_submission(self):
+        token = self.configure(
+            assignment_mode="ROTATION",
+            rotation_owner_ids=[str(self.admin_1.id), str(self.admin_2.id)],
+            single_owner_id=None,
+        )
+        url = f"{PUBLIC}{token}/"
+
+        self.assertEqual(
+            self.visitor.post(url, payload(), format="json").status_code,
+            status.HTTP_201_CREATED,
+        )
+        form = DjangoLeadFormModel.objects.get(company_id=self.company.id)
+        pointer = form.last_assigned_position
+        self.assertIsNotNone(pointer)
+
+        again = self.visitor.post(url, payload(name="Same Person"), format="json")
+        self.assertEqual(again.status_code, status.HTTP_201_CREATED, again.content)
+
+        form.refresh_from_db()
+        self.assertEqual(form.last_assigned_position, pointer)
+        self.assertEqual(form.submission_count, 2)
+        self.assertEqual(form.daily_submission_count, 2)
+        self.assertEqual(DjangoLeadModel.objects.count(), 1)
+
+        # The next NEW email still goes to the next owner in the rotation.
+        self.visitor.post(url, payload(email="next@example.com"), format="json")
+        owners = list(
+            DjangoLeadModel.objects.order_by("created_at").values_list("owner_id", flat=True)
+        )
+        self.assertEqual(owners, [self.admin_1.id, self.admin_2.id])
+
+    def test_converted_matching_lead_is_ignored_and_a_new_lead_is_created(self):
+        token = self.configure()
+        url = f"{PUBLIC}{token}/"
+
+        self.assertEqual(
+            self.visitor.post(url, payload(), format="json").status_code,
+            status.HTTP_201_CREATED,
+        )
+        converted = DjangoLeadModel.objects.get()
+        DjangoLeadModel.objects.filter(id=converted.id).update(is_converted=True)
+
+        response = self.visitor.post(url, payload(name="Returning Visitor"), format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+
+        self.assertEqual(DjangoLeadModel.objects.count(), 2)
+        converted.refresh_from_db()
+        self.assertEqual(converted.name, "Visitor One")
+        self.assertEqual(converted.description, MESSAGE)
+        fresh = DjangoLeadModel.objects.exclude(id=converted.id).get()
+        self.assertEqual(fresh.name, "Returning Visitor")
+        self.assertFalse(fresh.is_converted)

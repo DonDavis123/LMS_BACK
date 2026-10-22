@@ -23,8 +23,12 @@ from src.modules.lead_capture.application.use_cases.update_lead_form import (
 from src.modules.lead_capture.infrastructure.persistence.django_public_lead_form_lookup import (
     DjangoPublicLeadFormLookup,
 )
+from src.modules.leads.infrastructure.persistence.django_lead_repository import (
+    DjangoLeadRepository,
+)
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_create_lead_use_case,
+    get_update_lead_use_case,
 )
 from src.modules.lead_capture.infrastructure.persistence.django_lead_form_repository import (
     DjangoLeadFormRepository,
@@ -98,6 +102,8 @@ def get_submit_public_lead_use_case(company_id: UUID) -> SubmitPublicLeadUseCase
     return SubmitPublicLeadUseCase(
         DjangoLeadFormRepository(company_id=company_id),
         DjangoUserRepository(company_id=company_id),
+        DjangoLeadRepository(company_id=company_id),
         get_create_lead_use_case,
+        get_update_lead_use_case,
         DjangoTransactionManager(),
     )
