@@ -110,7 +110,30 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": (
         "src.modules.shared.presentation.exception_handler.api_exception_handler"
     ),
+    # Throttle rates for the public lead-capture form (see
+    # src/modules/lead_capture/presentation/api/throttles.py). There is
+    # deliberately NO DEFAULT_THROTTLE_CLASSES: no other endpoint is throttled.
+    # Counters live in Django's cache; the default cache (LocMemCache) is
+    # per process, so each worker process enforces its own limit.
+    "DEFAULT_THROTTLE_RATES": {
+        "lead_capture_submit": os.getenv("LEAD_CAPTURE_SUBMIT_RATE", "10/hour"),
+        "lead_capture_view": os.getenv("LEAD_CAPTURE_VIEW_RATE", "120/hour"),
+    },
+    # The app runs behind a reverse proxy, so REMOTE_ADDR is the proxy, not
+    # the visitor. With NUM_PROXIES = n, DRF takes the client IP from
+    # X-Forwarded-For, counting n trusted proxies from the right. Set it to
+    # the exact number of proxies in front of the app. If it is left unset
+    # while behind a proxy, DRF trusts the whole X-Forwarded-For header, which
+    # a client can forge to dodge the limit (and with no header at all, all
+    # visitors share the proxy's address).
+    "NUM_PROXIES": (
+        int(os.environ["NUM_PROXIES"]) if os.getenv("NUM_PROXIES") else None
+    ),
 }
+
+# Maximum accepted submissions per form per local day (TIME_ZONE). Once
+# reached, the public form answers 410 until the next day.
+LEAD_CAPTURE_DAILY_CAP = int(os.getenv("LEAD_CAPTURE_DAILY_CAP", "500"))
 
 
 # -------------------------------------------------------------------

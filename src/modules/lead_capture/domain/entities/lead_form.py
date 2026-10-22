@@ -1,6 +1,6 @@
 import secrets
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from src.modules.lead_capture.domain.entities.assignment_mode import AssignmentMode
@@ -49,6 +49,10 @@ class LeadForm:
     # users module's "lead owners" rule). It is not stored, so a deactivated
     # or deleted owner is noticed immediately.
     eligible_owner_ids: frozenset[UUID] = field(default_factory=frozenset)
+    # Submissions accepted on ``daily_submission_date``; only meaningful while
+    # that date is today (see ``has_reached_daily_cap``).
+    daily_submission_count: int = 0
+    daily_submission_date: date | None = None
 
     # ---------------------------------------------------------------- state
 
@@ -99,6 +103,10 @@ class LeadForm:
                 if owner.position is not None and owner.position > self.last_assigned_position:
                     return owner
         return eligible[0]
+
+    def has_reached_daily_cap(self, today: date, cap: int) -> bool:
+        """True if ``cap`` submissions were already accepted on ``today``."""
+        return self.daily_submission_date == today and self.daily_submission_count >= cap
 
     def block(self) -> None:
         self.is_active = False

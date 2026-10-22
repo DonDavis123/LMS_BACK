@@ -1,3 +1,10 @@
+from datetime import date
+from unittest.mock import patch
+
+from django.conf import settings
+from django.core.cache import cache
+from django.test import override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -32,6 +39,9 @@ def payload(**extra):
 
 class PublicLeadFormTests(APITestCase):
     def setUp(self):
+        # Throttle counters live in the cache: start every test clean.
+        cache.clear()
+        self.addCleanup(cache.clear)
         self.company = make_company("Public Co", "public-co")
         self.super = make_user(self.company, User.Role.SUPERADMIN, "pub-super@example.com")
         self.admin_1 = make_user(self.company, User.Role.ADMIN, "pub-admin-1@example.com")
@@ -147,3 +157,67 @@ class PublicLeadFormTests(APITestCase):
             owners,
             [self.admin_1.id, self.admin_2.id, self.admin_1.id, self.admin_2.id],
         )
+
+    def test_more_posts_than_the_rate_is_429(self):
+        token = self.configure()
+        url = f"{PUBLIC}{token}/"
+        rates = {**settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"], "lead_capture_submit": "2/hour"}
+        with override_settings(
+            REST_FRAMEWORK={**settings.REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": rates}
+        ):
+            for n in range(2):
+                response = self.visitor.post(url, payload(email=f"t{n}@example.com"), format="json")
+                self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+
+            throttled = self.visitor.post(url, payload(email="t3@example.com"), format="json")
+            self.assertEqual(throttled.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+            self.assertIn("detail", throttled.json())
+            self.assertIn("Retry-After", throttled.headers)
+            self.assertEqual(DjangoLeadModel.objects.count(), 2)
+            # GET has its own scope and is not affected.
+            self.assertEqual(self.visitor.get(url).status_code, status.HTTP_200_OK)
+
+    @override_settings(LEAD_CAPTURE_DAILY_CAP=1)
+    def test_daily_cap_reached_is_410_and_creates_no_lead(self):
+        token = self.configure()
+        url = f"{PUBLIC}{token}/"
+
+        first = self.visitor.post(url, payload(), format="json")
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED, first.content)
+
+        second = self.visitor.post(url, payload(email="second@example.com"), format="json")
+        self.assertEqual(second.status_code, status.HTTP_410_GONE)
+        self.assertEqual(second.json(), {"detail": CLOSED})
+        self.assertEqual(DjangoLeadModel.objects.count(), 1)
+
+        form = DjangoLeadFormModel.objects.get(company_id=self.company.id)
+        self.assertEqual(form.submission_count, 1)
+        self.assertEqual(form.daily_submission_count, 1)
+
+    @override_settings(LEAD_CAPTURE_DAILY_CAP=1)
+    def test_daily_counter_resets_on_a_new_date(self):
+        token = self.configure()
+        url = f"{PUBLIC}{token}/"
+        day_1, day_2 = date(2030, 1, 10), date(2030, 1, 11)
+
+        with patch.object(timezone, "localdate", return_value=day_1):
+            self.assertEqual(
+                self.visitor.post(url, payload(), format="json").status_code,
+                status.HTTP_201_CREATED,
+            )
+            self.assertEqual(
+                self.visitor.post(url, payload(email="b@example.com"), format="json").status_code,
+                status.HTTP_410_GONE,
+            )
+
+        with patch.object(timezone, "localdate", return_value=day_2):
+            self.assertEqual(
+                self.visitor.post(url, payload(email="c@example.com"), format="json").status_code,
+                status.HTTP_201_CREATED,
+            )
+
+        form = DjangoLeadFormModel.objects.get(company_id=self.company.id)
+        self.assertEqual(form.daily_submission_date, day_2)
+        self.assertEqual(form.daily_submission_count, 1)
+        self.assertEqual(form.submission_count, 2)
+        self.assertEqual(DjangoLeadModel.objects.count(), 2)

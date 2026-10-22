@@ -1,5 +1,6 @@
 from rest_framework import status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import APIException, NotFound, ParseError
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +19,16 @@ from src.modules.lead_capture.presentation.api.dependencies.lead_form_dependenci
 )
 
 from ..serializers.public_lead_form import PublicLeadSubmissionSerializer
+from ..throttles import PublicLeadFormThrottle
+
+# Far above any valid submission (the field limits add up to ~2.5 KB).
+MAX_BODY_BYTES = 10 * 1024
+
+
+class RequestBodyTooLarge(APIException):
+    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    default_detail = "The request is too large."
+    default_code = "request_too_large"
 
 
 class PublicLeadFormView(APIView):
@@ -26,6 +37,24 @@ class PublicLeadFormView(APIView):
     # AllowAny is even consulted.
     authentication_classes = []
     permission_classes = [AllowAny]
+    # JSON only; anything else is answered 415.
+    parser_classes = [JSONParser]
+    # POST and GET use different scopes, see PublicLeadFormThrottle.
+    throttle_classes = [PublicLeadFormThrottle]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # Runs before the handler, i.e. before the body is read or parsed.
+        # Only the declared Content-Length is checked here; a body sent
+        # without one (chunked) is not caught by this check.
+        declared = request.META.get("CONTENT_LENGTH")
+        if declared:
+            try:
+                size = int(declared)
+            except ValueError:
+                raise ParseError("Invalid Content-Length header.")
+            if size > MAX_BODY_BYTES:
+                raise RequestBodyTooLarge()
 
     @staticmethod
     def _target(token: str):

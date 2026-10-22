@@ -208,3 +208,57 @@ message only, and an owner chosen by the form: the single owner, or the next
 eligible rotation owner after `last_assigned_position` (wrapping around).
 Each submission locks the form row, so concurrent submissions rotate correctly;
 `submission_count` and `last_submission_at` are updated in the same transaction.
+
+### Protection against abuse
+
+**Throttling (per client IP).** Only the public form is throttled; no other
+endpoint is.
+
+| Request | Scope | Default rate | Environment variable |
+|---|---|---|---|
+| `POST` | `lead_capture_submit` | `10/hour` | `LEAD_CAPTURE_SUBMIT_RATE` |
+| `GET` | `lead_capture_view` | `120/hour` | `LEAD_CAPTURE_VIEW_RATE` |
+
+Over the limit the API answers `429` in the usual error shape, with a
+`Retry-After` header (seconds):
+
+```json
+{"detail": "Request was throttled. Expected available in 1800 seconds."}
+```
+
+*Client IP behind a proxy.* The app runs behind a reverse proxy, so the real IP
+comes from `X-Forwarded-For`. Set the environment variable `NUM_PROXIES` to the
+exact number of proxies in front of the app (it is `None` by default). If it is
+unset behind a proxy, DRF trusts the whole header (which a client can forge) or,
+without the header, every visitor shares the proxy's address and one limit.
+
+*Per-process limits.* Counters are kept in Django's cache. The default cache is
+per process, so with several workers each process counts on its own and the
+effective limit is roughly rate x number of processes. A shared cache (for
+example Redis) is needed for an exact global limit.
+
+**Daily cap per form.** A form accepts at most `LEAD_CAPTURE_DAILY_CAP` leads
+per local day (default `500`; the day follows the project `TIME_ZONE`). After
+that, `POST` answers `410` with the same body as a closed form,
+`{"detail": "This form is no longer accepting responses"}`, until the next day.
+The count is kept on the form (`daily_submission_count`, `daily_submission_date`)
+and only counts accepted submissions. `GET` still returns `accepting_responses:
+true`, so the cap is only discovered on submit.
+
+**Request format and size.** The public view accepts JSON only
+(`Content-Type: application/json`); other content types are answered `415`.
+A request whose `Content-Length` is above 10 KB (10240 bytes) is answered `413`
+(`{"detail": "The request is too large."}`) before the body is read. A body sent
+without `Content-Length` (chunked) is not caught by this check.
+
+**Frontend states**
+
+- *Closed* (`GET` has `accepting_responses: false`, or `POST` returns `410`):
+  replace the form with a message such as "This form is no longer accepting
+  responses". Do not offer a retry; this also covers the daily cap.
+- *Too many requests* (`429`): keep the visitor's input, show "Too many
+  requests, please try again later", and disable the submit button for the
+  `Retry-After` seconds.
+- *Thank you* (`201`): hide the form and show the `detail` message (or your own
+  text). Do not resubmit on refresh.
+- `413` and `415` should not happen with the normal form; show a generic error.

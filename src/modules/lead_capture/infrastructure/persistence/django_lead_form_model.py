@@ -62,6 +62,11 @@ class DjangoLeadFormModel(models.Model):
     submission_count = models.PositiveIntegerField(default=0)
     last_submission_at = models.DateTimeField(null=True, blank=True)
 
+    # Accepted submissions on ``daily_submission_date`` (a local date, see
+    # TIME_ZONE). A stale date means the count belongs to a past day.
+    daily_submission_count = models.PositiveIntegerField(default=0)
+    daily_submission_date = models.DateField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

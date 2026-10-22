@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import Case, F, PositiveIntegerField, Value, When
 from django.utils import timezone
 
 from src.modules.lead_capture.application.interfaces.lead_form_repository import (
@@ -97,9 +97,18 @@ class DjangoLeadFormRepository(LeadFormRepository):
         self, form: LeadForm, assigned_position: int | None
     ) -> None:
         now = timezone.now()
+        today = timezone.localdate()
         changes = {
             "submission_count": F("submission_count") + 1,
             "last_submission_at": now,
+            # Daily counter, in the same UPDATE: +1 if the stored date is
+            # today, otherwise it starts over at 1 for today.
+            "daily_submission_count": Case(
+                When(daily_submission_date=today, then=F("daily_submission_count") + 1),
+                default=Value(1),
+                output_field=PositiveIntegerField(),
+            ),
+            "daily_submission_date": today,
             "updated_at": now,
         }
         if assigned_position is not None:
@@ -154,6 +163,8 @@ class DjangoLeadFormRepository(LeadFormRepository):
             last_assigned_position=model.last_assigned_position,
             submission_count=model.submission_count,
             last_submission_at=model.last_submission_at,
+            daily_submission_count=model.daily_submission_count,
+            daily_submission_date=model.daily_submission_date,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

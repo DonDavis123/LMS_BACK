@@ -1,5 +1,8 @@
 from collections.abc import Callable
 
+from django.conf import settings
+from django.utils import timezone
+
 from src.modules.lead_capture.application.dto.public_lead_form_dto import (
     PublicLeadSubmissionDTO,
 )
@@ -45,6 +48,14 @@ class SubmitPublicLeadUseCase:
             # pointer and the counters, and a block that commits first wins.
             form = load_form(self.form_repository, self.user_repository, lock=True)
             if not form.is_active or not form.is_configured:
+                raise FormNotAcceptingResponses()
+
+            # Daily cap: checked under the form lock and before anything is
+            # created, so concurrent submissions cannot overshoot it. Answered
+            # like any other closed form (410).
+            if form.has_reached_daily_cap(
+                timezone.localdate(), settings.LEAD_CAPTURE_DAILY_CAP
+            ):
                 raise FormNotAcceptingResponses()
 
             owner = form.pick_owner()
