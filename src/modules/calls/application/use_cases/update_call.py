@@ -11,6 +11,11 @@ from src.modules.timeline.application.services.change_tracker import (
 
 
 class UpdateCallUseCase:
+    NOT_LATEST_MESSAGE = (
+        "Only the latest call can be updated. "
+        "Earlier calls are kept as read-only history."
+    )
+
     UPDATEABLE_FIELDS = (
         "call_start_time",
         "duration_seconds",
@@ -53,6 +58,11 @@ class UpdateCallUseCase:
 
         if call.is_deleted:
             raise ValueError("Deleted Call cannot be updated.")
+
+        # Once a newer call is logged on the same lead / contact, this one
+        # becomes history and is frozen.
+        if not self._is_latest_call(call):
+            raise ValueError(self.NOT_LATEST_MESSAGE)
 
         fields = data.fields
 
@@ -126,3 +136,21 @@ class UpdateCallUseCase:
             return saved
 
         return self.transaction_manager.execute(update)
+
+    def _is_latest_call(self, call) -> bool:
+        """True when ``call`` is the newest active call of its lead / contact.
+
+        "Newest" uses the same ordering as the repository's related-record
+        listing (call start time, then id, descending).
+        """
+        if call.lead_id is not None:
+            record_filter = {"lead_id": call.lead_id}
+        else:
+            record_filter = {"contact_id": call.contact_id}
+
+        newest = self.call_repository.get_by_related_record(
+            limit=1,
+            **record_filter,
+        )
+
+        return not newest or newest[0].call.id == call.id

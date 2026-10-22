@@ -58,5 +58,6 @@ class CallDetailSerializer(CallReadSerializer):
             many=True,
         ).data
         data["total_calls_for_record"] = instance.total_calls_for_record
+        data["is_latest"] = instance.is_latest
 
         return data

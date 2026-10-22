@@ -52,6 +52,14 @@ class GetCallDetailUseCase:
             **record_filter,
         )
 
+        # ``related_calls`` is newest first, so its head is the newest OTHER
+        # call; this call is the latest unless that one sorts after it
+        # (same ordering as the repository: start time, then id).
+        is_latest = not related_calls or (
+            (call.call_start_time, call.id)
+            > (related_calls[0].call.call_start_time, related_calls[0].call.id)
+        )
+
         return GetCallDetailDTO(
             call=call_dto,
             related_record_type=related_record_type,
@@ -60,4 +68,5 @@ class GetCallDetailUseCase:
             change_history=change_history,
             related_calls=related_calls,
             total_calls_for_record=total_calls_for_record,
+            is_latest=is_latest,
         )

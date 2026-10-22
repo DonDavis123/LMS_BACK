@@ -569,6 +569,53 @@ class CallApplicationTests(unittest.TestCase):
                 UpdateCallDTO(call.id, {"outcome": CallOutcome.BUSY})
             )
 
+    def test_only_the_latest_call_of_a_record_can_be_updated(self):
+        older = self.log_lead_call(call_start_time=started(120), description="old")
+        latest = self.log_lead_call(call_start_time=started(10), description="new")
+        # A call on another record never affects which call is the latest.
+        other_contact_call = self.log_contact_call(call_start_time=started(300))
+        self.timeline.events.clear()
+        saves_before = self.repo.save_count
+
+        with self.assertRaisesRegex(ValueError, "Only the latest call"):
+            self.update_use_case.execute(
+                UpdateCallDTO(older.id, {"outcome": CallOutcome.BUSY})
+            )
+
+        self.assertEqual(self.repo.calls[older.id].outcome, CallOutcome.CONNECTED)
+        self.assertEqual(self.repo.save_count, saves_before)
+        self.assertEqual(self.timeline.events, [])
+
+        updated = self.update_use_case.execute(
+            UpdateCallDTO(latest.id, {"outcome": CallOutcome.BUSY})
+        )
+        self.assertEqual(updated.outcome, CallOutcome.BUSY)
+
+        updated = self.update_use_case.execute(
+            UpdateCallDTO(other_contact_call.id, {"outcome": CallOutcome.BUSY})
+        )
+        self.assertEqual(updated.outcome, CallOutcome.BUSY)
+
+    def test_previous_call_becomes_updatable_again_when_latest_is_deleted(self):
+        older = self.log_lead_call(call_start_time=started(120))
+        latest = self.log_lead_call(call_start_time=started(10))
+
+        self.delete_use_case.execute(latest.id)
+
+        updated = self.update_use_case.execute(
+            UpdateCallDTO(older.id, {"outcome": CallOutcome.BUSY})
+        )
+        self.assertEqual(updated.outcome, CallOutcome.BUSY)
+
+    def test_detail_reports_whether_the_call_is_the_latest(self):
+        older = self.log_lead_call(call_start_time=started(120))
+        latest = self.log_lead_call(call_start_time=started(10))
+        only = self.log_contact_call(call_start_time=started(60))
+
+        self.assertFalse(self.detail_use_case.execute(older.id).is_latest)
+        self.assertTrue(self.detail_use_case.execute(latest.id).is_latest)
+        self.assertTrue(self.detail_use_case.execute(only.id).is_latest)
+
     # -- delete -------------------------------------------------------------
 
     def test_delete_soft_deletes_and_records_timeline(self):

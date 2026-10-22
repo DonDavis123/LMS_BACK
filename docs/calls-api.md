@@ -329,6 +329,7 @@ Response `200` (a call that was logged and then edited once):
   "created_by_id": "2f9b6a64-5a3e-4d27-b0a1-9c6f7e2d1a55",
   "created_at": "2026-10-21T10:36:12.482911+05:30",
   "updated_at": "2026-10-21T12:02:40.118204+05:30",
+  "is_latest": true,
   "related_record": {
     "type": "LEAD",
     "id": "6d1f0c3e-0f4c-4a52-9a67-3c2f3b0c9a11",
@@ -394,6 +395,12 @@ Only fields whose value actually changed are written to the timeline: a
 (empty body, same values, same instant in another UTC offset) returns `200`
 and writes no event.
 
+**Only the latest call can be updated.** A call is the latest when it has the
+newest `call_start_time` (ties broken by id) among the active calls of its lead
+/ contact. Once a newer call exists, the older one is read-only history and
+`PATCH` returns `400` `{"detail": "Only the latest call can be updated. Earlier calls are kept as read-only history."}`.
+`GET /api/calls/<call_id>/` exposes this as `is_latest`.
+
 Response `200`: the same shape as the `POST` response.
 
 ## `DELETE /api/calls/<call_id>/`
@@ -433,7 +440,7 @@ for tasks.
 | Status | When | Body |
 |---|---|---|
 | `400` | Field validation (wrong type/choice, duration outside `0`–`86400`, description over 1000 characters, unknown or immutable field on `PATCH`) | DRF field errors, e.g. `{"duration_seconds": ["Ensure this value is less than or equal to 86400."]}` |
-| `400` | Business rules: neither lead nor contact, both, account without contact, start time more than 5 minutes in the future, deleted/unknown lead, contact or account, invalid owner, bad `filters`/`sort_by` | `{"detail": "..."}` |
+| `400` | Business rules: updating a call that is no longer the latest on its lead / contact, neither lead nor contact, both, account without contact, start time more than 5 minutes in the future, deleted/unknown lead, contact or account, invalid owner, bad `filters`/`sort_by` | `{"detail": "..."}` |
 | `401` / `403` | Not authenticated, no company, suspended company | |
 | `404` | Unknown, deleted or foreign call on detail/`PATCH`/`DELETE`/call timeline | `{"detail": "Call not found."}` |
 

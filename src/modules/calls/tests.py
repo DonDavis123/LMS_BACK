@@ -822,6 +822,47 @@ class CallUpdateTests(CallApiTestCase):
         self.assertEqual(DjangoCallModel.objects.get(id=call["id"]).duration_seconds, 60)
         self.assertEqual(TimelineEvent.objects.filter(event_type="CALL_UPDATED").count(), 0)
 
+    def test_only_the_latest_call_can_be_updated(self):
+        older = self._create_ok(
+            lead_id=str(self.lead.id),
+            call_start_time=(self.now - timedelta(hours=3)).isoformat(),
+            description="older",
+        )
+        latest = self._create_ok(
+            lead_id=str(self.lead.id),
+            call_start_time=(self.now - timedelta(hours=1)).isoformat(),
+            description="latest",
+        )
+
+        response = self.client.patch(
+            f"/api/calls/{older['id']}/", {"description": "edited"}, format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Only the latest call", response.data["detail"])
+        self.assertEqual(DjangoCallModel.objects.get(id=older["id"]).description, "older")
+        self.assertEqual(TimelineEvent.objects.filter(event_type="CALL_UPDATED").count(), 0)
+
+        response = self.client.patch(
+            f"/api/calls/{latest['id']}/", {"description": "edited"}, format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(DjangoCallModel.objects.get(id=latest["id"]).description, "edited")
+
+    def test_detail_exposes_is_latest_flag(self):
+        older = self._create_ok(
+            contact_id=str(self.contact.id),
+            call_start_time=(self.now - timedelta(hours=3)).isoformat(),
+        )
+        latest = self._create_ok(
+            contact_id=str(self.contact.id),
+            call_start_time=(self.now - timedelta(hours=1)).isoformat(),
+        )
+
+        self.assertFalse(self.client.get(f"/api/calls/{older['id']}/").data["is_latest"])
+        self.assertTrue(self.client.get(f"/api/calls/{latest['id']}/").data["is_latest"])
+
     def test_patch_unknown_call_returns_404(self):
         response = self.client.patch(
             f"/api/calls/{uuid.uuid4()}/", {"description": "x"}, format="json",
