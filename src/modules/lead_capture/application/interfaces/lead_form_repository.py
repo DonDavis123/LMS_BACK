@@ -25,3 +25,14 @@ class LeadFormRepository(ABC):
     def save(self, form: LeadForm) -> LeadForm:
         """Persist the editable settings, the token, the block state and the
         ordered rotation owners. Counters are never written here."""
+
+    @abstractmethod
+    def record_submission(
+        self, form: LeadForm, assigned_position: int | None
+    ) -> None:
+        """Count one accepted submission: ``submission_count`` + 1,
+        ``last_submission_at`` = now and, when ``assigned_position`` is not
+        ``None``, ``last_assigned_position`` = that rotation position.
+
+        Call it inside the transaction that holds ``get_for_update``'s lock.
+        """

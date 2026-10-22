@@ -76,6 +76,30 @@ class LeadForm:
 
     # ------------------------------------------------------------- behaviour
 
+    def pick_owner(self) -> FormOwner | None:
+        """The owner the next submitted lead goes to, or ``None``.
+
+        SINGLE_OWNER: the configured owner, if eligible.
+        ROTATION: the first eligible owner whose position is after
+        ``last_assigned_position`` (in order), wrapping around to the first
+        eligible one. Ineligible owners are skipped. Needs
+        ``eligible_owner_ids`` to be filled in.
+        """
+        if self.assignment_mode is AssignmentMode.SINGLE_OWNER:
+            return self.single_owner if self.has_eligible_owner else None
+
+        eligible = sorted(
+            self.eligible_rotation_owners,
+            key=lambda owner: -1 if owner.position is None else owner.position,
+        )
+        if not eligible:
+            return None
+        if self.last_assigned_position is not None:
+            for owner in eligible:
+                if owner.position is not None and owner.position > self.last_assigned_position:
+                    return owner
+        return eligible[0]
+
     def block(self) -> None:
         self.is_active = False
 

@@ -91,4 +91,9 @@ urlpatterns = [
         include("src.modules.lead_capture.presentation.api.urls"),
     ),
 
+    path(
+        "api/public/lead-forms/",
+        include("src.modules.lead_capture.presentation.api.public_urls"),
+    ),
+
 ]

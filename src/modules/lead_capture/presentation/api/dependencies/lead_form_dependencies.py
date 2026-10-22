@@ -1,3 +1,8 @@
+from uuid import UUID
+
+from src.modules.lead_capture.application.interfaces.public_lead_form_lookup import (
+    PublicFormTarget,
+)
 from src.modules.lead_capture.application.use_cases.change_lead_form_state import (
     BlockLeadFormUseCase,
     RegenerateLeadFormLinkUseCase,
@@ -6,8 +11,20 @@ from src.modules.lead_capture.application.use_cases.change_lead_form_state impor
 from src.modules.lead_capture.application.use_cases.get_lead_form import (
     GetLeadFormUseCase,
 )
+from src.modules.lead_capture.application.use_cases.get_public_lead_form import (
+    GetPublicLeadFormUseCase,
+)
+from src.modules.lead_capture.application.use_cases.submit_public_lead import (
+    SubmitPublicLeadUseCase,
+)
 from src.modules.lead_capture.application.use_cases.update_lead_form import (
     UpdateLeadFormUseCase,
+)
+from src.modules.lead_capture.infrastructure.persistence.django_public_lead_form_lookup import (
+    DjangoPublicLeadFormLookup,
+)
+from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
+    get_create_lead_use_case,
 )
 from src.modules.lead_capture.infrastructure.persistence.django_lead_form_repository import (
     DjangoLeadFormRepository,
@@ -60,3 +77,27 @@ def get_regenerate_lead_form_link_use_case(
     ctx: TenantContext,
 ) -> RegenerateLeadFormLinkUseCase:
     return RegenerateLeadFormLinkUseCase(*_state_args(ctx))
+
+
+# ------------------------------------------------------------------- public
+
+
+def resolve_public_form(public_token: str) -> PublicFormTarget | None:
+    """Token -> company. The only non-tenant lookup (see the lookup class)."""
+    return DjangoPublicLeadFormLookup().find_by_token(public_token)
+
+
+def get_public_lead_form_use_case(company_id: UUID) -> GetPublicLeadFormUseCase:
+    return GetPublicLeadFormUseCase(
+        DjangoLeadFormRepository(company_id=company_id),
+        DjangoUserRepository(company_id=company_id),
+    )
+
+
+def get_submit_public_lead_use_case(company_id: UUID) -> SubmitPublicLeadUseCase:
+    return SubmitPublicLeadUseCase(
+        DjangoLeadFormRepository(company_id=company_id),
+        DjangoUserRepository(company_id=company_id),
+        get_create_lead_use_case,
+        DjangoTransactionManager(),
+    )

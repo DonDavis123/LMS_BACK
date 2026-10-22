@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
+from django.db.models import F
 from django.utils import timezone
 
 from src.modules.lead_capture.application.interfaces.lead_form_repository import (
@@ -91,6 +92,21 @@ class DjangoLeadFormRepository(LeadFormRepository):
 
         self._replace_rotation(form)
         return self._to_domain(self._queryset().select_related("single_owner").get(id=form.id))
+
+    def record_submission(
+        self, form: LeadForm, assigned_position: int | None
+    ) -> None:
+        now = timezone.now()
+        changes = {
+            "submission_count": F("submission_count") + 1,
+            "last_submission_at": now,
+            "updated_at": now,
+        }
+        if assigned_position is not None:
+            changes["last_assigned_position"] = assigned_position
+        updated = self._queryset().filter(id=form.id).update(**changes)
+        if not updated:
+            raise ValueError("Lead form not found.")
 
     def _replace_rotation(self, form: LeadForm) -> None:
         wanted = [(o.id, index) for index, o in enumerate(form.rotation_owners)]

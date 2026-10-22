@@ -166,3 +166,45 @@ applied one after the other and never overwrite each other. Counters
 - `public_url` is `"/lead/<token>"` (no host) if `FRONTEND_URL` is not configured on the server.
 - Show a warning when `needs_attention` is `true` and offer to fix the owners or block the form.
 - Owner choices come from `GET /api/lead-owners/`; lead source choices from `GET /api/picklists/leads/lead_source/`.
+
+---
+
+## Public endpoints
+
+No login. Base path `/api/public/lead-forms/<token>/` where `<token>` is the
+form's `public_token`. JWT authentication is disabled on these views, so a
+missing, expired or invalid `Authorization` header is ignored. The company is
+always resolved from the token; nothing about company or user is read from the
+request body.
+
+### GET `/api/public/lead-forms/<token>/`
+
+`200`
+```json
+{"title": "Contact us", "company_name": "Acme", "accepting_responses": true}
+```
+`accepting_responses` is `false` when the form is blocked, not configured or has
+no eligible owner (still `200`). Nothing else is returned. Unknown token: `404`.
+
+### POST `/api/public/lead-forms/<token>/`
+
+All fields required, trimmed, no unknown fields:
+
+```json
+{"name": "Jane Doe", "email": "jane@example.com", "phone": "9876543210", "description": "I would like a demo."}
+```
+
+Limits: `name` 150, `email` 254 (valid email), `phone` 20, `description` 2000.
+
+| Status | Body |
+|---|---|
+| `201` | `{"detail": "Thanks, we've received your details."}` (no lead data, no ids) |
+| `400` | field errors, e.g. `{"email": ["Enter a valid email address."]}` or `{"field": ["Unknown field."]}` |
+| `404` | `{"detail": "Not found."}` (unknown token) |
+| `410` | `{"detail": "This form is no longer accepting responses"}` (blocked, not configured, no eligible owner or the lead source is no longer a valid option; the reason is not revealed) |
+
+The lead is created with the form's `lead_source`, `description` = the visitor's
+message only, and an owner chosen by the form: the single owner, or the next
+eligible rotation owner after `last_assigned_position` (wrapping around).
+Each submission locks the form row, so concurrent submissions rotate correctly;
+`submission_count` and `last_submission_at` are updated in the same transaction.
