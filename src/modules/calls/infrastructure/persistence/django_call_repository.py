@@ -1,8 +1,9 @@
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from uuid import UUID
 
 from django.db.models import (
     Case,
+    CharField,
     Count,
     DateTimeField,
     F,
@@ -16,6 +17,7 @@ from django.db.models import (
     When,
 )
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from src.modules.calls.application.dto.get_call import GetCallDTO
 from src.modules.calls.application.dto.get_call_record import GetCallRecordDTO
@@ -51,6 +53,11 @@ class DjangoCallRepository(CallRepository):
         "outcome": SortableField("outcome", is_text=True),
         "call_type": SortableField("call_type", is_text=True),
         "created_at": SortableField("created_at"),
+        # "Related To" column: the lead's or the contact's name. Backed by
+        # the ``record_name`` annotation added by ``_with_record_name``.
+        "record_name": SortableField("record_name", is_text=True),
+        "owner": SortableField("owner__name", is_text=True),
+        "description": SortableField("description", is_text=True),
     }
 
     DEFAULT_ORDERING = ("-call_start_time", "-id")
@@ -114,10 +121,11 @@ class DjangoCallRepository(CallRepository):
             .filter(is_deleted=False)
         )
 
+        queryset = self._apply_search(queryset, query.search)
         queryset = self._apply_filters(queryset, query.filters)
         total = queryset.count()
         queryset = apply_ordering(
-            queryset,
+            self._with_record_name(queryset),
             query,
             self.SORTABLE_FIELDS,
             default_ordering=self.DEFAULT_ORDERING,
@@ -141,11 +149,14 @@ class DjangoCallRepository(CallRepository):
 
         Each call row is kept only when it is the newest call of its lead or
         contact (a call belongs to exactly one of them). The record's call
-        count and last-updated time are computed over the same (filtered)
-        calls, so they always agree with the row that is shown.
+        count and last-updated time are computed over the same (searched and
+        filtered) calls, so they always agree with the row that is shown.
         """
         filtered = self._apply_filters(
-            self._base_queryset().filter(is_deleted=False),
+            self._apply_search(
+                self._base_queryset().filter(is_deleted=False),
+                query.search,
+            ),
             query.filters,
         )
 
@@ -187,7 +198,7 @@ class DjangoCallRepository(CallRepository):
 
         total = queryset.count()
         queryset = apply_ordering(
-            queryset,
+            self._with_record_name(queryset),
             query,
             self.RECORD_SORTABLE_FIELDS,
             default_ordering=self.RECORD_DEFAULT_ORDERING,
@@ -201,6 +212,40 @@ class DjangoCallRepository(CallRepository):
             page=query.page,
             page_size=query.page_size,
             total=total,
+        )
+
+    @staticmethod
+    def _with_record_name(queryset):
+        """Annotate the name of the lead / contact a call belongs to.
+
+        A call has a lead XOR a contact (CheckConstraint), so this is simply
+        whichever of the two exists. Used to sort the "Related To" column.
+        """
+        return queryset.annotate(
+            record_name=Coalesce(
+                F("lead__name"),
+                F("contact__name"),
+                output_field=CharField(),
+            )
+        )
+
+    @staticmethod
+    def _apply_search(queryset, search: str | None):
+        """Free-text search over what the Calls table shows.
+
+        Matches (case-insensitive, partial) the lead / contact name, the
+        account name, the owner's name and the call notes. Like filters, the
+        search narrows the calls first.
+        """
+        if not search:
+            return queryset
+
+        return queryset.filter(
+            Q(lead__name__icontains=search)
+            | Q(contact__name__icontains=search)
+            | Q(account__account_name__icontains=search)
+            | Q(owner__name__icontains=search)
+            | Q(description__icontains=search)
         )
 
     def _related_record_queryset(
@@ -255,12 +300,19 @@ class DjangoCallRepository(CallRepository):
 
     @staticmethod
     def _apply_filters(queryset, filters: tuple[FilterCondition, ...]):
+        # Text fields map to one or more ORM paths; a value matches when it
+        # matches any of them ("record_name" is the lead's OR the contact's name).
         text_fields = {
-            "description": "description",
+            "description": ("description",),
+            "record_name": ("lead__name", "contact__name"),
+            "account_name": ("account__account_name",),
         }
         choice_fields = {
             "call_type": "call_type",
             "outcome": "outcome",
+        }
+        numeric_fields = {
+            "duration_seconds": "duration_seconds",
         }
         datetime_fields = {
             "call_start_time": "call_start_time",
@@ -287,6 +339,10 @@ class DjangoCallRepository(CallRepository):
                 queryset = DjangoCallRepository._apply_choice_filter(
                     queryset, choice_fields[field], operator, value, field
                 )
+            elif field in numeric_fields:
+                queryset = DjangoCallRepository._apply_numeric_filter(
+                    queryset, numeric_fields[field], operator, value, field
+                )
             elif field in datetime_fields:
                 queryset = DjangoCallRepository._apply_datetime_filter(
                     queryset, datetime_fields[field], operator, value, field
@@ -294,6 +350,10 @@ class DjangoCallRepository(CallRepository):
             elif field in uuid_fields:
                 queryset = DjangoCallRepository._apply_uuid_filter(
                     queryset, uuid_fields[field], operator, value, field
+                )
+            elif field == "record_type":
+                queryset = DjangoCallRepository._apply_record_type_filter(
+                    queryset, operator, value, field
                 )
             else:
                 raise ValueError(f"Filtering is not supported for field '{field}'.")
@@ -309,19 +369,29 @@ class DjangoCallRepository(CallRepository):
         return value
 
     @staticmethod
-    def _apply_text_filter(queryset, db_field, operator, value, field):
+    def _apply_text_filter(queryset, db_fields, operator, value, field):
         value = DjangoCallRepository._require_string(value, field)
+        if isinstance(db_fields, str):
+            db_fields = (db_fields,)
+
         lookups = {
             "contains": "icontains",
             "equals": "iexact",
             "starts_with": "istartswith",
             "ends_with": "iendswith",
         }
+
+        def matches(lookup: str) -> Q:
+            condition = Q()
+            for db_field in db_fields:
+                condition |= Q(**{f"{db_field}__{lookup}": value})
+            return condition
+
         if operator in lookups:
-            return queryset.filter(**{f"{db_field}__{lookups[operator]}": value})
+            return queryset.filter(matches(lookups[operator]))
         if operator in {"not_contains", "not_equals"}:
             lookup = "icontains" if operator == "not_contains" else "iexact"
-            return queryset.exclude(**{f"{db_field}__{lookup}": value})
+            return queryset.exclude(matches(lookup))
         raise ValueError(f"Operator '{operator}' is not supported for text field '{field}'.")
 
     @staticmethod
@@ -343,36 +413,120 @@ class DjangoCallRepository(CallRepository):
         raise ValueError(f"Operator '{operator}' is not supported for choice field '{field}'.")
 
     @staticmethod
-    def _parse_datetime(value, field):
+    def _parse_datetime(value, field) -> tuple[datetime, bool]:
+        """Returns (timezone-aware datetime, is_date_only)."""
         if not isinstance(value, str):
             raise ValueError(f"Value for '{field}' must be an ISO date/datetime string.")
         try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            day = date.fromisoformat(value)
         except ValueError:
-            try:
-                return date.fromisoformat(value)
-            except ValueError:
-                raise ValueError(f"Invalid date/datetime value for '{field}'.")
+            pass
+        else:
+            return timezone.make_aware(datetime.combine(day, time.min)), True
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError(f"Invalid date/datetime value for '{field}'.")
+        if timezone.is_naive(parsed):
+            parsed = timezone.make_aware(parsed)
+        return parsed, False
+
+    @staticmethod
+    def _next_day_start(day_start: datetime) -> datetime:
+        next_day = day_start.astimezone(timezone.get_current_timezone()).date() + timedelta(days=1)
+        return timezone.make_aware(datetime.combine(next_day, time.min))
 
     @staticmethod
     def _apply_datetime_filter(queryset, db_field, operator, value, field):
+        """
+        Date-only values ("YYYY-MM-DD") are treated as whole calendar days in
+        the project's configured time zone; full ISO datetimes are treated as
+        exact instants. Ranges are inclusive of both ends, so "on/before" and
+        "between" include every call on the last day.
+        """
+        parse = DjangoCallRepository._parse_datetime
+        next_day_start = DjangoCallRepository._next_day_start
+
         if operator == "between":
             if not isinstance(value, dict) or "from" not in value or "to" not in value:
                 raise ValueError(f"Value for '{field}' must contain 'from' and 'to'.")
-            start = DjangoCallRepository._parse_datetime(value["from"], field)
-            end = DjangoCallRepository._parse_datetime(value["to"], field)
-            if start > end:
+            start, _ = parse(value["from"], field)
+            end, end_is_day = parse(value["to"], field)
+            if end_is_day:
+                end = next_day_start(end)
+            if start > end or (end_is_day and start == end):
                 raise ValueError(f"'from' must not be after 'to' for '{field}'.")
-            return queryset.filter(**{f"{db_field}__range": (start, end)})
+            upper = f"{db_field}__lt" if end_is_day else f"{db_field}__lte"
+            return queryset.filter(**{f"{db_field}__gte": start, upper: end})
 
-        parsed = DjangoCallRepository._parse_datetime(value, field)
+        parsed, is_day = parse(value, field)
         if operator == "equals":
+            if is_day:
+                return queryset.filter(**{
+                    f"{db_field}__gte": parsed,
+                    f"{db_field}__lt": next_day_start(parsed),
+                })
             return queryset.filter(**{db_field: parsed})
-        if operator == "before":
-            return queryset.filter(**{f"{db_field}__lt": parsed})
         if operator == "after":
-            return queryset.filter(**{f"{db_field}__gt": parsed})
+            return queryset.filter(**{f"{db_field}__gte": parsed})
+        if operator == "before":
+            if is_day:
+                return queryset.filter(**{f"{db_field}__lt": next_day_start(parsed)})
+            return queryset.filter(**{f"{db_field}__lte": parsed})
         raise ValueError(f"Operator '{operator}' is not supported for datetime field '{field}'.")
+
+    @staticmethod
+    def _apply_numeric_filter(queryset, db_field, operator, value, field):
+        if operator not in {"equals", "not_equals", "in", "not_in", "before", "after"}:
+            raise ValueError(f"Operator '{operator}' is not supported for numeric field '{field}'.")
+
+        def to_number(item):
+            if isinstance(item, bool) or not isinstance(item, (int, float)):
+                raise ValueError(f"Value for '{field}' must be numeric.")
+            return item
+
+        if operator in {"in", "not_in"}:
+            if not isinstance(value, list) or not value:
+                raise ValueError(f"Value for '{field}' must be a non-empty list.")
+            lookup = {f"{db_field}__in": [to_number(item) for item in value]}
+            return queryset.filter(**lookup) if operator == "in" else queryset.exclude(**lookup)
+
+        number = to_number(value)
+        if operator == "equals":
+            return queryset.filter(**{db_field: number})
+        if operator == "not_equals":
+            return queryset.exclude(**{db_field: number})
+        # "after" = at least, "before" = at most (same wording as the other lists).
+        suffix = "gte" if operator == "after" else "lte"
+        return queryset.filter(**{f"{db_field}__{suffix}": number})
+
+    @staticmethod
+    def _apply_record_type_filter(queryset, operator, value, field):
+        """Whether the call belongs to a lead or to a contact."""
+        conditions = {
+            "LEAD": Q(lead_id__isnull=False),
+            "CONTACT": Q(contact_id__isnull=False),
+        }
+
+        if operator in {"equals", "not_equals"}:
+            if not isinstance(value, str) or value not in conditions:
+                raise ValueError(f"Invalid value for '{field}'; use LEAD or CONTACT.")
+            condition = conditions[value]
+        elif operator in {"in", "not_in"}:
+            if (
+                not isinstance(value, list)
+                or not value
+                or any(item not in conditions for item in value)
+            ):
+                raise ValueError(f"Value for '{field}' must be a non-empty list of LEAD / CONTACT.")
+            condition = Q()
+            for item in value:
+                condition |= conditions[item]
+        else:
+            raise ValueError(f"Operator '{operator}' is not supported for field '{field}'.")
+
+        negate = operator in {"not_equals", "not_in"}
+        return queryset.exclude(condition) if negate else queryset.filter(condition)
 
     @staticmethod
     def _apply_uuid_filter(queryset, db_field, operator, value, field):

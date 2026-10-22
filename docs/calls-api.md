@@ -112,8 +112,13 @@ Logging a call never changes earlier calls; it only adds a row and a
 ## `GET /api/calls/`
 
 Same query parameters and response shape as `GET /api/tasks/`: `page` (default
-`1`), `page_size` (default `20`), `sort_by`, `sort_direction` (`asc`/`desc`),
-and `filters` (a JSON array of `{field, operator, value}`).
+`1`), `page_size` (default `20`, max `50`), `sort_by`, `sort_direction`
+(`asc`/`desc`), `search` (free text, max 100 characters) and `filters` (a JSON
+array of `{field, operator, value}`).
+
+`search` is a case-insensitive partial match on the lead / contact name, the
+account name, the owner's name and the call notes. It combines (AND) with
+`filters`.
 
 Without `sort_by` the list is newest call first (`call_start_time` descending).
 
@@ -121,10 +126,14 @@ Without `sort_by` the list is newest call first (`call_start_time` descending).
 |---|---|---|
 | `lead_id`, `contact_id`, `account_id`, `owner`, `created_by` | `equals`, `not_equals`, `in`, `not_in` | UUID (list of UUIDs for `in`/`not_in`) |
 | `call_type`, `outcome` | `equals`, `not_equals`, `in`, `not_in` | enum value (list for `in`/`not_in`) |
-| `call_start_time`, `created_at` | `equals`, `before`, `after`, `between` | ISO date/datetime (`{"from": ..., "to": ...}` for `between`) |
-| `description` | `contains`, `not_contains`, `equals`, `not_equals`, `starts_with`, `ends_with` | text |
+| `call_start_time`, `created_at` | `equals`, `before`, `after`, `between` | ISO date or datetime (`{"from": ..., "to": ...}` for `between`). A date-only value (`2030-01-15`) is the whole calendar day in the project time zone, and `before` / `between` include the last day. A full datetime is an exact instant. |
+| `duration_seconds` | `equals`, `not_equals`, `in`, `not_in`, `after` (at least), `before` (at most) | number of seconds (list for `in`/`not_in`) |
+| `record_type` | `equals`, `not_equals`, `in`, `not_in` | `LEAD` or `CONTACT` (list for `in`/`not_in`) |
+| `record_name` (lead's or contact's name), `account_name`, `description` | `contains`, `not_contains`, `equals`, `not_equals`, `starts_with`, `ends_with` | text |
 
-Sortable columns: `call_start_time`, `duration_seconds`, `outcome`, `call_type`, `created_at`.
+Sortable columns: `call_start_time`, `duration_seconds`, `outcome`, `call_type`,
+`created_at`, `record_name` (the lead's or contact's name), `owner` (owner's
+name) and `description`. Text columns sort case-insensitively.
 
 ### Lead page history
 
@@ -177,16 +186,18 @@ List rows never include history; use the detail endpoint for that.
 
 The Calls table lists every lead / contact **once**, however many calls were
 logged on it. Same query parameters as `GET /api/calls/` (`page`, `page_size`,
-`sort_by`, `sort_direction`, `filters`) and the same filter fields. Filters apply
-to the calls first, so a record is listed when at least one of its calls
-matches, and `call_count` / `latest_call` are computed over the matching calls.
+`sort_by`, `sort_direction`, `search`, `filters`) and the same filter fields.
+Search and filters apply to the calls first, so a record is listed when at least
+one of its calls matches, and `call_count` / `latest_call` are computed over the
+matching calls (searching a note keyword can therefore show a count lower than
+the record's total).
 
 Without `sort_by` the list is the most recently logged-or-edited record first
 (`last_updated_at` descending).
 
 Sortable columns: `call_start_time`, `duration_seconds`, `outcome`, `call_type`,
-`created_at` (all of the record's latest call), plus `call_count` and
-`last_updated_at`.
+`created_at`, `record_name`, `owner`, `description` (all of the record's latest
+call), plus `call_count` and `last_updated_at`.
 
 Response `200`:
 
