@@ -40,6 +40,9 @@ from src.modules.companies.application.use_cases.update_company import (
 from src.modules.companies.infrastructure.persistence.django_company_repository import (
     DjangoCompanyRepository,
 )
+from src.modules.lead_capture.infrastructure.persistence.django_lead_form_repository import (
+    DjangoLeadFormRepository,
+)
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import (
     DjangoTransactionManager,
 )
@@ -85,6 +88,9 @@ def get_create_company_use_case() -> CreateCompanyUseCase:
         ),
         transaction_manager=DjangoTransactionManager(),
         platform_audit_log_repository=get_platform_audit_log_repository(),
+        lead_form_repository_factory=lambda company_id: DjangoLeadFormRepository(
+            company_id=company_id
+        ),
     )
 
 

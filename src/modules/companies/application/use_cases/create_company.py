@@ -16,6 +16,9 @@ from src.modules.companies.domain.entities.platform_audit_action import (
 from src.modules.companies.domain.entities.platform_audit_log import PlatformAuditLog
 from src.modules.companies.application.use_cases._guards import require_platform_admin
 from src.modules.companies.domain.entities.company import Company
+from src.modules.lead_capture.application.interfaces.lead_form_repository import (
+    LeadFormRepository,
+)
 from src.modules.shared.application.interfaces.transaction_manager import (
     TransactionManager,
 )
@@ -30,7 +33,8 @@ from src.modules.users.domain.entities.user_audit_log import UserAuditLog
 
 
 class CreateCompanyUseCase:
-    """Creates a company and its first company SUPERADMIN atomically."""
+    """Creates a company, its first company SUPERADMIN and its default lead
+    capture form atomically."""
 
     def __init__(
         self,
@@ -39,8 +43,10 @@ class CreateCompanyUseCase:
         audit_log_repository_factory: Callable[[UUID], UserAuditLogRepository],
         transaction_manager: TransactionManager,
         platform_audit_log_repository: PlatformAuditLogRepository,
+        lead_form_repository_factory: Callable[[UUID], LeadFormRepository],
     ):
         self.company_repository = company_repository
+        self.lead_form_repository_factory = lead_form_repository_factory
         self.platform_audit_log_repository = platform_audit_log_repository
         self.user_repository_factory = user_repository_factory
         self.audit_log_repository_factory = audit_log_repository_factory
@@ -76,6 +82,10 @@ class CreateCompanyUseCase:
                 website=website,
                 created_by_id=current_user.id,
             )
+
+            # A company never exists without its lead form. Same transaction,
+            # so if this fails the company is rolled back too.
+            self.lead_form_repository_factory(company.id).create_default()
 
             now = datetime.now(timezone.utc)
             admin = self.user_repository_factory(company.id).create(

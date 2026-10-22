@@ -86,4 +86,9 @@ urlpatterns = [
         include("src.modules.picklists.presentation.api.urls"),
     ),
 
+    path(
+        "api/lead-capture/",
+        include("src.modules.lead_capture.presentation.api.urls"),
+    ),
+
 ]

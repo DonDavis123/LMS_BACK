@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     "src.modules.companies.apps.CompaniesConfig",
     "src.modules.dashboard.apps.DashboardConfig",
     "src.modules.picklists.apps.PicklistsConfig",
+    "src.modules.lead_capture.apps.LeadCaptureConfig",
 ]
 
 
