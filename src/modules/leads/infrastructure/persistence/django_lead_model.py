@@ -280,6 +280,16 @@ class DjangoLeadModel(models.Model):
         db_index=True,
     )
 
+    # Set when the lead was created by a bulk import; lets undo find it.
+    import_job = models.ForeignKey(
+        "leads.LeadImportJob",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="leads",
+        db_index=True,
+    )
+
     class Meta:
         db_table = "leads"
         indexes = [
