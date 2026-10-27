@@ -51,3 +51,18 @@ class LeadRepository(ABC):
         Converted leads are returned too; the caller decides what to do.
         """
         pass
+
+    @abstractmethod
+    def get_dedupe_index(self) -> dict:
+        """Everything lead import needs to find duplicates, in ONE query.
+
+        ``{"emails": {normalized_email: {id, name, is_converted}},
+        "phones": {last_10_digits: {id, name, is_converted}}}``
+
+        Non-deleted leads of the repository's company only. Converted leads
+        are included and flagged. Emails match exactly as ``get_by_email``
+        does; a phone key is the last 10 digits of ``phone`` or
+        ``mobile_number`` (7 or more digits). When several leads share a key,
+        the most recently created one is kept.
+        """
+        pass

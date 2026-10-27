@@ -536,3 +536,48 @@ class DjangoLeadRepository(LeadRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
+
+    def get_dedupe_index(self) -> dict:
+        # What get_by_email does (and what this index reproduces):
+        #   - tenant: self._base_queryset() -> only this company's leads;
+        #   - email__iexact on the trimmed input -> case-insensitive match;
+        #   - is_deleted=False -> deleted leads never match;
+        #   - converted leads DO match (the caller decides what to do);
+        #   - several matches -> the most recently created lead.
+        # Here the same filter (company + is_deleted=False) is read once, and
+        # each email is trimmed + lower-cased, so a lookup of
+        # normalize_email(x) finds the lead get_by_email(x) would return.
+        # Rows are read oldest first so that, for a repeated key, the newest
+        # lead overwrites older ones. Only difference: exotic non-ASCII
+        # letters whose upper/lower-casing is not symmetric (e.g. "ß") may
+        # match differently from the database's iexact.
+        # Phones are new for import (get_by_email has no phone rule): last 10
+        # digits of phone or mobile_number, 7+ digits, same newest-wins rule.
+        from src.modules.leads.application.services.lead_import_duplicates import (
+            normalize_email,
+            normalize_phone,
+        )
+
+        rows = (
+            self._base_queryset()
+            .filter(is_deleted=False)
+            .order_by("created_at", "id")
+            .values_list(
+                "id", "name", "email", "phone", "mobile_number", "is_converted"
+            )
+            .iterator(chunk_size=2000)
+        )
+
+        emails: dict = {}
+        phones: dict = {}
+        for lead_id, name, email, phone, mobile, is_converted in rows:
+            info = {"id": lead_id, "name": name, "is_converted": is_converted}
+            email_key = normalize_email(email)
+            if email_key is not None:
+                emails[email_key] = info
+            for raw in (phone, mobile):
+                phone_key = normalize_phone(raw)
+                if phone_key is not None:
+                    phones[phone_key] = info
+
+        return {"emails": emails, "phones": phones}
