@@ -4,6 +4,9 @@ from uuid import UUID
 from django.db import transaction
 from django.utils import timezone
 
+from src.modules.companies.infrastructure.persistence.django_company_model import (
+    DjangoCompanyModel,
+)
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
@@ -95,13 +98,23 @@ class DjangoLeadImportJobRepository(LeadImportJobRepository):
             total_rows=total_rows,
         )
 
-    def get_for_company(self, job_id: UUID) -> LeadImportJob | None:
+    # Large stored columns that progress reads never need.
+    HEAVY_FIELDS = ("rows", "problems", "update_snapshots")
+
+    def get_for_company(self, job_id: UUID, light: bool = False) -> LeadImportJob | None:
+        queryset = self._base_queryset()
+        if light:
+            queryset = queryset.defer(*self.HEAVY_FIELDS)
         try:
-            return self._base_queryset().get(id=job_id)
+            return queryset.get(id=job_id)
         except LeadImportJob.DoesNotExist:
             return None
 
-    def lock_for_processing(self, job_id: UUID) -> LeadImportJob | None:
+    def lock_for_processing(
+        self,
+        job_id: UUID,
+        skip_locked: bool = False,
+    ) -> LeadImportJob | None:
         # select_for_update needs an open transaction; fail loudly rather
         # than silently skipping the lock.
         if not transaction.get_connection().in_atomic_block:
@@ -109,9 +122,33 @@ class DjangoLeadImportJobRepository(LeadImportJobRepository):
                 "lock_for_processing must be called inside transaction.atomic()."
             )
         try:
-            return self._base_queryset().select_for_update().get(id=job_id)
+            return (
+                self._base_queryset()
+                .select_for_update(skip_locked=skip_locked)
+                .get(id=job_id)
+            )
         except LeadImportJob.DoesNotExist:
             return None
+
+    def find_running_job(self, exclude_job_id: UUID | None = None) -> LeadImportJob | None:
+        if not transaction.get_connection().in_atomic_block:
+            raise RuntimeError(
+                "find_running_job must be called inside transaction.atomic()."
+            )
+        # Starting an import takes this lock first, so two starts for the same
+        # company are checked one after the other, never at the same time.
+        list(
+            DjangoCompanyModel.objects.select_for_update()
+            .filter(id=self._company_id)
+            .values_list("id", flat=True)
+        )
+        queryset = self._base_queryset().filter(
+            status__in=(LeadImportJob.Status.QUEUED, LeadImportJob.Status.PROCESSING),
+            options__stage="running",
+        )
+        if exclude_job_id is not None:
+            queryset = queryset.exclude(id=exclude_job_id)
+        return queryset.defer(*self.HEAVY_FIELDS).order_by("created_at").first()
 
     def save_progress(self, job: LeadImportJob, fields: dict) -> LeadImportJob:
         unknown = set(fields) - self.PROGRESS_FIELDS

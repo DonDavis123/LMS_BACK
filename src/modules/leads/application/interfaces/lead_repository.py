@@ -66,3 +66,25 @@ class LeadRepository(ABC):
         the most recently created one is kept.
         """
         pass
+
+    @abstractmethod
+    def bulk_create_for_import(self, leads: list[Lead], import_job_id: UUID) -> int:
+        """Insert many new leads in one go (the repository's company), each
+        marked with ``import_job_id`` so the import can be undone. Returns how
+        many were inserted."""
+        pass
+
+    @abstractmethod
+    def get_many_for_update(self, lead_ids) -> dict[UUID, Lead]:
+        """Lock and return the repository company's non-deleted leads with
+        these ids, as ``{id: Lead}`` (converted leads are returned too; the
+        caller decides). Must be called inside the caller's transaction."""
+        pass
+
+    @abstractmethod
+    def bulk_update_fields(self, changes: dict[UUID, dict]) -> int:
+        """Apply ``{lead_id: {field: new value}}`` to non-deleted, non-converted
+        leads of the repository's company in one go. Only the columns an import
+        may change are accepted (``owner_id`` included, ``is_deleted`` /
+        ``is_converted`` / company never). Returns how many leads changed."""
+        pass

@@ -19,10 +19,14 @@ from src.modules.leads.presentation.api.views.conversion_check import (
     ConversionCheckView,
 )
 from src.modules.leads.presentation.api.views.lead_import import (
+    ImportCancelView,
     ImportDraftView,
     ImportExclusionsView,
     ImportMappingPreviewView,
+    ImportProcessView,
+    ImportProgressView,
     ImportRowsView,
+    ImportStartView,
     ImportTemplateView,
     ImportUploadView,
     ImportValidateView,
@@ -53,6 +57,26 @@ urlpatterns = [
         "import/<uuid:job_id>/exclusions/",
         ImportExclusionsView.as_view(),
         name="lead-import-exclusions",
+    ),
+    path(
+        "import/<uuid:job_id>/start/",
+        ImportStartView.as_view(),
+        name="lead-import-start",
+    ),
+    path(
+        "import/<uuid:job_id>/process/",
+        ImportProcessView.as_view(),
+        name="lead-import-process",
+    ),
+    path(
+        "import/<uuid:job_id>/progress/",
+        ImportProgressView.as_view(),
+        name="lead-import-progress",
+    ),
+    path(
+        "import/<uuid:job_id>/cancel/",
+        ImportCancelView.as_view(),
+        name="lead-import-cancel",
     ),
     path(
         "import/<uuid:job_id>/",

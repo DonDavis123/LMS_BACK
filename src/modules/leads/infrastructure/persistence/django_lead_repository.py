@@ -475,6 +475,102 @@ class DjangoLeadRepository(LeadRepository):
         lookup = {db_field: value}
         return queryset.filter(**lookup) if operator == "equals" else queryset.exclude(**lookup)
 
+    # Columns a lead import may write to an existing lead. Owner is allowed
+    # here; the import only asks for it when the user chose to change owners.
+    IMPORT_UPDATE_FIELDS = frozenset({
+        "name", "title", "company_name", "email", "mobile_number", "phone",
+        "lead_source", "lead_status", "industry", "rating", "website",
+        "number_of_employees", "annual_revenue", "owner_id", "address", "city",
+        "state", "country", "postal_code", "description",
+    })
+
+    IMPORT_BATCH_SIZE = 500
+
+    def bulk_create_for_import(self, leads: list[Lead], import_job_id: UUID) -> int:
+        if not leads:
+            return 0
+        models = [
+            DjangoLeadModel(
+                id=lead.id,
+                # Always the repository's own company, never the entity's.
+                company_id=self._company_id,
+                import_job_id=import_job_id,
+                name=lead.name,
+                title=lead.title,
+                company_name=lead.company_name,
+                email=lead.email,
+                mobile_number=lead.mobile_number,
+                phone=lead.phone,
+                lead_source=option_text(lead.lead_source),
+                lead_status=option_text(lead.lead_status),
+                industry=option_text(lead.industry),
+                rating=option_text(lead.rating),
+                website=lead.website,
+                number_of_employees=lead.number_of_employees,
+                annual_revenue=lead.annual_revenue,
+                owner_id=lead.owner_id,
+                address=lead.address,
+                city=lead.city,
+                state=lead.state,
+                country=lead.country,
+                postal_code=lead.postal_code,
+                description=lead.description,
+                is_deleted=False,
+                is_converted=False,
+            )
+            for lead in leads
+        ]
+        # created_at / updated_at are filled in by the model's auto fields.
+        DjangoLeadModel.objects.bulk_create(models, batch_size=self.IMPORT_BATCH_SIZE)
+        return len(models)
+
+    def get_many_for_update(self, lead_ids) -> dict[UUID, Lead]:
+        ids = list(lead_ids)
+        if not ids:
+            return {}
+        # Ordered by id so two batches locking the same leads never deadlock.
+        models = (
+            self._base_queryset()
+            .select_for_update()
+            .filter(id__in=ids, is_deleted=False)
+            .order_by("id")
+        )
+        return {model.id: self._to_domain(model) for model in models}
+
+    def bulk_update_fields(self, changes: dict[UUID, dict]) -> int:
+        changes = {lead_id: values for lead_id, values in changes.items() if values}
+        if not changes:
+            return 0
+
+        for values in changes.values():
+            unknown = set(values) - self.IMPORT_UPDATE_FIELDS
+            if unknown:
+                raise ValueError(
+                    f"Cannot update lead fields: {', '.join(sorted(unknown))}."
+                )
+
+        models = self._base_queryset().filter(
+            id__in=list(changes),
+            is_deleted=False,
+            is_converted=False,
+        )
+        now = timezone.now()
+        touched = []
+        columns = {"updated_at"}
+        for model in models:
+            for name, value in changes[model.id].items():
+                setattr(model, name, option_text(value))
+                columns.add(name)
+            # bulk_update does not run auto_now, so it is set here.
+            model.updated_at = now
+            touched.append(model)
+
+        if touched:
+            DjangoLeadModel.objects.bulk_update(
+                touched, sorted(columns), batch_size=self.IMPORT_BATCH_SIZE
+            )
+        return len(touched)
+
     def count_by_owner_id(self, owner_id: UUID) -> int:
         return self._base_queryset().filter(owner_id=owner_id).count()
 

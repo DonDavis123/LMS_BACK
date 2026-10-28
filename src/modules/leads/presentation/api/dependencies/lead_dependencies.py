@@ -13,6 +13,10 @@ from src.modules.leads.application.use_cases.validate_import import ValidateImpo
 from src.modules.leads.application.use_cases.list_import_rows import ListImportRowsUseCase
 from src.modules.leads.application.use_cases.update_import_exclusions import UpdateImportExclusionsUseCase
 from src.modules.leads.application.use_cases.discard_import_draft import DiscardImportDraftUseCase
+from src.modules.leads.application.use_cases.start_lead_import import StartLeadImportUseCase
+from src.modules.leads.application.use_cases.process_lead_import import ProcessLeadImportUseCase
+from src.modules.leads.application.use_cases.get_import_progress import GetImportProgressUseCase
+from src.modules.leads.application.use_cases.cancel_lead_import import CancelLeadImportUseCase
 from src.modules.leads.infrastructure.persistence.django_lead_import_job_repository import DjangoLeadImportJobRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
@@ -107,3 +111,31 @@ def get_update_import_exclusions_use_case(ctx: TenantContext) -> UpdateImportExc
 
 def get_discard_import_draft_use_case(ctx: TenantContext) -> DiscardImportDraftUseCase:
     return DiscardImportDraftUseCase(_import_job_repository(ctx), ctx)
+
+
+# --- Lead import (start, process, progress, cancel) ------------------------
+
+def get_start_lead_import_use_case(ctx: TenantContext) -> StartLeadImportUseCase:
+    return StartLeadImportUseCase(
+        _import_job_repository(ctx),
+        DjangoUserRepository(company_id=ctx.company_id),
+        ctx,
+        DjangoTransactionManager(),
+    )
+
+
+def get_process_lead_import_use_case(ctx: TenantContext) -> ProcessLeadImportUseCase:
+    return ProcessLeadImportUseCase(_import_job_repository(ctx), ctx)
+
+
+def get_import_progress_use_case(ctx: TenantContext) -> GetImportProgressUseCase:
+    return GetImportProgressUseCase(_import_job_repository(ctx), ctx)
+
+
+def get_cancel_lead_import_use_case(ctx: TenantContext) -> CancelLeadImportUseCase:
+    return CancelLeadImportUseCase(
+        _import_job_repository(ctx),
+        DjangoUserRepository(company_id=ctx.company_id),
+        ctx,
+        DjangoTransactionManager(),
+    )

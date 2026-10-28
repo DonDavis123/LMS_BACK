@@ -11,10 +11,14 @@ from src.modules.leads.application.services.lead_import_parser import ImportFile
 from src.modules.leads.application.services.lead_import_review import import_limits
 from src.modules.leads.application.use_cases.lead_import_common import ImportRequestError
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
+    get_cancel_lead_import_use_case,
     get_discard_import_draft_use_case,
+    get_import_progress_use_case,
     get_import_template_use_case,
     get_list_import_rows_use_case,
     get_preview_import_mapping_use_case,
+    get_process_lead_import_use_case,
+    get_start_lead_import_use_case,
     get_update_import_exclusions_use_case,
     get_upload_import_file_use_case,
     get_validate_import_use_case,
@@ -174,3 +178,56 @@ class ImportDraftView(_ImportView):
         except ImportRequestError as error:
             return _problem(error)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ImportStartView(_ImportView):
+
+    def post(self, request, job_id):
+        try:
+            result = get_start_lead_import_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id)),
+                self._body_part(request, "mapping"),
+                self._body_part(request, "options"),
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportProcessView(_ImportView):
+
+    def post(self, request, job_id):
+        # The body is optional: {"processed_rows": N} makes a repeated request harmless.
+        body = request.data if hasattr(request.data, "get") else {}
+        try:
+            result = get_process_lead_import_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id)),
+                body.get("processed_rows"),
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportProgressView(_ImportView):
+
+    def get(self, request, job_id):
+        try:
+            result = get_import_progress_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id))
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportCancelView(_ImportView):
+
+    def post(self, request, job_id):
+        try:
+            result = get_cancel_lead_import_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id))
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)

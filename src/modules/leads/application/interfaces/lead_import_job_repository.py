@@ -30,14 +30,33 @@ class LeadImportJobRepository(ABC):
         pass
 
     @abstractmethod
-    def get_for_company(self, job_id: UUID) -> Any | None:
-        """The job if it belongs to the repository's company, else ``None``."""
+    def get_for_company(self, job_id: UUID, light: bool = False) -> Any | None:
+        """The job if it belongs to the repository's company, else ``None``.
+
+        ``light=True`` leaves out the large stored columns (rows, problems,
+        update snapshots): enough for progress, too little to process or save.
+        """
         pass
 
     @abstractmethod
-    def lock_for_processing(self, job_id: UUID) -> Any | None:
+    def lock_for_processing(self, job_id: UUID, skip_locked: bool = False) -> Any | None:
         """Row-lock the job (SELECT ... FOR UPDATE). Must be called inside the
-        caller's transaction. Returns ``None`` if not found."""
+        caller's transaction. Returns ``None`` if not found.
+
+        With ``skip_locked=True`` a job that another transaction has locked is
+        not waited for: ``None`` is returned, exactly as if it did not exist
+        (the caller tells the two apart with ``get_for_company``).
+        """
+        pass
+
+    @abstractmethod
+    def find_running_job(self, exclude_job_id: UUID | None = None) -> Any | None:
+        """The company's started, unfinished import (status queued/processing
+        and stage ``running``), other than ``exclude_job_id``, or ``None``.
+
+        Must be called inside the caller's transaction: it first locks the
+        company row so two imports cannot both be started at the same moment.
+        The returned job is light (no rows)."""
         pass
 
     @abstractmethod
