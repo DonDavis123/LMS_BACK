@@ -2,6 +2,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from django.db.models import OuterRef, Q, Subquery
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from src.modules.contacts.application.interfaces.contact_repository import (
@@ -463,6 +464,31 @@ class DjangoContactRepository(ContactRepository):
           self._to_domain(model)
           for model in matches
       ]
+
+    def find_for_import_matching(
+        self,
+        emails: set[str],
+        phone_endings: set[str],
+    ) -> list[Contact]:
+        emails = {email for email in emails if email}
+        phone_endings = {ending for ending in phone_endings if ending}
+        if not emails and not phone_endings:
+            return []
+
+        condition = Q()
+        if emails:
+            condition |= Q(_email_key__in=emails)
+        for ending in phone_endings:
+            condition |= Q(phone__endswith=ending) | Q(mobile__endswith=ending)
+
+        models = (
+            self._base_queryset()
+            .filter(is_deleted=False)
+            .annotate(_email_key=Lower(Trim("email")))
+            .filter(condition)
+            .order_by("created_at", "id")
+        )
+        return [self._to_domain(model) for model in models]
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
         return self._base_queryset().filter(

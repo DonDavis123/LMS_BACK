@@ -9,6 +9,12 @@ from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
 from src.modules.contacts.domain.entities.contact import Contact
+from src.modules.leads.application.services.lead_conversion import (
+    build_account_from_lead,
+    build_contact_from_lead,
+    has_company_name,
+    link_contact_to_account,
+)
 from src.modules.leads.domain.entities.option_text import option_text
 
 from src.modules.leads.application.dto.convert_lead import (
@@ -226,28 +232,9 @@ class ConvertLeadUseCase:
                     "during conversion."
                 )
 
-            account = Account.create(
-                account_owner_id=lead.owner_id,
-                account_name=lead.company_name,
-                account_site=None,
-                account_number=None,
-                account_type=None,
-                industry=option_text(lead.industry),
-                annual_revenue=lead.annual_revenue,
-                rating=option_text(lead.rating),
-                phone=lead.phone,
-                website=lead.website,
-                ticker_symbol=None,
-                ownership="None",
-                employees=lead.number_of_employees,
-                sic_code=None,
-                billing_address=lead.address,
-                billing_city=lead.city,
-                billing_state=lead.state,
-                billing_country=lead.country,
-                billing_postal_code=lead.postal_code,
-                description=lead.description,
-                created_by_id=current_user_id,
+            account = build_account_from_lead(
+                lead,
+                current_user_id,
             )
 
         else:
@@ -298,7 +285,7 @@ class ConvertLeadUseCase:
 
     @staticmethod
     def _has_company_name(company_name: str | None) -> bool:
-        return bool(company_name and company_name.strip())
+        return has_company_name(company_name)
 
     # ======================================================
     # EXISTING ACCOUNT
@@ -348,33 +335,10 @@ class ConvertLeadUseCase:
         # create the Contact from the Lead automatically.
         if contact_data is None:
 
-            contact = Contact.create(
-                account_id=account_id,
-                contact_owner_id=lead.owner_id,
-                name=lead.name,
-                email=lead.email,
-                secondary_email=None,
-                phone=lead.phone,
-                other_phone=None,
-                mobile=lead.mobile_number,
-                home_phone=None,
-                assistant_phone=None,
-                title=lead.title,
-                department=None,
-                lead_source=option_text(lead.lead_source),
-                vendor_name=None,
-                date_of_birth=None,
-                assistant=None,
-                email_opt_out=False,
-                reporting_to_id=None,
-                mailing_address=lead.address,
-                mailing_city=lead.city,
-                mailing_state=lead.state,
-                mailing_country=lead.country,
-                mailing_postal_code=lead.postal_code,
-                other_address=None,
-                description=lead.description,
-                created_by_id=current_user_id,
+            contact = build_contact_from_lead(
+                lead,
+                account_id,
+                current_user_id,
             )
 
         else:
@@ -460,22 +424,8 @@ class ConvertLeadUseCase:
         account: Account | None,
     ) -> None:
 
-        # If the Contact already belongs to an Account,
-        # keep its existing Account.
-        #
-        # This follows Zoho-style lead conversion behavior:
-        # an existing Contact's Account relationship should
-        # not be silently changed during conversion.
-
-        if contact.account_id is not None:
-            return
-
-        # Contact-only conversion must not attach the Contact to an
-        # Account. If an Account is part of the conversion, associate
-        # an unlinked existing Contact with that Account.
-        if account is None:
-            return
-
-        contact.account_id = account.id
-
-        self.contact_repository.save(contact)
+        # The rule itself (an existing Account is never replaced, and no
+        # Account is attached when there is none) lives in
+        # link_contact_to_account, shared with the lead import.
+        if link_contact_to_account(contact, account):
+            self.contact_repository.save(contact)

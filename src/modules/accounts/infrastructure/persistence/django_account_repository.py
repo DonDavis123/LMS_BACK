@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from django.db.models import Q
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from src.modules.accounts.application.interfaces.account_repository import (
@@ -318,6 +319,34 @@ class DjangoAccountRepository(AccountRepository):
             self._to_domain(model)
             for model in matches
         ]
+
+    def find_for_import_matching(
+        self,
+        names: set[str],
+        websites: set[str],
+    ) -> list[Account]:
+        names = {name for name in names if name}
+        websites = {site for site in websites if site}
+        if not names and not websites:
+            return []
+
+        condition = Q()
+        if names:
+            condition |= Q(_name_key__in=names)
+        if websites:
+            condition |= Q(_site_key__in=websites)
+
+        models = (
+            self._base_queryset()
+            .filter(is_deleted=False)
+            .annotate(
+                _name_key=Lower(Trim("account_name")),
+                _site_key=Lower(Trim("website")),
+            )
+            .filter(condition)
+            .order_by("created_at", "id")
+        )
+        return [self._to_domain(model) for model in models]
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
         return self._base_queryset().filter(

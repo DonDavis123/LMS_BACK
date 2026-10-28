@@ -38,13 +38,16 @@ from types import SimpleNamespace
 from typing import Callable
 from uuid import UUID
 
-from src.modules.leads.application.services.lead_import_convert import (
-    NOT_ENABLED_NOTE,
-    RESULT_CONVERTED,
-    ConvertRowResult,
+from src.modules.leads.application.services.lead_import_conversion import (
+    ConversionContext,
+    ConversionResult,
     convert_outcomes,
+    converted_count,
+    record_conversion,
 )
 from src.modules.leads.application.services.lead_import_finalize import finalize_job
+from src.modules.leads.application.services.lead_import_mapping import mapping_to_columns
+from src.modules.leads.application.services.lead_import_options import ImportOptions
 from src.modules.leads.application.services.lead_import_pipeline import (
     CONVERT,
     DUPLICATE_CREATE,
@@ -88,6 +91,7 @@ RESULT_CREATED = "created"
 RESULT_UPDATED = "updated"
 RESULT_SKIPPED = "skipped"
 RESULT_FAILED = "failed"
+RESULT_CONVERTED = "converted"
 
 DEFAULT_BATCH_SIZE = 500
 MAX_BATCH_SIZE = 5000
@@ -180,7 +184,7 @@ def _message(job, stage) -> str:
             f"{job.skipped_count:,} skipped",
             f"{job.failed_count:,} not imported because of errors",
         ]
-        converted = int(_options(job).get("converted_count") or 0)
+        converted = converted_count(_options(job))
         if converted:
             parts.insert(2, f"{converted:,} converted")
         return "The import is finished: " + ", ".join(parts) + "."
@@ -213,7 +217,7 @@ def progress_from_job(job) -> ProgressResult:
         updated=int(job.updated_count or 0),
         skipped=int(job.skipped_count or 0),
         failed=int(job.failed_count or 0),
-        converted=int(options.get("converted_count") or 0),
+        converted=converted_count(options),
         started_at=_iso(job.started_at),
         last_activity_at=_iso(job.last_activity_at),
         finished_at=_iso(job.finished_at),
@@ -379,6 +383,8 @@ def _run_batch(job_id: UUID, size: int, expected_processed_rows, runtime) -> _Ba
         outcomes = process_rows(batch_rows, context)
         applied = _apply_outcomes(job, outcomes, context, runtime)
         counts = applied.counts
+        if applied.conversion is not None:
+            options = record_conversion(options, applied.conversion)
 
         options["round_robin_cursor"] = context.owner_cursor
         if applied.entries:
@@ -390,10 +396,12 @@ def _run_batch(job_id: UUID, size: int, expected_processed_rows, runtime) -> _Ba
     finished = processed >= len(rows)
 
     options.pop("consecutive_failures", None)
-    options["converted_count"] = int(options.get("converted_count") or 0) + counts[RESULT_CONVERTED]
     fields.update({
         "processed_rows": processed,
-        "created_count": int(job.created_count or 0) + counts[RESULT_CREATED],
+        # A converted row is also a lead that was added.
+        "created_count": (
+            int(job.created_count or 0) + counts[RESULT_CREATED] + counts[RESULT_CONVERTED]
+        ),
         "updated_count": int(job.updated_count or 0) + counts[RESULT_UPDATED],
         "skipped_count": int(job.skipped_count or 0) + counts[RESULT_SKIPPED],
         "failed_count": int(job.failed_count or 0) + counts[RESULT_FAILED],
@@ -415,6 +423,7 @@ class _Applied:
     entries: list
     snapshots: dict
     snapshots_changed: bool
+    conversion: ConversionResult | None = None
 
 
 def _blank(value) -> bool:
@@ -459,6 +468,30 @@ def _build_lead(outcome) -> Lead | None:
         country=data.get("country"),
         postal_code=data.get("postal_code"),
         description=data.get("description"),
+    )
+
+
+def _conversion_context(job, context, runtime) -> ConversionContext:
+    """What the converted rows of this batch need, all scoped to the job's company."""
+    account_repository = getattr(runtime, "account_repository", None)
+    contact_repository = getattr(runtime, "contact_repository", None)
+    if account_repository is None or contact_repository is None:
+        from src.modules.leads.infrastructure.lead_import_runtime import (
+            build_conversion_repositories,
+        )
+
+        account_repository, contact_repository = build_conversion_repositories(
+            runtime.tenant_context.company_id
+        )
+    return ConversionContext(
+        options=ImportOptions.from_dict(job.options),
+        actor_id=runtime.tenant_context.user_id,
+        lead_repository=runtime.lead_repository,
+        account_repository=account_repository,
+        contact_repository=contact_repository,
+        transaction_manager=runtime.transaction_manager,
+        build_lead=_build_lead,
+        columns=mapping_to_columns(job.mapping),
     )
 
 
@@ -541,16 +574,21 @@ def _apply_outcomes(job, outcomes, context, runtime) -> _Applied:
             results[outcome.row_number] = (RESULT_UPDATED, None)
         lead_repository.bulk_update_fields(changes)
 
-    # Converted rows (Part 10).
+    # Converted rows: lead + Account + Contact, each row in its own savepoint.
+    conversion = None
     if to_convert:
-        converted = convert_outcomes(
-            job, to_convert, tenant_context=runtime.tenant_context, runtime=runtime
+        conversion = convert_outcomes(
+            job, to_convert, _conversion_context(job, context, runtime)
         )
+        failed_rows = {outcome.row_number: outcome for outcome in conversion.failed}
+        done_rows = set(conversion.converted)
         for outcome in to_convert:
-            row = converted.get(outcome.row_number) or ConvertRowResult(
-                RESULT_SKIPPED, NOT_ENABLED_NOTE
-            )
-            results[outcome.row_number] = (row.result, row.note)
+            if outcome.row_number in done_rows:
+                results[outcome.row_number] = (RESULT_CONVERTED, None)
+            else:
+                failed = failed_rows[outcome.row_number]
+                note = failed.problems[0].message if failed.problems else None
+                results[outcome.row_number] = (RESULT_FAILED, note)
 
     counts = {RESULT_CREATED: 0, RESULT_UPDATED: 0, RESULT_SKIPPED: 0,
               RESULT_FAILED: 0, RESULT_CONVERTED: 0}
@@ -571,7 +609,7 @@ def _apply_outcomes(job, outcomes, context, runtime) -> _Applied:
         entries.append(entry)
 
     snapshots_changed = sum(len(v) for v in snapshots.values()) != snapshots_before
-    return _Applied(counts, entries, snapshots, snapshots_changed)
+    return _Applied(counts, entries, snapshots, snapshots_changed, conversion)
 
 
 # ---------------------------------------------------------------------------

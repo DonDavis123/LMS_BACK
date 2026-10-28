@@ -10,6 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from src.modules.accounts.infrastructure.persistence.django_account_repository import (
+    DjangoAccountRepository,
+)
+from src.modules.contacts.infrastructure.persistence.contacts_repository import (
+    DjangoContactRepository,
+)
 from src.modules.leads.application.services.lead_import_processor import ImportJobNotFound
 from src.modules.leads.infrastructure.persistence.django_lead_import_job_model import (
     LeadImportJob,
@@ -40,6 +46,9 @@ class ImportRuntime:
     user_repository: object
     picklist_repository: object
     transaction_manager: object
+    # Used only by converted rows (Part 10).
+    account_repository: object = None
+    contact_repository: object = None
 
 
 def build_import_runtime(job_id: UUID) -> ImportRuntime:
@@ -75,4 +84,15 @@ def build_import_runtime(job_id: UUID) -> ImportRuntime:
         user_repository=user_repository,
         picklist_repository=DjangoPicklistRepository(company_id=company_id),
         transaction_manager=DjangoTransactionManager(),
+        account_repository=DjangoAccountRepository(company_id=company_id),
+        contact_repository=DjangoContactRepository(company_id=company_id),
+    )
+
+
+def build_conversion_repositories(company_id: UUID) -> tuple[object, object]:
+    """``(account_repository, contact_repository)`` of one company, for a
+    runtime that was built without them."""
+    return (
+        DjangoAccountRepository(company_id=company_id),
+        DjangoContactRepository(company_id=company_id),
     )

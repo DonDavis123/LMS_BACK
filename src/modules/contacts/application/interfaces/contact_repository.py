@@ -48,6 +48,17 @@ class ContactRepository(ABC):
     ) -> list[Contact]:
         pass
 
+    def find_for_import_matching(
+        self,
+        emails: set[str],
+        phone_endings: set[str],
+    ) -> list[Contact]:
+        """Active contacts whose trimmed, lower-case email is in ``emails``
+        (keys passed in that form), or whose phone or mobile ENDS WITH one of
+        ``phone_endings`` (candidates only: the caller compares the last 10
+        digits). Oldest first. One query for a whole import batch."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_by_id_with_relations(
     self,

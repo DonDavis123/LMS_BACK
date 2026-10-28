@@ -42,6 +42,16 @@ class AccountRepository(ABC):
     ) -> list[Account]:
         pass
 
+    def find_for_import_matching(
+        self,
+        names: set[str],
+        websites: set[str],
+    ) -> list[Account]:
+        """Active accounts whose trimmed, lower-case name is in ``names`` or
+        whose trimmed, lower-case website is in ``websites`` (the keys are
+        passed in that form). Oldest first. One query for a whole import batch."""
+        raise NotImplementedError
+
     @abstractmethod
     def transfer_ownership(
         self,
