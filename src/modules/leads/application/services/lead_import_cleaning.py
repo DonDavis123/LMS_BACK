@@ -16,6 +16,7 @@ from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 
 from .lead_import_fields import (
+    KIND_BOOL,
     KIND_EMAIL,
     KIND_INT,
     KIND_OWNER,
@@ -31,6 +32,10 @@ CODE_NOT_WHOLE_NUMBER = "not_whole_number"
 CODE_NEGATIVE_NUMBER = "negative_number"
 CODE_PHONE_CHARS_REMOVED = "phone_chars_removed"
 CODE_CLEAN_FAILED = "clean_failed"
+CODE_INVALID_CONVERTED = "invalid_converted"
+
+_TRUE_WORDS = {"true", "yes", "y", "1", "converted", "x"}
+_FALSE_WORDS = {"false", "no", "n", "0", "not converted"}
 
 _SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://")
 _SCI_RE = re.compile(r"^[+-]?\d+(\.\d+)?[eE][+-]?\d+$")
@@ -184,7 +189,23 @@ def clean_owner(raw: object):
     return text, None
 
 
+def clean_bool(raw: object):
+    """The "Converted" column: yes/y/true/1/converted/x -> True;
+    no/n/false/0/not converted or blank -> False; anything else keeps the
+    original text with the ``invalid_converted`` code."""
+    text = collapse_whitespace(to_text(raw))
+    if is_blank_like(text):
+        return False, None
+    word = text.lower()
+    if word in _TRUE_WORDS:
+        return True, None
+    if word in _FALSE_WORDS:
+        return False, None
+    return text, CODE_INVALID_CONVERTED
+
+
 _CLEANERS = {
+    KIND_BOOL: clean_bool,
     KIND_EMAIL: clean_email,
     KIND_PHONE: clean_phone,
     KIND_URL: clean_url,

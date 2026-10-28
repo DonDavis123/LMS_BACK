@@ -20,6 +20,7 @@ KIND_URL = "url"
 KIND_INT = "int"
 KIND_PICKLIST = "picklist"
 KIND_OWNER = "owner"
+KIND_BOOL = "bool"
 
 
 @dataclass(frozen=True)
@@ -131,6 +132,13 @@ IMPORT_FIELDS: tuple[ImportField, ...] = (
         ("lead owner", "assigned to", "assigned user", "owner email",
          "sales rep", "sales representative", "crm owner"),
     ),
+    # Virtual field: not a lead column. Rows marked converted are stored as an
+    # Account + Contact (like the Convert Lead action) instead of a lead.
+    ImportField(
+        "converted", "Converted (Yes/No)", False, None, KIND_BOOL,
+        ("converted", "is converted", "converted status", "lead converted",
+         "customer", "won"),
+    ),
 )
 
 IMPORT_FIELDS_BY_KEY: dict[str, ImportField] = {f.key: f for f in IMPORT_FIELDS}
@@ -188,4 +196,87 @@ def suggest_mapping(headers: list[str]) -> dict[str, str | None]:
 
     run(_EXACT)
     run(_ALIAS)
+    return result
+
+
+# Confidence of a suggested mapping.
+CONFIDENCE_EXACT = "exact"
+CONFIDENCE_ALIAS = "alias"
+CONFIDENCE_GUESS = "guess"
+CONFIDENCE_NONE = "none"
+
+
+def _guess_phrases(field: ImportField) -> set[str]:
+    """Normalized phrases that, found as whole words inside a header, hint at
+    this field. The virtual owner field uses its aliases only, so a plain
+    "Business owner" column is never guessed to be the CRM owner."""
+    phrases = {normalize_header(a) for a in field.aliases}
+    if field.kind != KIND_OWNER:
+        phrases |= _exact_names(field)
+    return {p for p in phrases if p}
+
+
+def _best_guess(norm_header: str, taken: set[str]) -> str | None:
+    """The field whose phrase is found as whole words in the header.
+
+    Longest phrase wins (more words, then more characters); on a tie the
+    phrase that ends later in the header wins, because the last word of an
+    English column name is usually its subject ("Company website URL" is a
+    website, not a company).
+    """
+    padded = f" {norm_header} "
+    best_key: tuple[int, int, int] | None = None
+    best_field: str | None = None
+    for field in IMPORT_FIELDS:
+        if field.key in taken:
+            continue
+        for phrase in _guess_phrases(field):
+            position = padded.find(f" {phrase} ")
+            if position < 0:
+                continue
+            score = (len(phrase.split()), len(phrase), position + len(phrase))
+            if best_key is None or score > best_key:
+                best_key, best_field = score, field.key
+    return best_field
+
+
+def suggest_mapping_detailed(headers: list[str]) -> dict[str, dict]:
+    """Like ``suggest_mapping`` but also says how sure each suggestion is.
+
+    ``{header: {"field": key or None, "confidence": "exact" | "alias" |
+    "guess" | "none"}}``. The exact and alias assignments are identical to
+    ``suggest_mapping``. "guess" means a field label or alias was found as
+    whole words inside the header (e.g. "Company website URL" -> website),
+    and is only made for fields no other column has taken.
+    """
+    result: dict[str, dict] = {
+        header: {"field": None, "confidence": CONFIDENCE_NONE} for header in headers
+    }
+    used: set[str] = set()
+
+    def run(lookup: dict[str, str], confidence: str) -> None:
+        for header in headers:
+            if result[header]["field"] is not None:
+                continue
+            norm = normalize_header(header)
+            if not norm:
+                continue
+            key = lookup.get(norm) or lookup.get(_compact(norm))
+            if key and key not in used:
+                result[header] = {"field": key, "confidence": confidence}
+                used.add(key)
+
+    run(_EXACT, CONFIDENCE_EXACT)
+    run(_ALIAS, CONFIDENCE_ALIAS)
+
+    for header in headers:
+        if result[header]["field"] is not None:
+            continue
+        norm = normalize_header(header)
+        if not norm:
+            continue
+        key = _best_guess(norm, used)
+        if key is not None:
+            result[header] = {"field": key, "confidence": CONFIDENCE_GUESS}
+            used.add(key)
     return result

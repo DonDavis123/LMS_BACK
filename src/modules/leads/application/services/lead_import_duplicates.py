@@ -50,10 +50,15 @@ def normalize_phone(value: object) -> str | None:
 
 
 def _phone_keys(cleaned: dict) -> list[str]:
-    """Normalized phone then mobile number, without blanks or repeats."""
+    """Normalized phone, mobile number, then every extra number found in the
+    row (``_extra_phones``, set by the import's phone splitting), without
+    blanks or repeats."""
     keys: list[str] = []
-    for field in ("phone", "mobile_number"):
-        key = normalize_phone(cleaned.get(field))
+    extras = cleaned.get("_extra_phones") or []
+    if isinstance(extras, str):
+        extras = [extras]
+    for raw in (cleaned.get("phone"), cleaned.get("mobile_number"), *extras):
+        key = normalize_phone(raw)
         if key is not None and key not in keys:
             keys.append(key)
     return keys

@@ -28,6 +28,7 @@ from src.modules.picklists.domain.entities.picklist_catalog import (
 
 from .lead_import_fields import (
     IMPORT_FIELDS_BY_KEY,
+    KIND_BOOL,
     KIND_EMAIL,
     KIND_INT,
     KIND_OWNER,
@@ -53,6 +54,11 @@ _INT_LIMITS = {
 
 _SERIALIZER_FIELDS = frozenset(CreateLeadSerializer().fields)
 
+# Keys of a cleaned row that are not lead columns and must never reach the
+# payload: the virtual "owner" and "converted" fields, and any helper key that
+# starts with an underscore (e.g. "_extra_phones", used only for duplicates).
+_NON_LEAD_KEYS = frozenset({"owner", "converted"})
+
 # Error codes
 CODE_REQUIRED = "required"
 CODE_TOO_LONG = "too_long"
@@ -68,6 +74,7 @@ CODE_OWNER_AMBIGUOUS = "owner_ambiguous"
 CODE_DUPLICATE = "duplicate"
 CODE_CONVERTED_LOCKED = "converted_locked"
 CODE_FILE_ERROR = "file_error"
+CODE_INVALID_CONVERTED = "invalid_converted"
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +237,13 @@ def _converted_locked(column, value, ctx):
     )
 
 
+def _invalid_converted(column, value, ctx):
+    return (
+        f"{_subject(column, value)} is not Yes or No.",
+        "Use Yes or No in this column (leave it blank for No).",
+    )
+
+
 def _file_error(column, value, ctx):
     detail = ctx.get("detail")
     base = "This row could not be read."
@@ -258,6 +272,7 @@ ERROR_CATALOG = {
     CODE_DUPLICATE: ("Duplicate lead", _duplicate),
     CODE_CONVERTED_LOCKED: ("Matches a converted lead", _converted_locked),
     CODE_FILE_ERROR: ("Row could not be read", _file_error),
+    CODE_INVALID_CONVERTED: ("Invalid Converted value", _invalid_converted),
 }
 
 
@@ -494,6 +509,8 @@ def _validate_row(row_number, cleaned_values, mapping_columns, picklists):
         for key, value in values.items()
         if key in _SERIALIZER_FIELDS
         and key not in PICKLIST_FIELDS
+        and key not in _NON_LEAD_KEYS
+        and not key.startswith("_")
         and not _blank(value)
     }
     serializer = CreateLeadSerializer(data=serializer_data)
@@ -515,7 +532,7 @@ def _validate_row(row_number, cleaned_values, mapping_columns, picklists):
     # 3. Limits the database enforces but the create form does not.
     for field_key, definition in IMPORT_FIELDS_BY_KEY.items():
         value = serializer_data.get(field_key)
-        if field_key in failed or value is None or definition.kind == KIND_OWNER:
+        if field_key in failed or value is None or definition.kind in (KIND_OWNER, KIND_BOOL):
             continue
         if definition.kind == KIND_INT:
             limit = _INT_LIMITS.get(field_key)
