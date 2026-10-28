@@ -6,6 +6,14 @@ from src.modules.leads.application.use_cases.update_lead import UpdateLeadUseCas
 from src.modules.leads.application.use_cases.delete_lead import DeleteLeadUseCase
 from src.modules.leads.application.use_cases.convert_lead import ConvertLeadUseCase
 from src.modules.leads.application.use_cases.coversion_check import ConversionCheckUseCase
+from src.modules.leads.application.use_cases.import_template import BuildImportTemplateUseCase
+from src.modules.leads.application.use_cases.upload_import_file import UploadImportFileUseCase
+from src.modules.leads.application.use_cases.preview_import_mapping import PreviewImportMappingUseCase
+from src.modules.leads.application.use_cases.validate_import import ValidateImportUseCase
+from src.modules.leads.application.use_cases.list_import_rows import ListImportRowsUseCase
+from src.modules.leads.application.use_cases.update_import_exclusions import UpdateImportExclusionsUseCase
+from src.modules.leads.application.use_cases.discard_import_draft import DiscardImportDraftUseCase
+from src.modules.leads.infrastructure.persistence.django_lead_import_job_repository import DjangoLeadImportJobRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
@@ -53,3 +61,49 @@ def get_convert_lead_use_case(ctx: TenantContext) -> ConvertLeadUseCase:
 
 def get_conversion_check_use_case(ctx: TenantContext) -> ConversionCheckUseCase:
     return ConversionCheckUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoContactRepository(company_id=ctx.company_id))
+
+
+# --- Lead import (review steps) -------------------------------------------
+
+def _import_job_repository(ctx: TenantContext) -> DjangoLeadImportJobRepository:
+    return DjangoLeadImportJobRepository(company_id=ctx.company_id)
+
+
+def get_import_template_use_case() -> BuildImportTemplateUseCase:
+    return BuildImportTemplateUseCase()
+
+
+def get_upload_import_file_use_case(ctx: TenantContext) -> UploadImportFileUseCase:
+    return UploadImportFileUseCase(_import_job_repository(ctx), ctx.user_id)
+
+
+def get_preview_import_mapping_use_case(ctx: TenantContext) -> PreviewImportMappingUseCase:
+    return PreviewImportMappingUseCase(
+        _import_job_repository(ctx),
+        DjangoLeadRepository(company_id=ctx.company_id),
+        DjangoUserRepository(company_id=ctx.company_id),
+        DjangoPicklistRepository(company_id=ctx.company_id),
+        ctx,
+    )
+
+
+def get_validate_import_use_case(ctx: TenantContext) -> ValidateImportUseCase:
+    return ValidateImportUseCase(
+        _import_job_repository(ctx),
+        DjangoLeadRepository(company_id=ctx.company_id),
+        DjangoUserRepository(company_id=ctx.company_id),
+        DjangoPicklistRepository(company_id=ctx.company_id),
+        ctx,
+    )
+
+
+def get_list_import_rows_use_case(ctx: TenantContext) -> ListImportRowsUseCase:
+    return ListImportRowsUseCase(_import_job_repository(ctx), ctx)
+
+
+def get_update_import_exclusions_use_case(ctx: TenantContext) -> UpdateImportExclusionsUseCase:
+    return UpdateImportExclusionsUseCase(_import_job_repository(ctx), ctx)
+
+
+def get_discard_import_draft_use_case(ctx: TenantContext) -> DiscardImportDraftUseCase:
+    return DiscardImportDraftUseCase(_import_job_repository(ctx), ctx)

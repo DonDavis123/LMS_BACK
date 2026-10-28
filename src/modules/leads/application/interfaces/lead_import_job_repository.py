@@ -63,3 +63,10 @@ class LeadImportJobRepository(ABC):
         """Clear stored rows of finished jobs older than ``days``. Counts and
         history remain. Returns the number of jobs purged. Not company-scoped."""
         pass
+
+    @abstractmethod
+    def delete(self, job: Any) -> None:
+        """Delete a job of the repository's company (used to discard drafts).
+
+        The caller decides whether the job may be deleted."""
+        pass

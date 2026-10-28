@@ -130,6 +130,11 @@ class DjangoLeadImportJobRepository(LeadImportJobRepository):
         job.save(update_fields=sorted({*fields, "last_activity_at"}))
         return job
 
+    def delete(self, job: LeadImportJob) -> None:
+        # Filtered by company as well, so a job of another company can never
+        # be deleted through this repository.
+        self._base_queryset().filter(id=job.id).delete()
+
     def list_for_company(self, query: ListQuery) -> PaginatedResult[LeadImportJob]:
         # Stored rows can be large; history never needs them.
         queryset = (
