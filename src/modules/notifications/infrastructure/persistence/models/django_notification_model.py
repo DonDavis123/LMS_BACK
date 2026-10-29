@@ -67,6 +67,13 @@ class DjangoNotificationModel(models.Model):
         null=True,
     )
 
+    # Plain id, not a foreign key: the import job belongs to the leads module
+    # and the notification must outlive an import whose history is cleaned up.
+    lead_import_job_id = models.UUIDField(
+        blank=True,
+        null=True,
+    )
+
     scheduled_for = models.DateTimeField()
 
     expires_at = models.DateTimeField()
@@ -142,6 +149,12 @@ class DjangoNotificationModel(models.Model):
                 fields=["notification_type", "scheduled_for", "meeting"],
                 condition=models.Q(meeting__isnull=False),
                 name="notification_meeting_event_unique",
+            ),
+            # One notification per import and user, enforced by the database.
+            models.UniqueConstraint(
+                fields=["notification_type", "lead_import_job_id", "user"],
+                condition=models.Q(lead_import_job_id__isnull=False),
+                name="notification_lead_import_event_unique",
             ),
         ]
 

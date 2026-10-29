@@ -25,6 +25,8 @@ class Notification:
     created_at: datetime
     updated_at: datetime
     dismissed_at: datetime | None
+    # The lead import this notification reports on (LEAD_IMPORT_FINISHED only).
+    lead_import_job_id: UUID | None = None
 
     @classmethod
     def create(
@@ -39,6 +41,7 @@ class Notification:
         meeting_id: UUID | None = None,
         reminder_id: UUID | None = None,
         created_at: datetime | None = None,
+        lead_import_job_id: UUID | None = None,
     ) -> "Notification":
         if not isinstance(notification_type, NotificationType):
             try:
@@ -83,6 +86,7 @@ class Notification:
             created_at=now,
             updated_at=now,
             dismissed_at=None,
+            lead_import_job_id=lead_import_job_id,
         )
 
     def dismiss(self, dismissed_at: datetime | None = None) -> None:

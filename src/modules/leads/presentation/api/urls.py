@@ -25,6 +25,9 @@ from src.modules.leads.presentation.api.views.lead_import import (
     ImportMappingPreviewView,
     ImportProcessView,
     ImportProgressView,
+    ImportRejectedFileView,
+    ImportReportView,
+    ImportResultsFileView,
     ImportRowsView,
     ImportStartView,
     ImportTemplateView,
@@ -72,6 +75,21 @@ urlpatterns = [
         "import/<uuid:job_id>/progress/",
         ImportProgressView.as_view(),
         name="lead-import-progress",
+    ),
+    path(
+        "import/<uuid:job_id>/report/",
+        ImportReportView.as_view(),
+        name="lead-import-report",
+    ),
+    path(
+        "import/<uuid:job_id>/rejected-file/",
+        ImportRejectedFileView.as_view(),
+        name="lead-import-rejected-file",
+    ),
+    path(
+        "import/<uuid:job_id>/results-file/",
+        ImportResultsFileView.as_view(),
+        name="lead-import-results-file",
     ),
     path(
         "import/<uuid:job_id>/cancel/",

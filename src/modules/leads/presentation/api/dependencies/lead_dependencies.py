@@ -17,6 +17,8 @@ from src.modules.leads.application.use_cases.start_lead_import import StartLeadI
 from src.modules.leads.application.use_cases.process_lead_import import ProcessLeadImportUseCase
 from src.modules.leads.application.use_cases.get_import_progress import GetImportProgressUseCase
 from src.modules.leads.application.use_cases.cancel_lead_import import CancelLeadImportUseCase
+from src.modules.leads.application.use_cases.export_import_file import ExportImportFileUseCase
+from src.modules.leads.application.use_cases.get_import_report import GetImportReportUseCase
 from src.modules.leads.infrastructure.persistence.django_lead_import_job_repository import DjangoLeadImportJobRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
@@ -139,3 +141,15 @@ def get_cancel_lead_import_use_case(ctx: TenantContext) -> CancelLeadImportUseCa
         ctx,
         DjangoTransactionManager(),
     )
+
+
+def get_import_report_use_case(ctx: TenantContext) -> GetImportReportUseCase:
+    return GetImportReportUseCase(
+        _import_job_repository(ctx),
+        DjangoUserRepository(company_id=ctx.company_id),
+        ctx,
+    )
+
+
+def get_export_import_file_use_case(ctx: TenantContext) -> ExportImportFileUseCase:
+    return ExportImportFileUseCase(_import_job_repository(ctx), ctx)

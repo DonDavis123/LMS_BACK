@@ -15,3 +15,4 @@ class CreateNotificationDTO:
     task_id: UUID | None = None
     meeting_id: UUID | None = None
     reminder_id: UUID | None = None
+    lead_import_job_id: UUID | None = None

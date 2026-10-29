@@ -29,6 +29,16 @@ class LeadImportJobRepository(ABC):
         """Create a queued job in the repository's company."""
         pass
 
+    def get_for_report(self, job_id: UUID) -> Any | None:
+        """The company's job without its stored rows (summaries and problems
+        included), for reports and downloads. Not abstract so existing fakes
+        keep working."""
+        raise NotImplementedError
+
+    def iter_row_pages(self, job_id: UUID, page_size: int = 500):
+        """The stored rows of a job in file order, ``page_size`` at a time."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_for_company(self, job_id: UUID, light: bool = False) -> Any | None:
         """The job if it belongs to the repository's company, else ``None``.

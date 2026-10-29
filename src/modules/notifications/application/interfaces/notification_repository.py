@@ -46,6 +46,7 @@ class NotificationRepository(ABC):
         meeting_id: UUID | None = None,
         reminder_id: UUID | None = None,
         user_id: UUID | None = None,
+        lead_import_job_id: UUID | None = None,
     ) -> Notification | None:
         pass
 

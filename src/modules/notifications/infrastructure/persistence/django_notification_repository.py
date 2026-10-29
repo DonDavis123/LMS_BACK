@@ -42,6 +42,7 @@ class DjangoNotificationRepository(NotificationRepository):
                     "task_id": notification.task_id,
                     "meeting_id": notification.meeting_id,
                     "reminder_id": notification.reminder_id,
+                    "lead_import_job_id": notification.lead_import_job_id,
                     "scheduled_for": notification.scheduled_for,
                     "expires_at": notification.expires_at,
                     "is_read": notification.is_read,
@@ -57,6 +58,7 @@ class DjangoNotificationRepository(NotificationRepository):
                 meeting_id=notification.meeting_id,
                 reminder_id=notification.reminder_id,
                 user_id=notification.user_id,
+                lead_import_job_id=notification.lead_import_job_id,
             )
             if existing is None:
                 raise
@@ -121,6 +123,7 @@ class DjangoNotificationRepository(NotificationRepository):
         meeting_id: UUID | None = None,
         reminder_id: UUID | None = None,
         user_id: UUID | None = None,
+        lead_import_job_id: UUID | None = None,
     ) -> Notification | None:
         queryset = self._base_queryset().filter(
             notification_type=notification_type.value,
@@ -144,6 +147,11 @@ class DjangoNotificationRepository(NotificationRepository):
             queryset = queryset.filter(reminder_id=reminder_id)
         else:
             queryset = queryset.filter(reminder_id__isnull=True)
+
+        if lead_import_job_id is not None:
+            queryset = queryset.filter(lead_import_job_id=lead_import_job_id)
+        else:
+            queryset = queryset.filter(lead_import_job_id__isnull=True)
 
         model = queryset.order_by("id").first()
         return self._to_domain(model) if model else None
@@ -196,6 +204,7 @@ class DjangoNotificationRepository(NotificationRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
             dismissed_at=model.dismissed_at,
+            lead_import_job_id=model.lead_import_job_id,
         )
         notification.validate_state()
         return notification

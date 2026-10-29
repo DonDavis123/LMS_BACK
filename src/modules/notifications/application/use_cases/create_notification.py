@@ -79,9 +79,15 @@ class CreateNotificationUseCase:
             task_id=data.task_id,
             meeting_id=data.meeting_id,
             reminder_id=data.reminder_id,
+            lead_import_job_id=data.lead_import_job_id,
         )
 
         def creation():
+            source = {}
+            if notification.lead_import_job_id is not None:
+                # Only passed when set, so every other notification type is
+                # looked up exactly as before.
+                source["lead_import_job_id"] = notification.lead_import_job_id
             existing = self.notification_repository.get_existing_for_source(
                 notification_type=notification.notification_type,
                 scheduled_for=notification.scheduled_for,
@@ -89,6 +95,7 @@ class CreateNotificationUseCase:
                 meeting_id=notification.meeting_id,
                 reminder_id=notification.reminder_id,
                 user_id=notification.user_id,
+                **source,
             )
             if existing is not None:
                 return existing

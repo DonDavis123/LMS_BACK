@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
+from django.utils.http import content_disposition_header
 from rest_framework import status
 from rest_framework.negotiation import DefaultContentNegotiation
 from rest_framework.permissions import IsAuthenticated
@@ -13,6 +14,8 @@ from src.modules.leads.application.use_cases.lead_import_common import ImportReq
 from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_cancel_lead_import_use_case,
     get_discard_import_draft_use_case,
+    get_export_import_file_use_case,
+    get_import_report_use_case,
     get_import_progress_use_case,
     get_import_template_use_case,
     get_list_import_rows_use_case,
@@ -231,3 +234,57 @@ class ImportCancelView(_ImportView):
         except ImportRequestError as error:
             return _problem(error)
         return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportReportView(_ImportView):
+
+    def get(self, request, job_id):
+        try:
+            result = get_import_report_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id))
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+def _download_response(download) -> StreamingHttpResponse:
+    """A file that is sent as it is written, never kept whole in memory."""
+    response = StreamingHttpResponse(
+        download.stream, content_type=download.stream.content_type
+    )
+    response["Content-Disposition"] = content_disposition_header(True, download.file_name)
+    response["Cache-Control"] = "no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+class ImportRejectedFileView(_ImportView):
+    # ``?format=csv|xlsx`` is the file format here, not a DRF renderer suffix.
+    content_negotiation_class = _AnyRendererNegotiation
+
+    def get(self, request, job_id):
+        try:
+            download = get_export_import_file_use_case(
+                get_tenant_context(request)
+            ).rejected(
+                UUID(str(job_id)),
+                request.query_params.get("format"),
+                request.query_params.get("include"),
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return _download_response(download)
+
+
+class ImportResultsFileView(_ImportView):
+    content_negotiation_class = _AnyRendererNegotiation
+
+    def get(self, request, job_id):
+        try:
+            download = get_export_import_file_use_case(
+                get_tenant_context(request)
+            ).results(UUID(str(job_id)), request.query_params.get("format"))
+        except ImportRequestError as error:
+            return _problem(error)
+        return _download_response(download)

@@ -25,14 +25,14 @@ repeated request harmless: the second call finds ``processed_rows`` already
 advanced and simply takes the NEXT batch (or, when the caller passes
 ``expected_processed_rows``, does nothing at all).
 
-No timeline entry and no notification here: ``finalize_job`` (Part 11) does
-that once, after the job's last batch.
+No timeline entry and no notification here: ``finalize_job`` (see
+``lead_import_finalize``) does that once, after the job's last batch.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Callable
@@ -58,6 +58,7 @@ from src.modules.leads.application.services.lead_import_pipeline import (
     build_context,
     process_rows,
 )
+from src.modules.leads.application.services.lead_import_report import record_row_owners
 from src.modules.leads.application.services.lead_import_review import (
     compact_outcome,
     to_jsonable,
@@ -92,6 +93,11 @@ RESULT_UPDATED = "updated"
 RESULT_SKIPPED = "skipped"
 RESULT_FAILED = "failed"
 RESULT_CONVERTED = "converted"
+
+# Up to this many problem rows keep their original cell values inside
+# job.problems (so the "rejected rows" file can be written from them). Past it
+# only the row numbers are kept and the values are read back from job.rows.
+MAX_PROBLEM_ROWS_WITH_VALUES = 3000
 
 DEFAULT_BATCH_SIZE = 500
 MAX_BATCH_SIZE = 5000
@@ -387,6 +393,12 @@ def _run_batch(job_id: UUID, size: int, expected_processed_rows, runtime) -> _Ba
             options = record_conversion(options, applied.conversion)
 
         options["round_robin_cursor"] = context.owner_cursor
+        # Which owner each row got (plain READY rows are not stored anywhere else).
+        options = record_row_owners(
+            options,
+            start,
+            [applied.owners.get(row.get("row_number")) for row in batch_rows],
+        )
         if applied.entries:
             fields["problems"] = list(job.problems or []) + applied.entries
         if applied.snapshots_changed:
@@ -424,6 +436,8 @@ class _Applied:
     snapshots: dict
     snapshots_changed: bool
     conversion: ConversionResult | None = None
+    # {row_number: (owner_id, owner_name)} of the rows that got an owner.
+    owners: dict = field(default_factory=dict)
 
 
 def _blank(value) -> bool:
@@ -598,18 +612,26 @@ def _apply_outcomes(job, outcomes, context, runtime) -> _Applied:
     # Everything that is not a plainly created lead is kept for the report.
     owner_names = {str(owner.id): owner.name for owner in context.eligible_owners}
     entries = []
+    owners: dict = {}
+    kept_before = len(job.problems or [])
     for outcome in outcomes:
         result, note = results[outcome.row_number]
+        if result in (RESULT_CREATED, RESULT_CONVERTED, RESULT_UPDATED) and outcome.owner_id:
+            owners[outcome.row_number] = (
+                outcome.owner_id, owner_names.get(str(outcome.owner_id)),
+            )
         if outcome.status == READY and result == RESULT_CREATED:
             continue
         entry = compact_outcome(outcome, owner_names)
         entry["result"] = result
         if note:
             entry["note"] = note
+        if kept_before + len(entries) < MAX_PROBLEM_ROWS_WITH_VALUES:
+            entry["original_values"] = to_jsonable(outcome.original_values)
         entries.append(entry)
 
     snapshots_changed = sum(len(v) for v in snapshots.values()) != snapshots_before
-    return _Applied(counts, entries, snapshots, snapshots_changed, conversion)
+    return _Applied(counts, entries, snapshots, snapshots_changed, conversion, owners)
 
 
 # ---------------------------------------------------------------------------

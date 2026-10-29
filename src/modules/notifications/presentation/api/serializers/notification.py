@@ -28,6 +28,7 @@ class NotificationSerializer(serializers.Serializer):
     task_id = serializers.UUIDField(allow_null=True)
     meeting_id = serializers.UUIDField(allow_null=True)
     reminder_id = serializers.UUIDField(allow_null=True)
+    lead_import_job_id = serializers.UUIDField(allow_null=True, required=False)
     scheduled_for = serializers.DateTimeField()
     expires_at = serializers.DateTimeField()
     is_read = serializers.BooleanField()

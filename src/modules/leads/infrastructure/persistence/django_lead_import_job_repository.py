@@ -1,7 +1,8 @@
 from datetime import timedelta
 from uuid import UUID
 
-from django.db import transaction
+from django.db import DatabaseError, transaction
+from django.db.models import F, Func, IntegerField, JSONField
 from django.utils import timezone
 
 from src.modules.companies.infrastructure.persistence.django_company_model import (
@@ -109,6 +110,52 @@ class DjangoLeadImportJobRepository(LeadImportJobRepository):
             return queryset.get(id=job_id)
         except LeadImportJob.DoesNotExist:
             return None
+
+    def get_for_report(self, job_id: UUID) -> LeadImportJob | None:
+        """The company's job with its summaries and problems but WITHOUT its
+        stored rows (those are read page by page with ``iter_row_pages``)."""
+        try:
+            return self._base_queryset().defer("rows", "update_snapshots").get(id=job_id)
+        except LeadImportJob.DoesNotExist:
+            return None
+
+    def iter_row_pages(self, job_id: UUID, page_size: int = 500):
+        """The stored rows of a job in file order, ``page_size`` at a time.
+
+        Each page is cut out of the JSON column inside Postgres, so a
+        10,000-row file is never loaded in one piece. If the database cannot
+        do that, the rows are read once and cut in memory instead.
+        """
+        queryset = self._base_queryset().filter(id=job_id)
+        length = queryset.annotate(
+            size=Func(F("rows"), function="jsonb_array_length", output_field=IntegerField())
+        ).values_list("size", flat=True).first()
+        if not length:
+            return
+
+        start = 0
+        try:
+            while start < length:
+                end = min(start + page_size, length) - 1
+                page = queryset.annotate(
+                    page=Func(
+                        F("rows"),
+                        # Both numbers are integers made here, never user input.
+                        template=(
+                            "jsonb_path_query_array(%(expressions)s, "
+                            f"'$[{int(start)} to {int(end)}]'::jsonpath)"
+                        ),
+                        output_field=JSONField(),
+                    )
+                ).values_list("page", flat=True).first()
+                yield list(page or [])
+                start = end + 1
+        except DatabaseError:
+            rows = queryset.values_list("rows", flat=True).first() or []
+            yield from (
+                list(rows[offset:offset + page_size])
+                for offset in range(start, len(rows), page_size)
+            )
 
     def lock_for_processing(
         self,
