@@ -381,6 +381,15 @@ FRONTEND_URL = os.getenv("FRONTEND_URL")
 # Keep the real value in the deployment environment; never commit it to source control.
 NOTIFICATION_CRON_SECRET = os.getenv("NOTIFICATION_CRON_SECRET")
 
+# Lead import maintenance (resume stalled imports, clean up old data).
+# Secret for POST/GET /api/leads/import/maintenance/ (header X-Import-Secret).
+# Empty means the endpoint is disabled (it answers 404). Never commit a value.
+LEAD_IMPORT_CRON_SECRET = os.getenv("LEAD_IMPORT_CRON_SECRET", "")
+# Days a finished import keeps its stored file rows before they are purged.
+LEAD_IMPORT_RETENTION_DAYS = int(os.getenv("LEAD_IMPORT_RETENTION_DAYS", "30"))
+# Minutes without activity before a running import counts as stalled.
+LEAD_IMPORT_STALL_MINUTES = int(os.getenv("LEAD_IMPORT_STALL_MINUTES", "2"))
+
 
 # -------------------------------------------------------------------
 # Simple JWT

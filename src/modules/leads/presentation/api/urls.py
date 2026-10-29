@@ -40,8 +40,19 @@ from src.modules.leads.presentation.api.views.lead_import import (
 
 
 
+from src.modules.leads.presentation.api.views.lead_import_maintenance import (
+    ImportMaintenanceView,
+)
+
+
 urlpatterns = [
     # Lead import. These go before the <uuid:lead_id> routes below.
+    # Cron-only (secret header, no login). Before every <uuid:job_id> route.
+    path(
+        "import/maintenance/",
+        ImportMaintenanceView.as_view(),
+        name="lead-import-maintenance",
+    ),
     path("import/template/", ImportTemplateView.as_view(), name="lead-import-template"),
     path("import/upload/", ImportUploadView.as_view(), name="lead-import-upload"),
     # Must stay before every <uuid:job_id> route.
