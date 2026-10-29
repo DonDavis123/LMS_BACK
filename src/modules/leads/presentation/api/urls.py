@@ -22,6 +22,7 @@ from src.modules.leads.presentation.api.views.lead_import import (
     ImportCancelView,
     ImportDraftView,
     ImportExclusionsView,
+    ImportHistoryView,
     ImportMappingPreviewView,
     ImportProcessView,
     ImportProgressView,
@@ -31,6 +32,8 @@ from src.modules.leads.presentation.api.views.lead_import import (
     ImportRowsView,
     ImportStartView,
     ImportTemplateView,
+    ImportUndoPreviewView,
+    ImportUndoView,
     ImportUploadView,
     ImportValidateView,
 )
@@ -41,6 +44,8 @@ urlpatterns = [
     # Lead import. These go before the <uuid:lead_id> routes below.
     path("import/template/", ImportTemplateView.as_view(), name="lead-import-template"),
     path("import/upload/", ImportUploadView.as_view(), name="lead-import-upload"),
+    # Must stay before every <uuid:job_id> route.
+    path("import/history/", ImportHistoryView.as_view(), name="lead-import-history"),
     path(
         "import/<uuid:job_id>/mapping-preview/",
         ImportMappingPreviewView.as_view(),
@@ -90,6 +95,16 @@ urlpatterns = [
         "import/<uuid:job_id>/results-file/",
         ImportResultsFileView.as_view(),
         name="lead-import-results-file",
+    ),
+    path(
+        "import/<uuid:job_id>/undo-preview/",
+        ImportUndoPreviewView.as_view(),
+        name="lead-import-undo-preview",
+    ),
+    path(
+        "import/<uuid:job_id>/undo/",
+        ImportUndoView.as_view(),
+        name="lead-import-undo",
     ),
     path(
         "import/<uuid:job_id>/cancel/",

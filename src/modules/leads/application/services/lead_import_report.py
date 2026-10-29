@@ -29,6 +29,7 @@ from .lead_import_duplicates import (
     MATCHED_ON_EMAIL,
     MATCHED_ON_PHONE,
 )
+from .lead_import_undo import undo_eligibility
 from .lead_import_pipeline import (
     DUPLICATE_SKIP,
     ERROR,
@@ -639,7 +640,6 @@ def build_report(job, summary: dict, created_by_name: str | None) -> dict:
     rejected = int((summary.get("rejected_rows") or {}).get("default", 0))
     rejected_available = finished and not purged and rejected > 0
     results_available = finished and not purged and int(job.processed_rows or 0) > 0
-    changed = int(job.created_count or 0) + int(job.updated_count or 0)
 
     files = {
         "rejected_available": rejected_available,
@@ -649,7 +649,10 @@ def build_report(job, summary: dict, created_by_name: str | None) -> dict:
     if purged:
         files["message"] = FILES_EXPIRED_MESSAGE
 
-    return {
+    undo_report = _options(job).get("undo_report")
+    eligibility = undo_eligibility(job)
+
+    report = {
         "job": {
             "id": str(job.id),
             "file_name": job.file_name,
@@ -669,10 +672,10 @@ def build_report(job, summary: dict, created_by_name: str | None) -> dict:
         "warnings": summary.get("warnings", []),
         "mapped_values": summary.get("mapped_values", {}),
         "files": files,
-        "can_undo": (
-            job.status in ("completed", "failed")
-            and job.undone_at is None
-            and changed > 0
-        ),
+        # The same rule the history and the undo itself use.
+        "can_undo": eligibility.can_undo,
         "can_reupload": rejected_available,
     }
+    if isinstance(undo_report, dict):
+        report["undo_report"] = undo_report
+    return report

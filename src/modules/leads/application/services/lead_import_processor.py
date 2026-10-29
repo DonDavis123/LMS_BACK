@@ -403,6 +403,13 @@ def _run_batch(job_id: UUID, size: int, expected_processed_rows, runtime) -> _Ba
             fields["problems"] = list(job.problems or []) + applied.entries
         if applied.snapshots_changed:
             fields["update_snapshots"] = applied.snapshots
+        if applied.applied_values:
+            # What the import WROTE (newest value wins), so an undo can tell a
+            # lead that is still as the import left it from one edited since.
+            written = dict(options.get("update_applied") or {})
+            for lead_key, values in applied.applied_values.items():
+                written[lead_key] = {**(written.get(lead_key) or {}), **values}
+            options["update_applied"] = written
 
     processed = start + len(batch_rows)
     finished = processed >= len(rows)
@@ -438,6 +445,8 @@ class _Applied:
     conversion: ConversionResult | None = None
     # {row_number: (owner_id, owner_name)} of the rows that got an owner.
     owners: dict = field(default_factory=dict)
+    # {lead_id: {field: value the import wrote}} for the leads updated in this batch.
+    applied_values: dict = field(default_factory=dict)
 
 
 def _blank(value) -> bool:
@@ -543,6 +552,7 @@ def _apply_outcomes(job, outcomes, context, runtime) -> _Applied:
     snapshots = dict(job.update_snapshots or {})
     snapshots_before = sum(len(v) for v in snapshots.values())
     changes: dict[UUID, dict] = {}
+    applied_values: dict = {}
     if to_update:
         wanted_ids = {
             UUID(str(o.matched_lead_id)) for o in to_update if o.matched_lead_id
@@ -587,6 +597,12 @@ def _apply_outcomes(job, outcomes, context, runtime) -> _Applied:
             changes.setdefault(lead_id, {}).update(changed)
             results[outcome.row_number] = (RESULT_UPDATED, None)
         lead_repository.bulk_update_fields(changes)
+        applied_values = {
+            str(changed_id): {
+                key: to_jsonable(option_text(value)) for key, value in values.items()
+            }
+            for changed_id, values in changes.items()
+        }
 
     # Converted rows: lead + Account + Contact, each row in its own savepoint.
     conversion = None
@@ -631,7 +647,9 @@ def _apply_outcomes(job, outcomes, context, runtime) -> _Applied:
         entries.append(entry)
 
     snapshots_changed = sum(len(v) for v in snapshots.values()) != snapshots_before
-    return _Applied(counts, entries, snapshots, snapshots_changed, conversion, owners)
+    return _Applied(
+        counts, entries, snapshots, snapshots_changed, conversion, owners, applied_values
+    )
 
 
 # ---------------------------------------------------------------------------

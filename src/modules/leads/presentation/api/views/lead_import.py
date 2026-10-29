@@ -15,6 +15,7 @@ from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_cancel_lead_import_use_case,
     get_discard_import_draft_use_case,
     get_export_import_file_use_case,
+    get_import_history_use_case,
     get_import_report_use_case,
     get_import_progress_use_case,
     get_import_template_use_case,
@@ -22,6 +23,8 @@ from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_preview_import_mapping_use_case,
     get_process_lead_import_use_case,
     get_start_lead_import_use_case,
+    get_undo_lead_import_use_case,
+    get_undo_preview_use_case,
     get_update_import_exclusions_use_case,
     get_upload_import_file_use_case,
     get_validate_import_use_case,
@@ -242,6 +245,46 @@ class ImportReportView(_ImportView):
         try:
             result = get_import_report_use_case(get_tenant_context(request)).execute(
                 UUID(str(job_id))
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportHistoryView(_ImportView):
+
+    def get(self, request):
+        params = request.query_params
+        try:
+            result = get_import_history_use_case(get_tenant_context(request)).execute(
+                params.get("page"), params.get("page_size")
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportUndoPreviewView(_ImportView):
+
+    def get(self, request, job_id):
+        try:
+            result = get_undo_preview_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id))
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportUndoView(_ImportView):
+
+    def post(self, request, job_id):
+        # The body carries nothing but the confirmation. No ids are read from it.
+        body = request.data if hasattr(request.data, "get") else {}
+        try:
+            result = get_undo_lead_import_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id)),
+                body.get("confirm"),
             )
         except ImportRequestError as error:
             return _problem(error)

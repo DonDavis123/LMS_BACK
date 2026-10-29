@@ -75,8 +75,13 @@ class LeadImportJobRepository(ABC):
         pass
 
     @abstractmethod
-    def list_for_company(self, query: ListQuery) -> PaginatedResult[Any]:
-        """Import history for the repository's company, newest first."""
+    def list_for_company(
+        self, query: ListQuery, include_drafts: bool = True
+    ) -> PaginatedResult[Any]:
+        """Import history for the repository's company, newest first.
+
+        ``include_drafts=False`` leaves out uploads that were never started
+        (``options["stage"] == "draft"``)."""
         pass
 
     @abstractmethod

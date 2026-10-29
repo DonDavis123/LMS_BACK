@@ -2,7 +2,7 @@ from datetime import timedelta
 from uuid import UUID
 
 from django.db import DatabaseError, transaction
-from django.db.models import F, Func, IntegerField, JSONField
+from django.db.models import F, Func, IntegerField, JSONField, Q
 from django.utils import timezone
 
 from src.modules.companies.infrastructure.persistence.django_company_model import (
@@ -52,6 +52,7 @@ class DjangoLeadImportJobRepository(LeadImportJobRepository):
         "finished_at",
         "undone_at",
         "undone_by",
+        "undone_by_id",
         "rows_purged_at",
     })
 
@@ -219,13 +220,20 @@ class DjangoLeadImportJobRepository(LeadImportJobRepository):
         # be deleted through this repository.
         self._base_queryset().filter(id=job.id).delete()
 
-    def list_for_company(self, query: ListQuery) -> PaginatedResult[LeadImportJob]:
+    def list_for_company(
+        self, query: ListQuery, include_drafts: bool = True
+    ) -> PaginatedResult[LeadImportJob]:
         # Stored rows can be large; history never needs them.
         queryset = (
             self._base_queryset()
-            .select_related("created_by")
-            .defer("rows", "update_snapshots")
+            .select_related("created_by", "undone_by")
+            .defer("rows", "problems", "update_snapshots")
         )
+        if not include_drafts:
+            # A job without a stage at all is an old finished one, not a draft.
+            queryset = queryset.filter(
+                Q(options__stage__isnull=True) | ~Q(options__stage="draft")
+            )
 
         if query.search:
             queryset = queryset.filter(file_name__icontains=query.search)

@@ -19,6 +19,13 @@ from src.modules.leads.application.use_cases.get_import_progress import GetImpor
 from src.modules.leads.application.use_cases.cancel_lead_import import CancelLeadImportUseCase
 from src.modules.leads.application.use_cases.export_import_file import ExportImportFileUseCase
 from src.modules.leads.application.use_cases.get_import_report import GetImportReportUseCase
+from src.modules.leads.application.use_cases.get_import_history import GetImportHistoryUseCase
+from src.modules.leads.application.use_cases.get_undo_preview import GetUndoPreviewUseCase
+from src.modules.leads.application.use_cases.undo_lead_import import UndoLeadImportUseCase
+from src.modules.leads.infrastructure.lead_import_undo_store import (
+    DjangoUndoStore,
+    build_undo_services,
+)
 from src.modules.leads.infrastructure.persistence.django_lead_import_job_repository import DjangoLeadImportJobRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
@@ -153,3 +160,32 @@ def get_import_report_use_case(ctx: TenantContext) -> GetImportReportUseCase:
 
 def get_export_import_file_use_case(ctx: TenantContext) -> ExportImportFileUseCase:
     return ExportImportFileUseCase(_import_job_repository(ctx), ctx)
+
+
+# --- Lead import (history and undo) -----------------------------------------
+
+def get_import_history_use_case(ctx: TenantContext) -> GetImportHistoryUseCase:
+    return GetImportHistoryUseCase(_import_job_repository(ctx), ctx)
+
+
+def _undo_store_factory(ctx: TenantContext):
+    # One store per job; it is bound to the caller's company and to that job.
+    return lambda job_id: DjangoUndoStore(company_id=ctx.company_id, job_id=job_id)
+
+
+def get_undo_preview_use_case(ctx: TenantContext) -> GetUndoPreviewUseCase:
+    return GetUndoPreviewUseCase(
+        _import_job_repository(ctx),
+        ctx,
+        _undo_store_factory(ctx),
+    )
+
+
+def get_undo_lead_import_use_case(ctx: TenantContext) -> UndoLeadImportUseCase:
+    return UndoLeadImportUseCase(
+        _import_job_repository(ctx),
+        ctx,
+        DjangoTransactionManager(),
+        _undo_store_factory(ctx),
+        lambda: build_undo_services(ctx.company_id),
+    )
