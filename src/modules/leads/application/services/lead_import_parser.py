@@ -16,7 +16,20 @@ import io
 import os
 from dataclasses import dataclass, field
 
-from .lead_import_cleaning import to_text
+from .lead_import_cleaning import to_text as _to_text
+
+_GUARD_CHARS = ("=", "+", "-", "@")
+
+
+def to_text(raw: object) -> str:
+    """A cell as text. A leading single quote in front of ``=``, ``+``, ``-`` or
+    ``@`` is the guard our own CSV downloads add (and Excel's text prefix); it
+    is not part of the value, so a downloaded rows-to-fix file uploads back
+    unchanged."""
+    text = _to_text(raw)
+    if len(text) > 1 and text[0] == "'" and text[1] in _GUARD_CHARS:
+        return text[1:]
+    return text
 
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
 DEFAULT_MAX_ROWS = 10_000

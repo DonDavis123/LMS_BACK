@@ -168,6 +168,11 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# Without this the browser hides the Content-Disposition header from the
+# frontend on cross-origin requests, so downloaded files (import template,
+# rows-to-fix and results files) lose the server's file name.
+CORS_EXPOSE_HEADERS = ["Content-Disposition"]
+
 
 from corsheaders.defaults import default_headers
 

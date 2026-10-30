@@ -8,8 +8,13 @@ as iterators, so a 10,000-row file is written in small pieces:
 * XLSX: openpyxl write-only mode into a temporary file that is read back in
   chunks, so the workbook is never held in memory.
 
-Every cell that starts with ``=``, ``+``, ``-`` or ``@`` gets a leading single
-quote, so a spreadsheet can never run it as a formula.
+A spreadsheet must never run a cell as a formula:
+
+* CSV: a cell that starts with ``=``, ``+``, ``-`` or ``@`` gets a leading single
+  quote (the upload parser removes that quote again);
+* XLSX: every cell is written as plain text. No quote is added, because Excel
+  would show it, and a phone number such as ``+91 98765 43210`` must come back
+  unchanged when the file is fixed and uploaded again.
 """
 
 from __future__ import annotations
@@ -57,17 +62,31 @@ _ILLEGAL_XML = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 # Cells
 # ---------------------------------------------------------------------------
 
-def safe_cell(value) -> str:
-    """Text for one written cell: never a formula, never a control character."""
+def clean_cell(value) -> str:
+    """Text for one written cell: no control characters, not too long.
+
+    Format-neutral. The writers decide how to keep it from being read as a
+    formula (see ``csv_safe`` and ``xlsx_stream``).
+    """
     if value is None:
         return ""
     text = value if isinstance(value, str) else str(value)
     text = _ILLEGAL_XML.sub("", text)
     if len(text) > MAX_CELL_LENGTH:
         text = text[:MAX_CELL_LENGTH]
-    if text.startswith(_FORMULA_STARTS):
-        text = "'" + text
     return text
+
+
+def csv_safe(text: str) -> str:
+    """A CSV cell that Excel can't run as a formula."""
+    if text.startswith(_FORMULA_STARTS):
+        return "'" + text
+    return text
+
+
+def safe_cell(value) -> str:
+    """Text for one CSV cell: never a formula, never a control character."""
+    return csv_safe(clean_cell(value))
 
 
 def unique_names(headers: list[str], wanted: list[str]) -> list[str]:
@@ -122,7 +141,7 @@ def default_format(file_name: str) -> str:
 
 def _values_row(headers: list[str], values: dict | None) -> list[str]:
     values = values or {}
-    return [safe_cell(values.get(header)) for header in headers]
+    return [clean_cell(values.get(header)) for header in headers]
 
 
 class _RowCursor:
@@ -174,7 +193,7 @@ def rejected_rows(
                 cursor = _RowCursor(page_source())
             values = cursor.values_of(entry.get("row_number", 0))
         problem, fix = problem_text(entry)
-        yield _values_row(headers, values) + [safe_cell(problem), safe_cell(fix)]
+        yield _values_row(headers, values) + [clean_cell(problem), clean_cell(fix)]
 
 
 def count_rejected(entries: list[dict], include_excluded: bool = False) -> int:
@@ -199,9 +218,9 @@ def results_rows(
             owner = (entry or {}).get("owner_name") or owner_name_at(options, position)
             position += 1
             yield _values_row(headers, row.get("values", row.get("original"))) + [
-                safe_cell(RESULT_LABELS[category]),
-                safe_cell(result_details(entry)),
-                safe_cell(owner),
+                clean_cell(RESULT_LABELS[category]),
+                clean_cell(result_details(entry)),
+                clean_cell(owner),
             ]
 
 
@@ -231,7 +250,7 @@ def csv_stream(columns: list[str], rows: Iterable[list[str]]) -> FileStream:
         yield BOM
         writer.writerow([safe_cell(column) for column in columns])
         for row in rows:
-            writer.writerow(row)
+            writer.writerow([csv_safe(cell) for cell in row])
             if buffer.tell() >= CHUNK_BYTES:
                 yield buffer.getvalue().encode("utf-8")
                 buffer.seek(0)
@@ -273,14 +292,23 @@ def xlsx_stream(
             width = 55 if column in wide_columns else 20
             sheet.column_dimensions[get_column_letter(index)].width = width
 
-        header = []
-        for column in columns:
-            cell = WriteOnlyCell(sheet, value=safe_cell(column))
-            cell.font = Font(bold=True)
-            header.append(cell)
-        sheet.append(header)
+        def text_cell(text: str, bold: bool = False):
+            """openpyxl turns a string starting with ``=`` into a formula and
+            ``#N/A``-style strings into errors; force plain text instead."""
+            cell = WriteOnlyCell(sheet, value=text)
+            cell.data_type = "s"
+            if bold:
+                cell.font = Font(bold=True)
+            return cell
+
+        sheet.append([text_cell(clean_cell(column), bold=True) for column in columns])
         for row in rows:
-            sheet.append(row)
+            sheet.append(
+                [
+                    text_cell(text) if text[:1] in ("=", "#") else text
+                    for text in map(clean_cell, row)
+                ]
+            )
         workbook.save(path)
     except Exception:
         cleanup()
@@ -313,6 +341,7 @@ __all__ = [
     "FORMATS",
     "FileStream",
     "build_stream",
+    "clean_cell",
     "count_rejected",
     "default_format",
     "download_name",
