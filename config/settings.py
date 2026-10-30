@@ -167,6 +167,12 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+# Vercel preview deployments get a new hostname on every deploy, e.g.
+# lms-front-mnz01cn52-don-davis-projects.vercel.app. Match only this project's
+# team suffix, never all of *.vercel.app, because credentials are allowed.
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://lms-front-[a-z0-9]+-don-davis-projects\.vercel\.app$",
+]
 
 # Without this the browser hides the Content-Disposition header from the
 # frontend on cross-origin requests, so downloaded files (import template,
