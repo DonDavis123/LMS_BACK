@@ -87,6 +87,11 @@ urlpatterns = [
     ),
 
     path(
+        "api/exports/",
+        include("src.modules.exports.presentation.api.urls"),
+    ),
+
+    path(
         "api/lead-capture/",
         include("src.modules.lead_capture.presentation.api.urls"),
     ),
