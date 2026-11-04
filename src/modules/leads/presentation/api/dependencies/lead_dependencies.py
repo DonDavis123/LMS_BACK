@@ -11,6 +11,7 @@ from src.modules.leads.application.use_cases.upload_import_file import UploadImp
 from src.modules.leads.application.use_cases.preview_import_mapping import PreviewImportMappingUseCase
 from src.modules.leads.application.use_cases.validate_import import ValidateImportUseCase
 from src.modules.leads.application.use_cases.list_import_rows import ListImportRowsUseCase
+from src.modules.leads.application.use_cases.preview_import_file import PreviewImportFileUseCase
 from src.modules.leads.application.use_cases.update_import_exclusions import UpdateImportExclusionsUseCase
 from src.modules.leads.application.use_cases.discard_import_draft import DiscardImportDraftUseCase
 from src.modules.leads.application.use_cases.start_lead_import import StartLeadImportUseCase
@@ -112,6 +113,10 @@ def get_validate_import_use_case(ctx: TenantContext) -> ValidateImportUseCase:
 
 def get_list_import_rows_use_case(ctx: TenantContext) -> ListImportRowsUseCase:
     return ListImportRowsUseCase(_import_job_repository(ctx), ctx)
+
+
+def get_preview_import_file_use_case(ctx: TenantContext) -> PreviewImportFileUseCase:
+    return PreviewImportFileUseCase(_import_job_repository(ctx), ctx)
 
 
 def get_update_import_exclusions_use_case(ctx: TenantContext) -> UpdateImportExclusionsUseCase:

@@ -1,7 +1,7 @@
 from src.modules.leads.application.services.lead_import_conversion import converted_count
 from src.modules.leads.application.services.lead_import_report import is_finished
 from src.modules.leads.application.services.lead_import_review import DEFAULT_PAGE_SIZE
-from src.modules.leads.application.services.lead_import_undo import undo_eligibility
+from src.modules.leads.application.services.lead_import_undo import is_undone, undo_eligibility
 from src.modules.leads.application.use_cases.lead_import_common import ImportRequestError
 from src.modules.shared.application.dto.list_query import ListQuery
 from src.modules.shared.application.tenant_context import TenantContext
@@ -81,7 +81,7 @@ class GetImportHistoryUseCase:
 
         finished = is_finished(job)
         purged = job.rows_purged_at is not None
-        rejected_file = finished and not purged and rejected > 0
+        rejected_file = finished and not purged and not is_undone(job) and rejected > 0
         results_file = finished and not purged and int(job.processed_rows or 0) > 0
 
         created_by = getattr(job, "created_by", None)

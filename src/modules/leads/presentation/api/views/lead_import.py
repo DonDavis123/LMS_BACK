@@ -20,6 +20,7 @@ from src.modules.leads.presentation.api.dependencies.lead_dependencies import (
     get_import_progress_use_case,
     get_import_template_use_case,
     get_list_import_rows_use_case,
+    get_preview_import_file_use_case,
     get_preview_import_mapping_use_case,
     get_process_lead_import_use_case,
     get_start_lead_import_use_case,
@@ -139,6 +140,23 @@ class ImportValidateView(_ImportView):
                 UUID(str(job_id)),
                 self._body_part(request, "mapping"),
                 self._body_part(request, "options"),
+            )
+        except ImportRequestError as error:
+            return _problem(error)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class ImportFileRowsView(_ImportView):
+    """The whole uploaded file, page by page, as it was read (no check needed)."""
+
+    def get(self, request, job_id):
+        params = request.query_params
+        try:
+            result = get_preview_import_file_use_case(get_tenant_context(request)).execute(
+                UUID(str(job_id)),
+                page=params.get("page"),
+                page_size=params.get("page_size"),
+                q=params.get("q"),
             )
         except ImportRequestError as error:
             return _problem(error)

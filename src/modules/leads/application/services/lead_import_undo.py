@@ -222,6 +222,17 @@ class UndoEligibility:
     status_code: int = 400
 
 
+def is_undone(job) -> bool:
+    """True once the import has been undone, fully or partly.
+
+    The "rows to fix" file belongs to an import that stands: after an undo the
+    whole import has been rolled back, so fixing and re-uploading only its
+    rejected rows no longer makes sense. The history, the report and the
+    download itself all use this one rule.
+    """
+    return job.status in (STATUS_UNDONE, STATUS_PARTLY_UNDONE)
+
+
 def undo_running(job, now: datetime | None = None) -> bool:
     """An undo of this job has been claimed and has not timed out."""
     state = _options(job).get("undo")

@@ -16,6 +16,7 @@ from src.modules.leads.application.services.lead_import_files import (
     results_rows,
 )
 from src.modules.leads.application.services.lead_import_processor import is_running
+from src.modules.leads.application.services.lead_import_undo import is_undone
 from src.modules.leads.application.use_cases.lead_import_common import (
     ImportRequestError,
     not_found,
@@ -94,6 +95,12 @@ class ExportImportFileUseCase:
                 "Use include=excluded to also list the rows you left out, or leave it out.",
             )
         job = self._load(job_id)
+        if is_undone(job):
+            raise ImportRequestError(
+                "import_undone",
+                "This import was undone, so there are no rows to fix.",
+                "To import the data again, upload the original file as a new import.",
+            )
         file_format = self._format(file_format, job)
         include_excluded = include_text == INCLUDE_EXCLUDED
 

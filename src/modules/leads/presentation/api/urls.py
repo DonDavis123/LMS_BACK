@@ -22,6 +22,7 @@ from src.modules.leads.presentation.api.views.lead_import import (
     ImportCancelView,
     ImportDraftView,
     ImportExclusionsView,
+    ImportFileRowsView,
     ImportHistoryView,
     ImportMappingPreviewView,
     ImportProcessView,
@@ -71,6 +72,11 @@ urlpatterns = [
         "import/<uuid:job_id>/rows/",
         ImportRowsView.as_view(),
         name="lead-import-rows",
+    ),
+    path(
+        "import/<uuid:job_id>/file-rows/",
+        ImportFileRowsView.as_view(),
+        name="lead-import-file-rows",
     ),
     path(
         "import/<uuid:job_id>/exclusions/",

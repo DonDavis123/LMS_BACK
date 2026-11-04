@@ -29,7 +29,7 @@ from .lead_import_duplicates import (
     MATCHED_ON_EMAIL,
     MATCHED_ON_PHONE,
 )
-from .lead_import_undo import undo_eligibility
+from .lead_import_undo import is_undone, undo_eligibility
 from .lead_import_pipeline import (
     DUPLICATE_SKIP,
     ERROR,
@@ -629,6 +629,12 @@ def report_summary_of(job) -> dict:
     return build_report_summary(job)
 
 
+FILES_UNDONE_MESSAGE = (
+    "This import was undone, so there are no rows to fix. To import the data again, "
+    "upload the original file as a new import."
+)
+
+
 def is_finished(job) -> bool:
     return job.status in _FINISHED_STATUSES and _options(job).get("stage") != "running"
 
@@ -638,7 +644,8 @@ def build_report(job, summary: dict, created_by_name: str | None) -> dict:
     purged = job.rows_purged_at is not None
     finished = is_finished(job)
     rejected = int((summary.get("rejected_rows") or {}).get("default", 0))
-    rejected_available = finished and not purged and rejected > 0
+    undone = is_undone(job)
+    rejected_available = finished and not purged and not undone and rejected > 0
     results_available = finished and not purged and int(job.processed_rows or 0) > 0
 
     files = {
@@ -646,7 +653,9 @@ def build_report(job, summary: dict, created_by_name: str | None) -> dict:
         "results_available": results_available,
         "rows_purged": purged,
     }
-    if purged:
+    if undone:
+        files["message"] = FILES_UNDONE_MESSAGE
+    elif purged:
         files["message"] = FILES_EXPIRED_MESSAGE
 
     undo_report = _options(job).get("undo_report")
