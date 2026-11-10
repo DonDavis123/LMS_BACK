@@ -96,7 +96,7 @@ class _NotificationRepository:
         self.items[notification.id] = notification
         return notification
 
-    def get_existing_for_source(self, *, notification_type, scheduled_for, task_id=None, meeting_id=None, reminder_id=None):
+    def get_existing_for_source(self, *, notification_type, scheduled_for, task_id=None, meeting_id=None, reminder_id=None, user_id=None):
         for notification in self.items.values():
             if (
                 notification.notification_type == notification_type
@@ -104,6 +104,7 @@ class _NotificationRepository:
                 and notification.task_id == task_id
                 and notification.meeting_id == meeting_id
                 and notification.reminder_id == reminder_id
+                and (user_id is None or notification.user_id == user_id)
             ):
                 return notification
         return None
@@ -230,3 +231,45 @@ class ProcessNotificationsUseCaseTests(SimpleTestCase):
         self.assertEqual(second.duplicates_skipped, 1)
         self.assertEqual(third.duplicates_skipped, 1)
         self.assertEqual(len(self.notification_repository.items), 1)
+
+
+class ProcessNotificationsMissedCallTests(SimpleTestCase):
+    def test_overdue_planned_call_is_counted_and_failures_are_added(self):
+        from src.modules.calls.application.tests_mark_missed import (
+            _CallRepository,
+            _TimelineRecorder,
+            _call,
+        )
+
+        now = datetime(2026, 9, 27, 10, tzinfo=timezone.utc)
+        user = _User(uuid4())
+        call = _call(now - timedelta(days=1))
+        calls = _CallRepository([call])
+        use_case = ProcessNotificationsUseCase(
+            _NotificationRepository(),
+            _ReminderRepository([]),
+            _TaskRepository([]),
+            _MeetingRepository([]),
+            _UserRepository([user]),
+            _TransactionManager(),
+            call_repository=calls,
+            timeline_recorder=_TimelineRecorder(),
+        )
+
+        result = use_case.execute(now)
+
+        self.assertEqual(result.calls_marked_missed, 1)
+        self.assertEqual(result.failures, 0)
+
+    def test_calls_are_skipped_when_no_call_repository_is_given(self):
+        now = datetime(2026, 9, 27, 10, tzinfo=timezone.utc)
+        use_case = ProcessNotificationsUseCase(
+            _NotificationRepository(),
+            _ReminderRepository([]),
+            _TaskRepository([]),
+            _MeetingRepository([]),
+            _UserRepository([]),
+            _TransactionManager(),
+        )
+
+        self.assertEqual(use_case.execute(now).calls_marked_missed, 0)

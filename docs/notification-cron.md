@@ -49,12 +49,20 @@ A successful request returns HTTP 200 with the real processing counts from `Proc
   "task_notifications_created": 1,
   "meeting_notifications_created": 0,
   "duplicates_skipped": 1,
+  "calls_marked_missed": 0,
   "expired_notifications_deleted": 0,
   "failures": 0
 }
 ```
 
 If processing fails unexpectedly, the endpoint returns HTTP 500 with a generic error message while the server logs the exception.
+
+## Overdue planned calls
+
+Each run also marks every **Planned** call whose start time is more than one hour in the past as **Missed**
+(`calls_marked_missed` in the response, `Planned calls marked missed` in `manage.py process_notifications`).
+The change is written to the call's timeline like a manual edit, and a Missed call stays editable, so the owner
+can still log it as Completed later. Calls that were logged or edited while the job ran are left untouched.
 
 ## Architecture
 
@@ -73,6 +81,7 @@ ProcessNotificationsUseCase
        +--> due reminders (one-time; consumed after successful processing)
        +--> task notifications
        +--> meeting notifications
+       +--> overdue planned calls -> Missed (1 hour grace, via MarkMissedCallsUseCase)
        +--> duplicate protection
        +--> expired notification cleanup
        |

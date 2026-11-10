@@ -37,6 +37,19 @@ class Call:
 
         self.is_deleted = True
 
+    def mark_missed(self) -> None:
+        """Turn a planned call whose time has passed into a missed one.
+
+        Only a planned call can be missed: a completed call already
+        happened, and a missed one is already marked.
+        """
+        if self.status != CallStatus.PLANNED:
+            raise ValueError("Only a planned call can be marked as missed.")
+
+        self.status = CallStatus.MISSED
+        # Re-run the shared rules: a missed call carries no outcome or talk time.
+        self.validate()
+
     def duration_label(self) -> str:
         """Human readable duration, e.g. ``4 min 10 sec``."""
         total = self.duration_seconds

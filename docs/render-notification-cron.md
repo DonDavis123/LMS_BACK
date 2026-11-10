@@ -51,6 +51,7 @@ Expected successful response:
   "task_notifications_created": 0,
   "meeting_notifications_created": 0,
   "duplicates_skipped": 0,
+  "calls_marked_missed": 0,
   "expired_notifications_deleted": 0,
   "failures": 0
 }

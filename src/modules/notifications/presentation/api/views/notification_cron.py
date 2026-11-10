@@ -8,6 +8,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.calls.infrastructure.persistence.django_call_repository import (
+    DjangoCallRepository,
+)
 from src.modules.companies.infrastructure.persistence.active_companies import (
     get_active_company_ids,
 )
@@ -31,6 +34,12 @@ from src.modules.shared.infrastructure.transactions.django_transaction_manager i
 )
 from src.modules.tasks.infrastructure.persistence.django_task_repository import (
     DjangoTaskRepository,
+)
+from src.modules.timeline.infrastructure.persistence.django_timeline_repository import (
+    DjangoTimelineRepository,
+)
+from src.modules.timeline.infrastructure.timeline_recorder import (
+    DefaultTimelineRecorder,
 )
 from src.modules.users.infrastructure.persistence.user_repository import (
     DjangoUserRepository,
@@ -82,6 +91,10 @@ class NotificationCronProcessView(APIView):
                         meeting_repository=DjangoMeetingRepository(company_id=company_id),
                         user_repository=DjangoUserRepository(company_id=company_id),
                         transaction_manager=DjangoTransactionManager(),
+                        call_repository=DjangoCallRepository(company_id=company_id),
+                        timeline_recorder=DefaultTimelineRecorder(
+                            DjangoTimelineRepository(company_id=company_id)
+                        ),
                     ).execute(now, timezone.localtime(now))
                     result = result + company_result
                 except Exception:
@@ -116,6 +129,7 @@ class NotificationCronProcessView(APIView):
                 "task_notifications_created": result.task_notifications_created,
                 "meeting_notifications_created": result.meeting_notifications_created,
                 "duplicates_skipped": result.duplicates_skipped,
+                "calls_marked_missed": result.calls_marked_missed,
                 "expired_notifications_deleted": result.expired_notifications_deleted,
                 "failures": result.failures,
             },

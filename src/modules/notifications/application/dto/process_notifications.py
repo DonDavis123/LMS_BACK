@@ -10,6 +10,7 @@ class ProcessNotificationsResult:
     duplicates_skipped: int = 0
     expired_notifications_deleted: int = 0
     failures: int = 0
+    calls_marked_missed: int = 0
 
     def __add__(self, other: "ProcessNotificationsResult") -> "ProcessNotificationsResult":
         return ProcessNotificationsResult(
@@ -26,4 +27,5 @@ class ProcessNotificationsResult:
                 self.expired_notifications_deleted + other.expired_notifications_deleted
             ),
             failures=self.failures + other.failures,
+            calls_marked_missed=self.calls_marked_missed + other.calls_marked_missed,
         )

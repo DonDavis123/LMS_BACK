@@ -3,6 +3,7 @@ import logging
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from src.modules.calls.infrastructure.persistence.django_call_repository import DjangoCallRepository
 from src.modules.companies.infrastructure.persistence.active_companies import get_active_company_ids
 from src.modules.meetings.infrastructure.persistence.django_meeting_repository import DjangoMeetingRepository
 from src.modules.notifications.application.dto.process_notifications import ProcessNotificationsResult
@@ -11,13 +12,15 @@ from src.modules.notifications.infrastructure.persistence.django_notification_re
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import DjangoReminderRepository
 from src.modules.shared.infrastructure.transactions.django_transaction_manager import DjangoTransactionManager
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
+from src.modules.timeline.infrastructure.persistence.django_timeline_repository import DjangoTimelineRepository
+from src.modules.timeline.infrastructure.timeline_recorder import DefaultTimelineRecorder
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Process due reminders and task/meeting notification events once."
+    help = "Process due reminders, task/meeting notification events and overdue planned calls once."
 
     def handle(self, *args, **options):
         now = timezone.now()
@@ -33,6 +36,10 @@ class Command(BaseCommand):
                         meeting_repository=DjangoMeetingRepository(company_id=company_id),
                         user_repository=DjangoUserRepository(company_id=company_id),
                         transaction_manager=DjangoTransactionManager(),
+                        call_repository=DjangoCallRepository(company_id=company_id),
+                        timeline_recorder=DefaultTimelineRecorder(
+                            DjangoTimelineRepository(company_id=company_id)
+                        ),
                     ).execute(now, timezone.localtime(now))
                     result = result + company_result
                 except Exception:
@@ -49,5 +56,6 @@ class Command(BaseCommand):
         self.stdout.write(f"Task notifications created: {result.task_notifications_created}")
         self.stdout.write(f"Meeting notifications created: {result.meeting_notifications_created}")
         self.stdout.write(f"Duplicates skipped: {result.duplicates_skipped}")
+        self.stdout.write(f"Planned calls marked missed: {result.calls_marked_missed}")
         self.stdout.write(f"Expired notifications deleted: {result.expired_notifications_deleted}")
         self.stdout.write(f"Failures: {result.failures}")

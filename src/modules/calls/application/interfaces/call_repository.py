@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from src.modules.calls.application.dto.get_call import GetCallDTO
@@ -34,6 +35,19 @@ class CallRepository(ABC):
         Filters apply to the calls first, so a record only appears when at
         least one of its calls matches. Not abstract so existing in-memory
         test doubles keep working.
+        """
+        raise NotImplementedError
+
+    def get_overdue_planned(
+        self,
+        *,
+        started_before: datetime,
+        limit: int = 500,
+    ) -> list[Call]:
+        """Active PLANNED calls that were due at or before ``started_before``.
+
+        Oldest first, capped at ``limit`` so one run never loads an unbounded
+        backlog. Not abstract so existing in-memory test doubles keep working.
         """
         raise NotImplementedError
 

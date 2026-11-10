@@ -290,6 +290,27 @@ class DjangoCallRepository(CallRepository):
 
         return [self._to_dto(model) for model in models]
 
+    def get_overdue_planned(
+        self,
+        *,
+        started_before: datetime,
+        limit: int = 500,
+    ) -> list[Call]:
+        if limit < 1:
+            raise ValueError("limit must be greater than or equal to 1.")
+
+        models = (
+            self._base_queryset()
+            .filter(
+                is_deleted=False,
+                status=CallStatus.PLANNED.value,
+                call_start_time__lte=started_before,
+            )
+            .order_by("call_start_time", "id")[:limit]
+        )
+
+        return [self._to_domain(model) for model in models]
+
     def count_by_related_record(
         self,
         *,

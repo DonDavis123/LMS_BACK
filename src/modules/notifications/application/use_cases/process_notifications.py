@@ -1,5 +1,7 @@
 from datetime import datetime, time, timedelta
 
+from src.modules.calls.application.interfaces.call_repository import CallRepository
+from src.modules.calls.application.use_cases.mark_missed_calls import MarkMissedCallsUseCase
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.notifications.application.dto.create_notification import CreateNotificationDTO
 from src.modules.notifications.application.dto.process_notifications import ProcessNotificationsResult
@@ -10,6 +12,7 @@ from src.modules.notifications.domain.enums.notification_type import Notificatio
 from src.modules.reminders.application.interfaces.reminder_repository import ReminderRepository
 from src.modules.tasks.application.interfaces.task_repository import TaskRepository
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
+from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 from src.modules.users.application.interfaces.user_repository import UserRepository
 
 
@@ -24,6 +27,8 @@ class ProcessNotificationsUseCase:
         meeting_repository: MeetingRepository,
         user_repository: UserRepository,
         transaction_manager: TransactionManager,
+        call_repository: CallRepository | None = None,
+        timeline_recorder: TimelineRecorder | None = None,
     ):
         self.notification_repository = notification_repository
         self.reminder_repository = reminder_repository
@@ -42,6 +47,12 @@ class ProcessNotificationsUseCase:
         self.delete_expired = DeleteExpiredNotificationsUseCase(
             notification_repository,
             transaction_manager,
+        )
+        # Optional so callers that only need notifications keep working.
+        self.mark_missed_calls = (
+            MarkMissedCallsUseCase(call_repository, timeline_recorder, transaction_manager)
+            if call_repository is not None and timeline_recorder is not None
+            else None
         )
 
     def execute(self, as_of: datetime, local_now: datetime | None = None) -> ProcessNotificationsResult:
@@ -156,6 +167,12 @@ class ProcessNotificationsUseCase:
             except ValueError:
                 failures += 1
 
+        calls_marked_missed = 0
+        if self.mark_missed_calls is not None:
+            missed_result = self.mark_missed_calls.execute(now)
+            calls_marked_missed = missed_result.marked
+            failures += missed_result.failures
+
         expired_deleted = self.delete_expired.execute(now)
 
         return ProcessNotificationsResult(
@@ -166,6 +183,7 @@ class ProcessNotificationsUseCase:
             duplicates_skipped=duplicates,
             expired_notifications_deleted=expired_deleted,
             failures=failures,
+            calls_marked_missed=calls_marked_missed,
         )
 
     @staticmethod
