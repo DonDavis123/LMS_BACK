@@ -27,6 +27,7 @@ from src.modules.calls.application.interfaces.call_repository import (
 from src.modules.calls.domain.entities.call import Call
 from src.modules.calls.domain.enums.call_entry_method import CallEntryMethod
 from src.modules.calls.domain.enums.call_outcome import CallOutcome
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
 from src.modules.shared.infrastructure.persistence.ordering import (
@@ -51,6 +52,7 @@ class DjangoCallRepository(CallRepository):
         "call_start_time": SortableField("call_start_time"),
         "duration_seconds": SortableField("duration_seconds"),
         "outcome": SortableField("outcome", is_text=True),
+        "status": SortableField("status", is_text=True),
         "call_type": SortableField("call_type", is_text=True),
         "created_at": SortableField("created_at"),
         # "Related To" column: the lead's or the contact's name. Backed by
@@ -82,7 +84,8 @@ class DjangoCallRepository(CallRepository):
                 "account_id": call.account_id,
                 "owner_id": call.owner_id,
                 "call_type": call.call_type.value,
-                "outcome": call.outcome.value,
+                "outcome": call.outcome.value if call.outcome else None,
+                "status": call.status.value,
                 "entry_method": call.entry_method.value,
                 "call_start_time": call.call_start_time,
                 "duration_seconds": call.duration_seconds,
@@ -310,6 +313,7 @@ class DjangoCallRepository(CallRepository):
         choice_fields = {
             "call_type": "call_type",
             "outcome": "outcome",
+            "status": "status",
         }
         numeric_fields = {
             "duration_seconds": "duration_seconds",
@@ -649,7 +653,7 @@ class DjangoCallRepository(CallRepository):
             account_id=model.account_id,
             owner_id=model.owner_id,
             call_type=CallType(model.call_type),
-            outcome=CallOutcome(model.outcome),
+            outcome=CallOutcome(model.outcome) if model.outcome else None,
             call_start_time=model.call_start_time,
             duration_seconds=model.duration_seconds,
             description=model.description,
@@ -658,4 +662,5 @@ class DjangoCallRepository(CallRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
             is_deleted=model.is_deleted,
+            status=CallStatus(model.status),
         )

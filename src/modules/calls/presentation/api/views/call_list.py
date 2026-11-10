@@ -7,6 +7,7 @@ from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.calls.application.dto.create_call import CreateCallDTO
 from src.modules.calls.domain.enums.call_entry_method import CallEntryMethod
 from src.modules.calls.domain.enums.call_outcome import CallOutcome
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 from src.modules.shared.presentation.query_params import parse_list_query
 from src.modules.calls.presentation.api.dependencies.call_dependencies import (
@@ -57,7 +58,8 @@ class CallListView(APIView):
         dto = CreateCallDTO(
             created_by_id=request.user.id,
             call_start_time=data["call_start_time"],
-            outcome=CallOutcome(data["outcome"]),
+            outcome=CallOutcome(data["outcome"]) if data.get("outcome") else None,
+            status=CallStatus(data["status"]),
             owner_id=data.get("owner_id"),
             lead_id=data.get("lead_id"),
             contact_id=data.get("contact_id"),

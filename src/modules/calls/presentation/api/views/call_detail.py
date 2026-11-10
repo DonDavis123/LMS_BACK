@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.calls.application.dto.update_call import UpdateCallDTO
 from src.modules.calls.domain.enums.call_outcome import CallOutcome
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 from src.modules.calls.presentation.api.dependencies.call_dependencies import (
     get_call_detail_use_case,
@@ -47,8 +48,11 @@ class CallDetailView(APIView):
         if "call_type" in fields:
             fields["call_type"] = CallType(fields["call_type"])
 
-        if "outcome" in fields:
+        if "outcome" in fields and fields["outcome"] is not None:
             fields["outcome"] = CallOutcome(fields["outcome"])
+
+        if "status" in fields:
+            fields["status"] = CallStatus(fields["status"])
 
         if "call_start_time" in fields:
             # Stored values are UTC; normalising keeps an unchanged instant

@@ -17,6 +17,7 @@ SNAPSHOT_FIELDS = (
     "duration_seconds",
     "call_type",
     "outcome",
+    "status",
     "description",
 )
 
@@ -84,7 +85,7 @@ def _snapshots_for_removed_call(call_events: list[dict]) -> dict:
                 if field in SNAPSHOT_FIELDS:
                     state[field] = _coerce(field, change.get("new_value"))
         else:
-            for field in ("outcome", "duration_seconds", "description"):
+            for field in ("outcome", "status", "duration_seconds", "description"):
                 if field in metadata and field not in state:
                     state[field] = metadata[field]
 
@@ -140,6 +141,7 @@ def build_record_history(
                     "call_start_time": snapshot.get("call_start_time"),
                     "call_type": snapshot.get("call_type"),
                     "outcome": snapshot.get("outcome"),
+                    "status": snapshot.get("status"),
                     "duration_seconds": duration,
                     "duration_label": format_duration(duration),
                     "description": snapshot.get("description"),

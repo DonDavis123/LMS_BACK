@@ -774,3 +774,38 @@ class CallApplicationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PlannedCallUseCaseTests(unittest.TestCase):
+    """A call can be scheduled ahead of time and completed later."""
+
+    def test_planned_call_status_transitions(self):
+        from src.modules.calls.domain.enums.call_status import CallStatus
+
+        owner_id = uuid4()
+        planned = Call.create(
+            owner_id=owner_id,
+            created_by_id=owner_id,
+            lead_id=uuid4(),
+            call_start_time=datetime.now(timezone.utc) + timedelta(days=2),
+            outcome=None,
+            status=CallStatus.PLANNED,
+        )
+        self.assertEqual(planned.status, CallStatus.PLANNED)
+
+        # Completing it needs an outcome and a start time that is not future.
+        from dataclasses import replace
+
+        done = replace(
+            planned,
+            status=CallStatus.COMPLETED,
+            outcome=CallOutcome.CONNECTED,
+            call_start_time=datetime.now(timezone.utc) - timedelta(minutes=5),
+            duration_seconds=120,
+        )
+        done.validate()
+        self.assertEqual(done.duration_seconds, 120)
+
+        no_outcome = replace(planned, status=CallStatus.COMPLETED)
+        with self.assertRaises(ValueError):
+            no_outcome.validate()

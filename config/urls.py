@@ -71,6 +71,10 @@ urlpatterns = [
         include("src.modules.reminders.presentation.api.urls"),
     ),
     path(
+        "api/calendar/",
+        include("src.modules.calendar.presentation.api.urls"),
+    ),
+    path(
         "api/internal/notifications/process/",
         NotificationCronProcessView.as_view(),
         name="notification-cron-process",

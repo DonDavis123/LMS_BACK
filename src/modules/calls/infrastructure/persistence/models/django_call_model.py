@@ -9,6 +9,7 @@ from src.modules.accounts.infrastructure.persistence.django_account_model import
 )
 from src.modules.calls.domain.enums.call_entry_method import CallEntryMethod
 from src.modules.calls.domain.enums.call_outcome import CallOutcome
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 from src.modules.contacts.infrastructure.persistence.django_contact_model import (
     DjangoContactModel,
@@ -70,6 +71,17 @@ class DjangoCallModel(models.Model):
             (outcome.value, outcome.value)
             for outcome in CallOutcome
         ],
+        blank=True,
+        null=True,
+    )
+
+    status = models.CharField(
+        max_length=100,
+        choices=[
+            (status.value, status.value)
+            for status in CallStatus
+        ],
+        default=CallStatus.COMPLETED.value,
     )
 
     entry_method = models.CharField(
@@ -140,6 +152,10 @@ class DjangoCallModel(models.Model):
             models.Index(
                 fields=["company", "contact", "-call_start_time"],
                 name="calls_co_contact_start_idx",
+            ),
+            models.Index(
+                fields=["company", "owner", "call_start_time"],
+                name="calls_co_owner_start_idx",
             ),
         ]
 

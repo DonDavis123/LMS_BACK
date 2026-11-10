@@ -52,12 +52,15 @@ class GetCallRecordHistoryUseCase:
 
         live_calls = {}
         for item in record_calls:
-            state = {
-                field: getattr(item.call, field).value
-                if field in ("call_type", "outcome")
-                else getattr(item.call, field)
-                for field in SNAPSHOT_FIELDS
-            }
+            state = {}
+            for field in SNAPSHOT_FIELDS:
+                value = getattr(item.call, field)
+                state[field] = (
+                    value.value
+                    if field in ("call_type", "outcome", "status")
+                    and value is not None
+                    else value
+                )
             state["owner_name"] = item.owner_name
             live_calls[str(item.call.id)] = state
 

@@ -4,6 +4,7 @@ from src.modules.accounts.application.interfaces.account_repository import (
 from src.modules.calls.application.dto.create_call import CreateCallDTO
 from src.modules.calls.application.interfaces.call_repository import CallRepository
 from src.modules.calls.domain.entities.call import Call
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
@@ -98,6 +99,7 @@ class CreateCallUseCase:
             duration_seconds=data.duration_seconds,
             description=data.description,
             entry_method=data.entry_method,
+            status=data.status,
         )
 
         def creation():
@@ -111,18 +113,31 @@ class CreateCallUseCase:
             if saved.account_id:
                 targets.append(("ACCOUNT", saved.account_id))
 
+            if saved.status == CallStatus.COMPLETED:
+                message = (
+                    f"Call logged ({saved.outcome.value}, "
+                    f"{saved.duration_label()})."
+                )
+            else:
+                message = (
+                    f"Call scheduled for "
+                    f"{saved.call_start_time:%Y-%m-%d %H:%M} UTC."
+                )
+
             self.timeline_recorder.record(
                 event_type="CALL_LOGGED",
                 actor_id=saved.created_by_id,
-                message=(
-                    f"Call logged ({saved.outcome.value}, "
-                    f"{saved.duration_label()})."
-                ),
+                message=message,
                 metadata={
                     "call_id": str(saved.id),
-                    "outcome": saved.outcome.value,
+                    "outcome": saved.outcome.value if saved.outcome else None,
                     "duration_seconds": saved.duration_seconds,
                     "description": saved.description,
+                    **(
+                        {}
+                        if saved.status == CallStatus.COMPLETED
+                        else {"status": saved.status.value}
+                    ),
                 },
                 targets=targets,
             )

@@ -6,6 +6,7 @@ from src.modules.calls.domain.entities.call import (
 )
 from src.modules.calls.domain.enums.call_entry_method import CallEntryMethod
 from src.modules.calls.domain.enums.call_outcome import CallOutcome
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 
 
@@ -27,6 +28,17 @@ class CreateCallSerializer(serializers.Serializer):
             (outcome.value, outcome.value)
             for outcome in CallOutcome
         ],
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            (status.value, status.value)
+            for status in CallStatus
+        ],
+        required=False,
+        default=CallStatus.COMPLETED.value,
     )
     call_start_time = serializers.DateTimeField()
     duration_seconds = serializers.IntegerField(

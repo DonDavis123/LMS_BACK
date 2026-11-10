@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     "src.modules.notifications.apps.NotificationsConfig",
     "src.modules.companies.apps.CompaniesConfig",
     "src.modules.dashboard.apps.DashboardConfig",
+    "src.modules.calendar.apps.CalendarConfig",
     "src.modules.picklists.apps.PicklistsConfig",
     "src.modules.lead_capture.apps.LeadCaptureConfig",
 ]

@@ -2,6 +2,7 @@ from dataclasses import replace
 
 from src.modules.calls.application.dto.update_call import UpdateCallDTO
 from src.modules.calls.application.interfaces.call_repository import CallRepository
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 from src.modules.timeline.application.services.change_tracker import (
@@ -21,6 +22,7 @@ class UpdateCallUseCase:
         "duration_seconds",
         "call_type",
         "outcome",
+        "status",
         "description",
     )
 
@@ -37,6 +39,7 @@ class UpdateCallUseCase:
         "duration_seconds": "Duration (seconds)",
         "call_type": "Call Type",
         "outcome": "Outcome",
+        "status": "Status",
         "description": "Description",
     }
 
@@ -60,8 +63,9 @@ class UpdateCallUseCase:
             raise ValueError("Deleted Call cannot be updated.")
 
         # Once a newer call is logged on the same lead / contact, this one
-        # becomes history and is frozen.
-        if not self._is_latest_call(call):
+        # becomes history and is frozen. Planned / missed calls are
+        # schedule items, not history, so they stay editable.
+        if call.status == CallStatus.COMPLETED and not self._is_latest_call(call):
             raise ValueError(self.NOT_LATEST_MESSAGE)
 
         fields = data.fields
@@ -83,6 +87,14 @@ class UpdateCallUseCase:
             raise ValueError(
                 f"Call field(s) cannot be updated: {', '.join(unsupported)}."
             )
+
+        new_status = fields.get("status")
+        if (
+            call.status == CallStatus.COMPLETED
+            and new_status is not None
+            and new_status != CallStatus.COMPLETED
+        ):
+            raise ValueError("A completed call cannot be changed back to planned or missed.")
 
         old_values = {
             field: getattr(call, field)
@@ -148,9 +160,14 @@ class UpdateCallUseCase:
         else:
             record_filter = {"contact_id": call.contact_id}
 
-        newest = self.call_repository.get_by_related_record(
-            limit=1,
-            **record_filter,
-        )
+        # Planned / missed calls do not count: a call scheduled for next week
+        # must not freeze the call that was just logged.
+        logged = [
+            item for item in self.call_repository.get_by_related_record(
+                limit=50,
+                **record_filter,
+            )
+            if item.call.status == CallStatus.COMPLETED
+        ]
 
-        return not newest or newest[0].call.id == call.id
+        return not logged or logged[0].call.id == call.id

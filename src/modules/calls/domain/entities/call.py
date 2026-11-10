@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from ..enums.call_entry_method import CallEntryMethod
 from ..enums.call_outcome import CallOutcome
+from ..enums.call_status import CallStatus
 from ..enums.call_type import CallType
 
 MAX_DURATION_SECONDS = 86400
@@ -19,7 +20,7 @@ class Call:
     account_id: UUID | None
     owner_id: UUID
     call_type: CallType
-    outcome: CallOutcome
+    outcome: CallOutcome | None
     call_start_time: datetime
     duration_seconds: int
     description: str | None
@@ -28,6 +29,7 @@ class Call:
     created_at: datetime
     updated_at: datetime
     is_deleted: bool
+    status: CallStatus = CallStatus.COMPLETED
 
     def soft_delete(self) -> None:
         if self.is_deleted:
@@ -63,7 +65,17 @@ class Call:
             raise ValueError("Call creator is required.")
 
         self.call_type = self._coerce_enum(CallType, self.call_type, "type")
-        self.outcome = self._coerce_enum(CallOutcome, self.outcome, "outcome")
+        self.status = self._coerce_enum(CallStatus, self.status, "status")
+
+        if self.status == CallStatus.COMPLETED:
+            if self.outcome is None:
+                raise ValueError("Call outcome is required for a completed call.")
+            self.outcome = self._coerce_enum(CallOutcome, self.outcome, "outcome")
+        else:
+            # Planned / missed calls have not happened, so they carry no
+            # outcome and no talk time.
+            self.outcome = None
+            self.duration_seconds = 0
         self.entry_method = self._coerce_enum(
             CallEntryMethod,
             self.entry_method,
@@ -88,7 +100,12 @@ class Call:
         if start.tzinfo is None:
             start = start.replace(tzinfo=timezone.utc)
 
-        if start > datetime.now(timezone.utc) + FUTURE_TOLERANCE:
+        # Only a completed (logged) call must have already started. A planned
+        # call is scheduled ahead of time, so any date is fine.
+        if (
+            self.status == CallStatus.COMPLETED
+            and start > datetime.now(timezone.utc) + FUTURE_TOLERANCE
+        ):
             raise ValueError(
                 "Call start time cannot be more than 5 minutes in the future."
             )
@@ -134,7 +151,7 @@ class Call:
         owner_id: UUID,
         created_by_id: UUID,
         call_start_time: datetime,
-        outcome: CallOutcome,
+        outcome: CallOutcome | None,
         lead_id: UUID | None = None,
         contact_id: UUID | None = None,
         account_id: UUID | None = None,
@@ -142,6 +159,7 @@ class Call:
         duration_seconds: int = 0,
         description: str | None = None,
         entry_method: CallEntryMethod = CallEntryMethod.MANUAL,
+        status: CallStatus = CallStatus.COMPLETED,
     ) -> "Call":
         now = datetime.now(timezone.utc)
 
@@ -161,6 +179,7 @@ class Call:
             created_at=now,
             updated_at=now,
             is_deleted=False,
+            status=status,
         )
         call.validate()
 

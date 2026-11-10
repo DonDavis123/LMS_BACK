@@ -2,6 +2,7 @@ from uuid import UUID
 
 from src.modules.calls.application.dto.get_call_detail import GetCallDetailDTO
 from src.modules.calls.application.interfaces.call_repository import CallRepository
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.timeline.application.interfaces.timeline_repository import (
     TimelineRepository,
 )
@@ -55,9 +56,15 @@ class GetCallDetailUseCase:
         # ``related_calls`` is newest first, so its head is the newest OTHER
         # call; this call is the latest unless that one sorts after it
         # (same ordering as the repository: start time, then id).
-        is_latest = not related_calls or (
+        # Planned / missed calls are schedule items, never "history", so they
+        # are always editable and never count as a newer call.
+        logged_calls = [
+            item for item in related_calls
+            if item.call.status == CallStatus.COMPLETED
+        ]
+        is_latest = call.status != CallStatus.COMPLETED or not logged_calls or (
             (call.call_start_time, call.id)
-            > (related_calls[0].call.call_start_time, related_calls[0].call.id)
+            > (logged_calls[0].call.call_start_time, logged_calls[0].call.id)
         )
 
         return GetCallDetailDTO(

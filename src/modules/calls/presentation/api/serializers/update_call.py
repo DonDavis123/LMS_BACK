@@ -7,6 +7,7 @@ from src.modules.calls.domain.entities.call import (
     MAX_DURATION_SECONDS,
 )
 from src.modules.calls.domain.enums.call_outcome import CallOutcome
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 
 
@@ -35,6 +36,14 @@ class UpdateCallSerializer(serializers.Serializer):
         choices=[
             (outcome.value, outcome.value)
             for outcome in CallOutcome
+        ],
+        required=False,
+        allow_null=True,
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            (status.value, status.value)
+            for status in CallStatus
         ],
         required=False,
     )

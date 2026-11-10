@@ -162,3 +162,39 @@ class CallEntityTests(unittest.TestCase):
         self.assertEqual(CallType.OUTBOUND.value, "Outbound")
         self.assertEqual(CallOutcome.CALLBACK_REQUESTED.value, "Callback Requested")
         self.assertEqual(CallEntryMethod.TIMER.value, "TIMER")
+
+
+class PlannedCallTests(unittest.TestCase):
+    def _kwargs(self, **overrides):
+        data = dict(
+            owner_id=uuid4(),
+            created_by_id=uuid4(),
+            lead_id=uuid4(),
+            call_start_time=datetime.now(timezone.utc) + timedelta(days=3),
+            outcome=None,
+        )
+        data.update(overrides)
+        return data
+
+    def test_planned_call_may_be_in_the_future_without_outcome(self):
+        from src.modules.calls.domain.enums.call_status import CallStatus
+
+        call = Call.create(status=CallStatus.PLANNED, **self._kwargs())
+
+        self.assertEqual(call.status, CallStatus.PLANNED)
+        self.assertIsNone(call.outcome)
+        self.assertEqual(call.duration_seconds, 0)
+
+    def test_completed_call_still_cannot_be_in_the_future(self):
+        with self.assertRaises(ValueError):
+            Call.create(
+                **self._kwargs(outcome=CallOutcome.CONNECTED),
+            )
+
+    def test_completed_call_requires_outcome(self):
+        with self.assertRaises(ValueError):
+            Call.create(
+                **self._kwargs(
+                    call_start_time=datetime.now(timezone.utc) - timedelta(hours=1),
+                ),
+            )

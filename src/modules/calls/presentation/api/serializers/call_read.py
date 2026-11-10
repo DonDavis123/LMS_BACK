@@ -23,7 +23,8 @@ class CallReadSerializer(serializers.Serializer):
     owner_name = serializers.CharField(allow_null=True)
 
     call_type = serializers.CharField(source="call.call_type.value")
-    outcome = serializers.CharField(source="call.outcome.value")
+    outcome = serializers.CharField(source="call.outcome.value", allow_null=True, default=None)
+    status = serializers.CharField(source="call.status.value")
     call_start_time = serializers.DateTimeField(source="call.call_start_time")
     duration_seconds = serializers.IntegerField(source="call.duration_seconds")
     duration_label = serializers.CharField(source="call.duration_label")

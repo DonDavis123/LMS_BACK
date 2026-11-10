@@ -4,6 +4,7 @@ from uuid import UUID
 
 from src.modules.calls.domain.enums.call_entry_method import CallEntryMethod
 from src.modules.calls.domain.enums.call_outcome import CallOutcome
+from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 
 
@@ -11,7 +12,7 @@ from src.modules.calls.domain.enums.call_type import CallType
 class CreateCallDTO:
     created_by_id: UUID
     call_start_time: datetime
-    outcome: CallOutcome
+    outcome: CallOutcome | None = None
     owner_id: UUID | None = None
     lead_id: UUID | None = None
     contact_id: UUID | None = None
@@ -20,3 +21,4 @@ class CreateCallDTO:
     duration_seconds: int = 0
     description: str | None = None
     entry_method: CallEntryMethod = CallEntryMethod.MANUAL
+    status: CallStatus = CallStatus.COMPLETED
