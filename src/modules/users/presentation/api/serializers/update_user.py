@@ -13,6 +13,11 @@ class UpdateUserSerializer(serializers.Serializer):
     email = serializers.EmailField(
         required=False,
     )
+    google_email = serializers.EmailField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
     role = serializers.ChoiceField(
         choices=[
             (role.value, role.name)

@@ -10,6 +10,8 @@ class UserSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
+    google_email = serializers.EmailField(read_only=True, allow_null=True)
+    mail_account_email = serializers.EmailField(read_only=True)
 
 
 class UserListSerializer(serializers.Serializer):
@@ -19,3 +21,5 @@ class UserListSerializer(serializers.Serializer):
     role = EnumValueField(read_only=True)
     is_active = serializers.BooleanField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
+    google_email = serializers.EmailField(read_only=True, allow_null=True)
+    mail_account_email = serializers.EmailField(read_only=True)

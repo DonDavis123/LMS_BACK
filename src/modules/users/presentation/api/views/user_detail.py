@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from src.modules.shared.presentation.permissions import IsCompanyUser
 from src.modules.shared.presentation.tenant import get_tenant_context
-from src.modules.users.application.dto.update_user import UpdateUserDTO
+from src.modules.users.application.dto.update_user import _UNSET, UpdateUserDTO
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.users.presentation.api.dependencies.user_dependencies import (
     get_current_user_use_case,
@@ -64,6 +64,7 @@ class UserDetailView(APIView):
                 if data.get("role") is not None
                 else None
             ),
+            google_email=data.get("google_email", _UNSET),
         )
 
         try:

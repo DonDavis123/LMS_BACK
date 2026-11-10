@@ -28,6 +28,7 @@ class GetUsersUseCase:
                     role=user.role,
                     is_active=user.is_active,
                     created_at=user.created_at,
+                    google_email=user.google_email,
                 )
                 for user in result.results
             ],

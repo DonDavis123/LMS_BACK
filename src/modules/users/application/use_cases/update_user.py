@@ -3,7 +3,10 @@ from datetime import datetime, timezone
 from src.modules.shared.application.interfaces.transaction_manager import (
     TransactionManager,
 )
-from src.modules.users.application.dto.update_user import UpdateUserDTO
+from src.modules.users.application.dto.update_user import _UNSET, UpdateUserDTO
+from src.modules.users.application.services.google_email import (
+    normalize_google_email,
+)
 from src.modules.users.application.interfaces.session_revoker import SessionRevoker
 from src.modules.users.application.interfaces.user_audit_log_repository import (
     UserAuditLogRepository,
@@ -53,7 +56,7 @@ class UpdateUserUseCase:
             raise ValueError("A superadmin cannot change their own role.")
 
         previous_role = target_user.role
-        changed_fields: dict[str, dict[str, str]] = {}
+        changed_fields: dict[str, dict[str, str | None]] = {}
 
         if data.name is not None:
             name = data.name.strip()
@@ -75,6 +78,15 @@ class UpdateUserUseCase:
             if email != target_user.email:
                 changed_fields["email"] = {"from": target_user.email, "to": email}
             target_user.email = email
+
+        if data.google_email is not _UNSET:
+            google_email = normalize_google_email(data.google_email)
+            if google_email != target_user.google_email:
+                changed_fields["google_email"] = {
+                    "from": target_user.google_email,
+                    "to": google_email,
+                }
+            target_user.google_email = google_email
 
         role_changed = False
         if data.role is not None:

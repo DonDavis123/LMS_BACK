@@ -13,4 +13,6 @@ class CurrentUserSerializer(serializers.Serializer):
     name = serializers.CharField()
     email = serializers.EmailField()
     role = EnumValueField()
+    google_email = serializers.EmailField(allow_null=True, required=False)
+    mail_account_email = serializers.EmailField()
     company = CurrentUserCompanySerializer(allow_null=True, required=False)

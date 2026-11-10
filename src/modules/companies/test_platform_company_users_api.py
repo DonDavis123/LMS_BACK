@@ -56,7 +56,10 @@ class PlatformCompanyUsersApiTests(APITestCase):
         self.assertEqual(response.data["pagination"]["total"], 2)
         self.assertEqual(
             set(response.data["results"][0]),
-            {"id", "name", "email", "role", "is_active", "created_at"},
+            {
+                "id", "name", "email", "role", "is_active", "created_at",
+                "google_email", "mail_account_email",
+            },
         )
 
         by_search = self.client.get(users_url(self.company), {"search": "owner"})

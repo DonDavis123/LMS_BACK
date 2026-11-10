@@ -253,6 +253,7 @@ class DjangoUserRepository(UserRepository):
 
         django_user.name = user.name
         django_user.email = user.email
+        django_user.google_email = user.google_email
         django_user.role = user.role.value
         django_user.is_active = user.is_active
         django_user.updated_at = user.updated_at
@@ -262,6 +263,7 @@ class DjangoUserRepository(UserRepository):
                     update_fields=[
                         "name",
                         "email",
+                        "google_email",
                         "role",
                         "is_active",
                         "updated_at",
@@ -335,4 +337,5 @@ class DjangoUserRepository(UserRepository):
             updated_at=django_user.updated_at,
             deleted_at=django_user.deleted_at,
             company_id=django_user.company_id,
+            google_email=django_user.google_email,
         )

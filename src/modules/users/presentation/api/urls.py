@@ -8,6 +8,7 @@ from .views.get_user_audit_logs import UserAuditLogListView
 from .views.get_replacement_candidates import UserReplacementCandidatesView
 from .views.get_user_deletion_preview import UserDeletionPreviewView
 from .views.lead_owner import GetLeadOwnersView
+from .views.set_own_google_email import SetOwnGoogleEmailView
 from .views.reset_user_password import ResetUserPasswordView
 from .views.unblock_user import UnblockUserView
 from .views.user_detail import UserDetailView
@@ -23,6 +24,11 @@ urlpatterns = [
         "users/me/",
         GetCurrentUserView.as_view(),
         name="current-user",
+    ),
+    path(
+        "users/me/google-email/",
+        SetOwnGoogleEmailView.as_view(),
+        name="set-own-google-email",
     ),
     path(
         "users/assignable/",

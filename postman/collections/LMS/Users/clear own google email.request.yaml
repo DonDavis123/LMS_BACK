@@ -1,0 +1,11 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/users/me/google-email/
+method: PATCH
+body:
+  type: json
+  content: "{\n  \"google_email\": null\n}"
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0um6}}"
+order: 1788801427900

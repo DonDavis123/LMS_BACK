@@ -13,3 +13,8 @@ class UserListDTO:
     role: UserRole
     is_active: bool
     created_at: datetime
+    google_email: str | None = None
+
+    @property
+    def mail_account_email(self) -> str:
+        return self.google_email or self.email

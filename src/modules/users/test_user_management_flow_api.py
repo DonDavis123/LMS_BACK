@@ -253,7 +253,10 @@ class ManageUsersFlowTests(APITestCase):
         )
         self.assertEqual(
             set(listing.data["results"][0]),
-            {"id", "name", "email", "role", "is_active", "created_at"},
+            {
+                "id", "name", "email", "role", "is_active", "created_at",
+                "google_email", "mail_account_email",
+            },
         )
 
         searched = sa.get("/api/users/", {"search": "target"})
@@ -311,7 +314,10 @@ class ManageUsersFlowTests(APITestCase):
         self.assertEqual(profile.status_code, status.HTTP_200_OK)
         self.assertEqual(
             set(profile.data),
-            {"id", "name", "email", "role", "is_active", "created_at", "updated_at"},
+            {
+                "id", "name", "email", "role", "is_active", "created_at",
+                "updated_at", "google_email", "mail_account_email",
+            },
         )
         self.assertEqual(profile.data["id"], target_id)
         self.assertEqual(profile.data["name"], "Target User")

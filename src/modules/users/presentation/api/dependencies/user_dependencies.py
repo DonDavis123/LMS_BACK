@@ -51,6 +51,9 @@ from src.modules.users.application.use_cases.get_user_audit_logs import (
 from src.modules.users.application.use_cases.reset_user_password import (
     ResetUserPasswordUseCase,
 )
+from src.modules.users.application.use_cases.set_own_google_email import (
+    SetOwnGoogleEmailUseCase,
+)
 from src.modules.users.application.use_cases.unblock_user import UnblockUserUseCase
 from src.modules.users.application.use_cases.update_user import UpdateUserUseCase
 from src.modules.users.infrastructure.persistence.current_user_reader import (
@@ -121,6 +124,14 @@ def get_update_user_use_case(ctx: TenantContext) -> UpdateUserUseCase:
         user_repository=get_user_repository(ctx),
         audit_log_repository=get_user_audit_log_repository(ctx),
         session_revoker=get_session_revoker(),
+        transaction_manager=DjangoTransactionManager(),
+    )
+
+
+def get_set_own_google_email_use_case(ctx: TenantContext) -> SetOwnGoogleEmailUseCase:
+    return SetOwnGoogleEmailUseCase(
+        user_repository=get_user_repository(ctx),
+        audit_log_repository=get_user_audit_log_repository(ctx),
         transaction_manager=DjangoTransactionManager(),
     )
 

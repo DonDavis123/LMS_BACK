@@ -22,6 +22,7 @@ Authorization: Bearer <access_token>
 | Endpoint group | Who may call |
 |---|---|
 | `GET /api/users/me/` | any logged-in user |
+| `PATCH /api/users/me/google-email/` | any logged-in **company** user (not platform superadmins) |
 | every other `/api/users/...` endpoint in this document | **SUPERADMIN only** |
 
 Statuses that apply to **every** SUPERADMIN-only endpoint:
@@ -89,9 +90,17 @@ E-mail matching is case-insensitive. Passwords are matched exactly as typed
   "id": "3f6c1d1e-6a0e-4a43-9d57-0c7c4a0d2b11",
   "name": "Super Admin",
   "email": "superadmin@example.com",
-  "role": "SUPERADMIN"
+  "role": "SUPERADMIN",
+  "google_email": null,
+  "mail_account_email": "superadmin@example.com",
+  "company": { "id": "7c1e0a52-8a3f-4c55-a1d2-5e7a1b2c3d44", "name": "Acme", "status": "ACTIVE" }
 }
 ```
+
+`google_email` (string or `null`) is the optional Google/Gmail account the user
+opens Gmail with. `mail_account_email` is always a string: `google_email` if
+set, otherwise the login `email`. The frontend uses it as the Gmail
+`authuser` value. `company` is `null` for platform superadmins.
 
 Roles: `SUPERADMIN`, `ADMIN`, `SALES_MANAGER`, `SALES_EXECUTIVE`.
 
@@ -99,6 +108,52 @@ Roles: `SUPERADMIN`, `ADMIN`, `SALES_MANAGER`, `SALES_EXECUTIVE`.
 |---|---|
 | 401 | see section 1 |
 | 404 | `{"detail": "User not found."}` |
+
+---
+
+### 2.1.1 Set or clear my Google mail
+
+`PATCH /api/users/me/google-email/` – any logged-in company user
+
+Always changes the caller's own record; the target can never be chosen in the
+request. Platform superadmins (no company) get 403.
+
+Request:
+
+```json
+{ "google_email": "  Name@Gmail.com " }
+```
+
+Send `{ "google_email": null }` (or an empty/blank string) to clear it.
+
+Rules: any domain (Google Workspace allowed), valid e-mail format, trimmed and
+lower-cased, **not** unique (two users may share a mailbox). Unknown fields
+are rejected; `google_email` is required in the body.
+
+200 (same payload as `GET /api/users/me/`):
+
+```json
+{
+  "id": "3f6c1d1e-6a0e-4a43-9d57-0c7c4a0d2b11",
+  "name": "Super Admin",
+  "email": "superadmin@example.com",
+  "role": "SUPERADMIN",
+  "google_email": "name@gmail.com",
+  "mail_account_email": "name@gmail.com",
+  "company": { "id": "7c1e0a52-8a3f-4c55-a1d2-5e7a1b2c3d44", "name": "Acme", "status": "ACTIVE" }
+}
+```
+
+Every real change is written to the audit log as `USER_UPDATED` with
+`metadata.changes.google_email = {"from": ..., "to": ...}`. Sending the value
+the user already has changes nothing and writes no entry.
+
+| Status | Body |
+|---|---|
+| 400 | `{"detail": "Enter a valid email address."}` |
+| 400 | `{"google_email": ["This field is required."]}` / `{"<field>": "This field is not allowed."}` |
+| 401 | see section 1 |
+| 403 | `{"detail": "A company account is required."}` (platform superadmin) |
 
 ---
 
@@ -138,7 +193,9 @@ Example: `GET /api/users/?search=admin&page=1&page_size=20&filters=[{"field":"ro
       "email": "admin@example.com",
       "role": "ADMIN",
       "is_active": true,
-      "created_at": "2026-10-05T01:40:12.481220+05:30"
+      "created_at": "2026-10-05T01:40:12.481220+05:30",
+      "google_email": null,
+      "mail_account_email": "admin@example.com"
     }
   ],
   "pagination": { "page": 1, "page_size": 20, "total": 1, "total_pages": 1 }
@@ -180,7 +237,9 @@ Example: `GET /api/users/?search=admin&page=1&page_size=20&filters=[{"field":"ro
   "role": "ADMIN",
   "is_active": true,
   "created_at": "2026-10-05T01:40:12.481220+05:30",
-  "updated_at": "2026-10-05T01:40:12.481220+05:30"
+  "updated_at": "2026-10-05T01:40:12.481220+05:30",
+  "google_email": "target@gmail.com",
+  "mail_account_email": "target@gmail.com"
 }
 ```
 
@@ -205,6 +264,7 @@ Send at least one field. Unknown fields are rejected.
 | `name` | string | ≤ 150 chars, not blank (trimmed) |
 | `email` | string | valid e-mail; stored lower-cased; unique, **case-insensitive** |
 | `role` | string | `SUPERADMIN` or `ADMIN` only |
+| `google_email` | string or `null` | optional; valid e-mail, trimmed + lower-cased, not unique. Omitted = unchanged, `null` or blank = clear. Audited as `USER_UPDATED` |
 
 Request:
 
@@ -222,7 +282,9 @@ Request:
   "role": "ADMIN",
   "is_active": true,
   "created_at": "2026-10-05T01:40:12.481220+05:30",
-  "updated_at": "2026-10-05T01:52:30.118904+05:30"
+  "updated_at": "2026-10-05T01:52:30.118904+05:30",
+  "google_email": null,
+  "mail_account_email": "renamed.target@example.com"
 }
 ```
 

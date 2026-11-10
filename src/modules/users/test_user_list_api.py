@@ -343,7 +343,10 @@ class UserListResponseShapeTests(UserListApiTestCase):
 
         self.assertEqual(
             set(response.data["results"][0]),
-            {"id", "name", "email", "role", "is_active", "created_at"},
+            {
+                "id", "name", "email", "role", "is_active", "created_at",
+                "google_email", "mail_account_email",
+            },
         )
         item = response.data["results"][0]
         self.assertEqual(item["id"], str(self.alice.id))

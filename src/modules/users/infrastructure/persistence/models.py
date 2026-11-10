@@ -31,6 +31,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_index=True,
     )
 
+    google_email = models.EmailField(
+        null=True,
+        blank=True,
+    )
+
     role = models.CharField(
         max_length=30,
         choices=Role.choices,
