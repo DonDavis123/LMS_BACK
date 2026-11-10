@@ -10,6 +10,9 @@ from rest_framework.test import APITestCase
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
 )
+from src.modules.contacts.infrastructure.persistence.django_contact_model import (
+    DjangoContactModel,
+)
 from src.modules.leads.infrastructure.persistence.django_lead_model import (
     DjangoLeadModel,
 )
@@ -48,14 +51,51 @@ class ExportApiTests(APITestCase):
         lead(self.other_company, self.other_admin, "Foreign Lead")
 
         now = timezone.now()
+        self.account = None
         for company, owner, name in (
             (self.company, self.admin, "Acme Corp"),
             (self.other_company, self.other_admin, "Foreign Corp"),
         ):
-            DjangoAccountModel.objects.create(
+            account = DjangoAccountModel.objects.create(
                 company=company, account_owner=owner, account_name=name,
                 created_by=owner, created_at=now, modified_by=owner, updated_at=now,
+                **(
+                    {
+                        "account_type": "Customer",
+                        "industry": "Software",
+                        "billing_city": "Kochi",
+                        "billing_country": "India",
+                        "employees": 120,
+                        "annual_revenue": 2500000,
+                    }
+                    if company == self.company
+                    else {}
+                ),
             )
+            if company == self.company:
+                self.account = account
+        DjangoAccountModel.objects.create(
+            company=self.company, account_owner=self.admin, account_name="Gone Corp",
+            is_deleted=True, created_by=self.admin, created_at=now,
+            modified_by=self.admin, updated_at=now,
+        )
+
+        def contact(company, owner, name, account=None, **extra):
+            return DjangoContactModel.objects.create(
+                company=company, account=account, contact_owner=owner, name=name,
+                created_by=owner, created_at=now, modified_by=owner, updated_at=now,
+                **extra,
+            )
+
+        contact(
+            self.company, self.admin, "Meera Nair", account=self.account,
+            email="meera@acme.test", title="Head of Sales", department="Sales",
+            mailing_city="Kochi", email_opt_out=True,
+        )
+        contact(self.company, self.admin, "Zed Contact", email="zed@acme.test")
+        contact(self.company, self.admin, "=HYPERLINK(\"x\")")
+        contact(self.company, self.admin, "Gone Contact", is_deleted=True)
+        contact(self.other_company, self.other_admin, "Foreign Contact")
 
     def _csv_lines(self, response):
         return _download(response).decode("utf-8-sig").strip().split("\r\n")
@@ -85,7 +125,7 @@ class ExportApiTests(APITestCase):
             [{"field": "lead_status", "operator": "equals", "value": "Contacted"}]
         )
         by_filter = self.client.get("/api/exports/leads/", {"filters": filters})
-        self.assertEqual(by_filter.status_code, status.HTTP_200_OK, by_filter.content)
+        self.assertEqual(by_filter.status_code, status.HTTP_200_OK)
         lines = self._csv_lines(by_filter)
         self.assertEqual(len(lines), 2)
         self.assertIn("Ben Cole", lines[1])
@@ -103,12 +143,103 @@ class ExportApiTests(APITestCase):
     def test_accounts_export_is_scoped_to_the_company(self):
         lines = self._csv_lines(self.client.get("/api/exports/accounts/"))
 
-        self.assertEqual(lines[0], "Account Name,Phone,Website,Owner")
-        self.assertEqual(len(lines), 2)
-        self.assertIn("Acme Corp", lines[1])
+        self.assertTrue(lines[0].startswith("Account Name,Account Number,Account Type"))
+        self.assertEqual(len(lines), 2)  # header + Acme Corp only
+        text = "\n".join(lines)
+        self.assertIn("Acme Corp", text)
+        self.assertNotIn("Foreign Corp", text)
+        self.assertNotIn("Gone Corp", text)
+
+    def test_accounts_export_has_the_full_account_details(self):
+        response = self.client.get("/api/exports/accounts/", {"format": "xlsx"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sheet = load_workbook(io.BytesIO(_download(response))).active
+        headers = [cell.value for cell in sheet[1]]
+        row = dict(zip(headers, [cell.value for cell in sheet[2]]))
+        self.assertEqual(row["Account Name"], "Acme Corp")
+        self.assertEqual(row["Account Type"], "Customer")
+        self.assertEqual(row["Industry"], "Software")
+        self.assertEqual(row["Billing City"], "Kochi")
+        self.assertEqual(row["Billing Country"], "India")
+        self.assertEqual(row["Employees"], 120)
+        self.assertEqual(row["Annual Revenue"], 2500000)
+        self.assertEqual(row["Owner"], "Admin One")
+        self.assertRegex(row["Created At"], r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
+
+    def test_accounts_export_follows_search_and_filters(self):
+        none = self._csv_lines(self.client.get("/api/exports/accounts/", {"search": "zzz"}))
+        self.assertEqual(len(none), 1)
+
+        filters = json.dumps(
+            [{"field": "billing_city", "operator": "equals", "value": "Kochi"}]
+        )
+        response = self.client.get("/api/exports/accounts/", {"filters": filters})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(self._csv_lines(response)), 2)
+
+    def test_contacts_export_is_scoped_to_the_company(self):
+        response = self.client.get("/api/exports/contacts/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("contacts-", response["Content-Disposition"])
+        lines = self._csv_lines(response)
+        self.assertTrue(lines[0].startswith("Name,Title,Department,Email"))
+        text = "\n".join(lines)
+        self.assertIn("Meera Nair", text)
+        self.assertIn("Zed Contact", text)
+        self.assertNotIn("Gone Contact", text)
+        self.assertNotIn("Foreign Contact", text)
+        self.assertEqual(len(lines), 4)  # header + 3 contacts
+
+    def test_contacts_export_has_the_full_contact_details(self):
+        response = self.client.get(
+            "/api/exports/contacts/", {"format": "xlsx", "search": "meera"}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sheet = load_workbook(io.BytesIO(_download(response))).active
+        self.assertEqual(sheet.max_row, 2)
+        headers = [cell.value for cell in sheet[1]]
+        row = dict(zip(headers, [cell.value for cell in sheet[2]]))
+        self.assertEqual(row["Name"], "Meera Nair")
+        self.assertEqual(row["Title"], "Head of Sales")
+        self.assertEqual(row["Department"], "Sales")
+        self.assertEqual(row["Email"], "meera@acme.test")
+        self.assertEqual(row["Account"], "Acme Corp")
+        self.assertEqual(row["Owner"], "Admin One")
+        self.assertEqual(row["Mailing City"], "Kochi")
+        self.assertEqual(row["Email Opt Out"], "Yes")
+
+    def test_contacts_export_keeps_the_list_sort_order(self):
+        response = self.client.get(
+            "/api/exports/contacts/", {"sort_by": "name", "sort_direction": "desc"}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [line.split(",")[0] for line in self._csv_lines(response)[1:]]
+        self.assertEqual(names, sorted(names, reverse=True))
+
+    def test_contacts_export_neutralises_spreadsheet_formulas(self):
+        text = "\n".join(self._csv_lines(self.client.get("/api/exports/contacts/")))
+
+        self.assertIn("'=HYPERLINK", text)
+
+    def test_contacts_and_accounts_exports_are_open_to_company_users(self):
+        executive = authenticated_client(self.executive)
+        for entity in ("contacts", "accounts"):
+            response = executive.get(f"/api/exports/{entity}/")
+            self.assertEqual(response.status_code, status.HTTP_200_OK, entity)
+
+    def test_exports_need_a_signed_in_user(self):
+        from rest_framework.test import APIClient
+
+        for entity in ("contacts", "accounts"):
+            response = APIClient().get(f"/api/exports/{entity}/")
+            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED, entity)
 
     def test_other_entities_answer_with_a_file(self):
-        for entity in ("contacts", "tasks", "calls", "meetings"):
+        for entity in ("tasks", "calls", "meetings"):
             response = self.client.get(f"/api/exports/{entity}/")
             self.assertEqual(response.status_code, status.HTTP_200_OK, entity)
             self.assertEqual(len(self._csv_lines(response)), 1, entity)  # header only

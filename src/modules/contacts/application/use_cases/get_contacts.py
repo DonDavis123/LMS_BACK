@@ -26,6 +26,21 @@ class GetContactsUseCase:
                     "contact_owner_name": contact_owner_name,
                     "next_task_due_date": next_task_due_date,
                     "next_task_status": next_task_status,
+                    # Read by the export only: the list serializer does not
+                    # send these, so the list API response is unchanged.
+                    "secondary_email": contact.secondary_email,
+                    "title": contact.title,
+                    "department": contact.department,
+                    "lead_source": contact.lead_source,
+                    "date_of_birth": contact.date_of_birth,
+                    "email_opt_out": contact.email_opt_out,
+                    "mailing_address": contact.mailing_address,
+                    "mailing_city": contact.mailing_city,
+                    "mailing_state": contact.mailing_state,
+                    "mailing_country": contact.mailing_country,
+                    "mailing_postal_code": contact.mailing_postal_code,
+                    "created_at": contact.created_at,
+                    "updated_at": contact.updated_at,
                 }
                 for (
                     contact,
