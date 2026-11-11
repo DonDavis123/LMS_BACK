@@ -348,6 +348,19 @@ class DjangoAccountRepository(AccountRepository):
         )
         return [self._to_domain(model) for model in models]
 
+    def get_many_by_ids(self, ids: list[UUID]) -> list[Account]:
+        ids = list(ids)
+        if not ids:
+            return []
+
+        # One query; the repository's company and soft-delete rules apply.
+        models = (
+            self._base_queryset()
+            .filter(id__in=ids, is_deleted=False)
+            .order_by("created_at", "id")
+        )
+        return [self._to_domain(model) for model in models]
+
     def count_by_owner_id(self, owner_id: UUID) -> int:
         return self._base_queryset().filter(
             account_owner_id=owner_id,

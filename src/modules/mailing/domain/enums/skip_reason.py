@@ -1,0 +1,10 @@
+from enum import Enum
+
+
+class SkipReason(str, Enum):
+    NO_EMAIL = "NO_EMAIL"
+    INVALID_EMAIL = "INVALID_EMAIL"
+    OPTED_OUT = "OPTED_OUT"
+    DUPLICATE_EMAIL = "DUPLICATE_EMAIL"
+    NOT_FOUND = "NOT_FOUND"
+    NO_CONTACTS = "NO_CONTACTS"

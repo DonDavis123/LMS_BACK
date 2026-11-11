@@ -52,6 +52,13 @@ class AccountRepository(ABC):
         passed in that form). Oldest first. One query for a whole import batch."""
         raise NotImplementedError
 
+    def get_many_by_ids(self, ids: list[UUID]) -> list[Account]:
+        """The repository company's non-deleted accounts with these ids, in
+        ONE query. Ids that do not exist, are soft-deleted or belong to
+        another company are simply absent from the result (no order promised).
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def transfer_ownership(
         self,

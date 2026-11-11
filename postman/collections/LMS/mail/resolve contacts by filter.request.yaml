@@ -1,0 +1,30 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/mail/recipients/resolve/
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "entity": "contacts",
+      "selection": {
+        "mode": "filter",
+        "search": "acme",
+        "filters": [
+          {
+            "field": "department",
+            "operator": "equals",
+            "value": "Sales"
+          }
+        ],
+        "exclude_ids": [
+          "00000000-0000-0000-0000-000000000003"
+        ]
+      },
+      "include_secondary_email": true,
+      "batch_size": 50
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 5100000000000002

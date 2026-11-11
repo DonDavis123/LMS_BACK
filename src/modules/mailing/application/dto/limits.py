@@ -1,0 +1,8 @@
+"""Hard limits of the recipient resolver."""
+
+MAX_IDS = 500
+MAX_EXCLUDE_IDS = 2000
+MAX_FILTER_MATCHES = 2000
+DEFAULT_BATCH_SIZE = 40
+MIN_BATCH_SIZE = 1
+MAX_BATCH_SIZE = 50

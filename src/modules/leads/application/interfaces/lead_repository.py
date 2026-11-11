@@ -88,3 +88,10 @@ class LeadRepository(ABC):
         may change are accepted (``owner_id`` included, ``is_deleted`` /
         ``is_converted`` / company never). Returns how many leads changed."""
         pass
+
+    def get_many_by_ids(self, ids: list[UUID]) -> list[Lead]:
+        """The repository company's non-deleted leads with these ids, in ONE
+        query (converted leads are returned too; the caller decides). Ids that
+        do not exist, are soft-deleted or belong to another company are simply
+        absent from the result (no order promised)."""
+        raise NotImplementedError

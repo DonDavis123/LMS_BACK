@@ -1,0 +1,23 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/mail/recipients/resolve/
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "entity": "accounts",
+      "selection": {
+        "mode": "ids",
+        "ids": [
+          "00000000-0000-0000-0000-000000000001",
+          "00000000-0000-0000-0000-000000000002"
+        ]
+      },
+      "include_secondary_email": false,
+      "batch_size": 40
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 5100000000000005

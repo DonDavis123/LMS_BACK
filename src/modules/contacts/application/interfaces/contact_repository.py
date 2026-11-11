@@ -59,6 +59,13 @@ class ContactRepository(ABC):
         digits). Oldest first. One query for a whole import batch."""
         raise NotImplementedError
 
+    def get_many_by_ids(self, ids: list[UUID]) -> list[Contact]:
+        """The repository company's non-deleted contacts with these ids, in
+        ONE query. Ids that do not exist, are soft-deleted or belong to
+        another company are simply absent from the result (no order promised).
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def get_by_id_with_relations(
     self,

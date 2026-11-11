@@ -1,0 +1,27 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/mail/recipients/resolve/
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "entity": "leads",
+      "selection": {
+        "mode": "filter",
+        "search": null,
+        "filters": [
+          {
+            "field": "lead_status",
+            "operator": "equals",
+            "value": "Contacted"
+          }
+        ],
+        "exclude_ids": []
+      },
+      "batch_size": 40
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 5100000000000004
