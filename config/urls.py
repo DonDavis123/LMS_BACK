@@ -96,6 +96,16 @@ urlpatterns = [
     ),
 
     path(
+        "api/mail/",
+        include("src.modules.mailing.presentation.api.urls"),
+    ),
+
+    path(
+        "api/email-activity/",
+        include("src.modules.email_activity.presentation.api.urls"),
+    ),
+
+    path(
         "api/lead-capture/",
         include("src.modules.lead_capture.presentation.api.urls"),
     ),
