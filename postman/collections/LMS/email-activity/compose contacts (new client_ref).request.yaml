@@ -1,0 +1,22 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/email-activity/compose/
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "client_ref": "{{$guid}}",
+      "channel": "GMAIL_COMPOSE",
+      "targets": [
+        {"record_type": "CONTACT", "record_id": "00000000-0000-0000-0000-000000000001"},
+        {"record_type": "CONTACT", "record_id": "00000000-0000-0000-0000-000000000002"}
+      ],
+      "subject": "Quarterly check-in",
+      "batch_index": 1,
+      "batch_total": 1
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 5200000000000001

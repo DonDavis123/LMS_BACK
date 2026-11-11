@@ -57,3 +57,17 @@ class TimelineRepository(ABC):
         existing in-memory test doubles keep working.
         """
         raise NotImplementedError
+
+    def get_targets_with_client_ref(
+        self,
+        *,
+        event_type: str,
+        client_ref: str,
+        targets: list[tuple[str, UUID]],
+    ) -> set[tuple[str, UUID]]:
+        """The ``targets`` (``(entity_type, entity_id)``) that already have an
+        active event of ``event_type`` whose ``metadata["client_ref"]`` equals
+        ``client_ref``, in ONE query. Used to make a client action idempotent.
+        Not abstract so existing in-memory test doubles keep working.
+        """
+        raise NotImplementedError

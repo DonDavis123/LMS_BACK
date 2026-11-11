@@ -1,0 +1,19 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/email-activity/compose/
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "client_ref": "11111111-1111-4111-8111-111111111111",
+      "channel": "GMAIL_COMPOSE",
+      "targets": [
+        {"record_type": "CONTACT", "record_id": "00000000-0000-0000-0000-000000000001"}
+      ],
+      "subject": "Send this twice: the second call returns 200 and writes nothing"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{json_web_token_0bul}}"
+order: 5200000000000004

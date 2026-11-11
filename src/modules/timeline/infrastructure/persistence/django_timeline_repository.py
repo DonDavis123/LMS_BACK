@@ -142,6 +142,32 @@ class DjangoTimelineRepository(TimelineRepository):
             }
         return latest
 
+    def get_targets_with_client_ref(
+        self,
+        *,
+        event_type: str,
+        client_ref: str,
+        targets: list[tuple[str, UUID]],
+    ) -> set[tuple[str, UUID]]:
+        wanted = set(targets)
+        if not wanted:
+            return set()
+
+        # One query for every target. The two __in filters can match a
+        # (type, id) combination that was not asked for, so the exact pairs
+        # are checked again below.
+        rows = TimelineEventTarget.objects.filter(
+            event__company_id=self._company_id,
+            event__event_type=event_type,
+            event__metadata__client_ref=client_ref,
+            event__is_deleted=False,
+            is_deleted=False,
+            entity_type__in={entity_type for entity_type, _ in wanted},
+            entity_id__in={entity_id for _, entity_id in wanted},
+        ).values_list("entity_type", "entity_id")
+
+        return {row for row in rows if row in wanted}
+
     def soft_delete_by_entity(
         self,
         entity_type: str,
