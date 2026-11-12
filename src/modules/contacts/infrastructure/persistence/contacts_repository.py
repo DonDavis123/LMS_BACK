@@ -490,6 +490,77 @@ class DjangoContactRepository(ContactRepository):
         )
         return [self._to_domain(model) for model in models]
 
+    def bulk_create_for_import(self, contacts: list[Contact]) -> int:
+        """Insert new contacts in one query (lead import, converted rows).
+
+        Always the repository's own company, never the entity's. Imported
+        contacts never report to another contact, so no reporting check is
+        needed. Must run inside the caller's transaction.
+        """
+        contacts = list(contacts)
+        if not contacts:
+            return 0
+        models = [
+            DjangoContactModel(
+                id=contact.id,
+                company_id=self._company_id,
+                account_id=contact.account_id,
+                contact_owner_id=contact.contact_owner_id,
+                name=contact.name,
+                email=contact.email,
+                secondary_email=contact.secondary_email,
+                phone=contact.phone,
+                other_phone=contact.other_phone,
+                mobile=contact.mobile,
+                home_phone=contact.home_phone,
+                assistant_phone=contact.assistant_phone,
+                title=contact.title,
+                department=contact.department,
+                lead_source=contact.lead_source,
+                vendor_name=contact.vendor_name,
+                date_of_birth=contact.date_of_birth,
+                assistant=contact.assistant,
+                email_opt_out=contact.email_opt_out,
+                reporting_to_id=contact.reporting_to_id,
+                mailing_address=contact.mailing_address,
+                mailing_city=contact.mailing_city,
+                mailing_state=contact.mailing_state,
+                mailing_country=contact.mailing_country,
+                mailing_postal_code=contact.mailing_postal_code,
+                other_address=contact.other_address,
+                description=contact.description,
+                created_by_id=contact.created_by_id,
+                created_at=contact.created_at,
+                modified_by_id=contact.modified_by_id,
+                updated_at=contact.updated_at,
+                is_deleted=contact.is_deleted,
+            )
+            for contact in contacts
+        ]
+        DjangoContactModel.objects.bulk_create(models, batch_size=500)
+        return len(models)
+
+    def bulk_set_account_for_import(self, links: dict[UUID, UUID]) -> int:
+        """Attach existing contacts to accounts: ``{contact_id: account_id}``.
+
+        One UPDATE per account. Only contacts of this company that have no
+        account yet are touched. Must run inside the caller's transaction.
+        """
+        if not links:
+            return 0
+        by_account: dict[UUID, list[UUID]] = {}
+        for contact_id, account_id in links.items():
+            by_account.setdefault(account_id, []).append(contact_id)
+        now = timezone.now()
+        changed = 0
+        for account_id, contact_ids in by_account.items():
+            changed += (
+                self._base_queryset()
+                .filter(id__in=contact_ids, account_id__isnull=True)
+                .update(account_id=account_id, updated_at=now)
+            )
+        return changed
+
     def get_many_by_ids(self, ids: list[UUID]) -> list[Contact]:
         ids = list(ids)
         if not ids:

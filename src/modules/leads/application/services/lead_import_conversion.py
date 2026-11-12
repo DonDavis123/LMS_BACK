@@ -22,6 +22,14 @@ are only remembered for later rows after their own row has succeeded.
 
 Existing accounts and contacts for the whole batch are fetched with two
 queries (``find_for_import_matching``), never one query per row.
+
+Speed: rows are first built in memory and written in CHUNKS of
+``BULK_CHUNK_SIZE`` rows with one bulk insert per table (leads, accounts,
+contacts) instead of ~20 queries per row, so a full batch of converted rows
+finishes well inside the request time limit. If a chunk's bulk write fails
+(for example a database constraint), that chunk alone is redone row by row
+with the savepoint logic above, so every bad row still gets its own plain
+message and every good row is still imported.
 """
 
 from __future__ import annotations
@@ -52,6 +60,9 @@ logger = logging.getLogger(__name__)
 
 USE_EXISTING = "use_existing"
 CODE_CONVERSION_FAILED = "conversion_failed"
+
+# Converted rows are written to the database this many at a time.
+BULK_CHUNK_SIZE = 50
 
 # options["converted"] lists never grow beyond this many ids.
 MAX_TRACKED_IDS = 10_000
@@ -241,6 +252,15 @@ class _Lookup:
                     lookup.remember_contact(contact)
         return lookup
 
+    def fork(self) -> "_Lookup":
+        """A copy a chunk can add to; thrown away if the chunk is not saved."""
+        other = _Lookup()
+        other.accounts_by_name = dict(self.accounts_by_name)
+        other.accounts_by_site = dict(self.accounts_by_site)
+        other.contacts_by_email = dict(self.contacts_by_email)
+        other.contacts_by_phone = dict(self.contacts_by_phone)
+        return other
+
     # -- remembering ----------------------------------------------------
 
     def remember_account(self, account) -> None:
@@ -368,6 +388,180 @@ def _convert_row(job, outcome: RowOutcome, context: ConversionContext, lookup: _
 
 
 # ---------------------------------------------------------------------------
+# One chunk, written in bulk
+# ---------------------------------------------------------------------------
+
+@dataclass
+class _Prepared:
+    """A row built in memory, not written yet."""
+
+    outcome: RowOutcome
+    lead: object
+    record: _RowRecord
+    new_account: object | None = None
+    new_contact: object | None = None
+    link: tuple | None = None  # (contact_id, account_id) of a reused contact
+
+
+def _prepare_row(outcome: RowOutcome, context: ConversionContext, lookup: _Lookup) -> _Prepared:
+    """The same steps as ``_convert_row`` with no database writes. Raises
+    ``_RowFailure`` (same stage and reason as the row-by-row path)."""
+    stage = "lead"
+    options = context.options
+    actor = context.actor_id
+    try:
+        lead = context.build_lead(outcome)
+        if lead is None:
+            raise ValueError("no owner could be assigned to this row")
+        record = _RowRecord(lead_id=lead.id)
+        prepared = _Prepared(outcome=outcome, lead=lead, record=record)
+
+        stage = "account"
+        if has_company_name(lead.company_name):
+            found = lookup.account_for(lead) if options.account_match == USE_EXISTING else None
+            if found is not None:
+                record.account = found
+            else:
+                record.account = build_account_from_lead(lead, actor)
+                record.account_created = True
+                prepared.new_account = record.account
+
+        stage = "contact"
+        found = lookup.contact_for(lead) if options.contact_match == USE_EXISTING else None
+        if found is not None:
+            contact = copy_entity(found)
+            if link_contact_to_account(contact, record.account):
+                record.contact_changed = True
+                prepared.link = (contact.id, contact.account_id)
+            record.contact = contact
+        else:
+            record.contact = build_contact_from_lead(
+                lead,
+                record.account.id if record.account is not None else None,
+                actor,
+            )
+            record.contact_created = True
+            prepared.new_contact = record.contact
+
+        stage = "convert"
+        lead.convert()
+        return prepared
+    except _RowFailure:
+        raise
+    except Exception as exc:  # noqa: BLE001 - becomes this row's problem
+        raise _RowFailure(stage, _reason(exc, outcome.row_number)) from exc
+
+
+def _remember_prepared(prepared: _Prepared, lookup: _Lookup) -> None:
+    """Later rows of the same chunk may reuse what this row creates."""
+    record = prepared.record
+    if record.account_created:
+        lookup.remember_account(record.account)
+    if record.contact_created:
+        lookup.remember_contact(record.contact)
+    elif record.contact_changed:
+        lookup.replace_contact(record.contact)
+
+
+def _write_chunk(job, rows: list[_Prepared], context: ConversionContext) -> None:
+    """One bulk insert per table, in foreign-key order."""
+    context.lead_repository.bulk_create_for_import([r.lead for r in rows], job.id)
+    context.account_repository.bulk_create_for_import(
+        [r.new_account for r in rows if r.new_account is not None]
+    )
+    context.contact_repository.bulk_create_for_import(
+        [r.new_contact for r in rows if r.new_contact is not None]
+    )
+    links = {r.link[0]: r.link[1] for r in rows if r.link is not None}
+    if links:
+        context.contact_repository.bulk_set_account_for_import(links)
+
+
+def _supports_bulk(context: ConversionContext) -> bool:
+    return (
+        hasattr(context.lead_repository, "bulk_create_for_import")
+        and hasattr(context.account_repository, "bulk_create_for_import")
+        and hasattr(context.contact_repository, "bulk_create_for_import")
+        and hasattr(context.contact_repository, "bulk_set_account_for_import")
+    )
+
+
+def _try_chunk_in_bulk(job, chunk, context: ConversionContext, lookup: _Lookup, result: ConversionResult) -> bool:
+    """Convert a chunk with bulk writes. Returns False, having written and
+    recorded nothing, when the chunk has to be redone row by row."""
+    work = lookup.fork()
+    ready: list[_Prepared] = []
+    failed: list[tuple[RowOutcome, _RowFailure]] = []
+    for outcome in chunk:
+        try:
+            prepared = _prepare_row(outcome, context, work)
+        except _RowFailure as failure:
+            failed.append((outcome, failure))
+            continue
+        _remember_prepared(prepared, work)
+        ready.append(prepared)
+
+    try:
+        if ready:
+            context.transaction_manager.execute(lambda: _write_chunk(job, ready, context))
+    except Exception:  # noqa: BLE001 - the savepoint rolled the chunk back
+        logger.warning(
+            "Lead import: a chunk of %s converted rows could not be written in "
+            "bulk; redoing it row by row.", len(chunk), exc_info=True,
+        )
+        return False
+
+    for outcome, failure in failed:
+        _mark_failed(outcome, failure, context, result)
+    for prepared in ready:
+        _register_success(prepared.outcome, prepared.record, lookup, result)
+    return True
+
+
+def _mark_failed(outcome: RowOutcome, failure: _RowFailure, context: ConversionContext, result: ConversionResult) -> None:
+    outcome.problems = [_failure_problem(outcome, failure, context.columns)]
+    outcome.status = ERROR
+    outcome.is_converted = False
+    result.failed.append(outcome)
+
+
+def _register_success(outcome: RowOutcome, record: _RowRecord, lookup: _Lookup, result: ConversionResult) -> None:
+    """The row is committed to the batch: later rows may now reuse its records."""
+    result.converted.append(outcome.row_number)
+    result.lead_ids.append(str(record.lead_id))
+    if record.account is not None:
+        if record.account_created:
+            lookup.remember_account(record.account)
+            result.created_accounts.append(str(record.account.id))
+        else:
+            result.reused_accounts.append(str(record.account.id))
+    if record.contact is not None:
+        if record.contact_created:
+            lookup.remember_contact(record.contact)
+            result.created_contacts.append(str(record.contact.id))
+        else:
+            if record.contact_changed:
+                lookup.replace_contact(record.contact)
+            result.reused_contacts.append(str(record.contact.id))
+
+
+def _convert_chunk_by_row(job, chunk, context: ConversionContext, lookup: _Lookup, result: ConversionResult) -> None:
+    """The safe path: every row in its own savepoint."""
+    for outcome in chunk:
+        try:
+            record = context.transaction_manager.execute(
+                lambda current=outcome: _convert_row(job, current, context, lookup)
+            )
+        except Exception as exc:  # noqa: BLE001 - one row never stops the batch
+            failure = exc if isinstance(exc, _RowFailure) else _RowFailure(
+                "lead", _reason(exc, outcome.row_number)
+            )
+            _mark_failed(outcome, failure, context, result)
+            continue
+        _register_success(outcome, record, lookup, result)
+
+
+# ---------------------------------------------------------------------------
 # One batch
 # ---------------------------------------------------------------------------
 
@@ -387,39 +581,13 @@ def convert_outcomes(job, outcomes, context: ConversionContext) -> ConversionRes
         return result
 
     lookup = _Lookup.load(outcomes, context)
+    bulk = _supports_bulk(context)
 
-    for outcome in outcomes:
-        try:
-            record = context.transaction_manager.execute(
-                lambda current=outcome: _convert_row(job, current, context, lookup)
-            )
-        except Exception as exc:  # noqa: BLE001 - one row never stops the batch
-            failure = exc if isinstance(exc, _RowFailure) else _RowFailure(
-                "lead", _reason(exc, outcome.row_number)
-            )
-            outcome.problems = [_failure_problem(outcome, failure, context.columns)]
-            outcome.status = ERROR
-            outcome.is_converted = False
-            result.failed.append(outcome)
+    for index in range(0, len(outcomes), BULK_CHUNK_SIZE):
+        chunk = outcomes[index:index + BULK_CHUNK_SIZE]
+        if bulk and _try_chunk_in_bulk(job, chunk, context, lookup, result):
             continue
-
-        # The row is committed to the batch: later rows may now reuse its records.
-        result.converted.append(outcome.row_number)
-        result.lead_ids.append(str(record.lead_id))
-        if record.account is not None:
-            if record.account_created:
-                lookup.remember_account(record.account)
-                result.created_accounts.append(str(record.account.id))
-            else:
-                result.reused_accounts.append(str(record.account.id))
-        if record.contact is not None:
-            if record.contact_created:
-                lookup.remember_contact(record.contact)
-                result.created_contacts.append(str(record.contact.id))
-            else:
-                if record.contact_changed:
-                    lookup.replace_contact(record.contact)
-                result.reused_contacts.append(str(record.contact.id))
+        _convert_chunk_by_row(job, chunk, context, lookup, result)
 
     _finish_lists(result)
     return result

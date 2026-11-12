@@ -516,7 +516,8 @@ class DjangoLeadRepository(LeadRepository):
                 postal_code=lead.postal_code,
                 description=lead.description,
                 is_deleted=False,
-                is_converted=False,
+                # New leads are False; a converted import row arrives already converted.
+                is_converted=bool(lead.is_converted),
             )
             for lead in leads
         ]

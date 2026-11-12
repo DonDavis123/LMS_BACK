@@ -348,6 +348,50 @@ class DjangoAccountRepository(AccountRepository):
         )
         return [self._to_domain(model) for model in models]
 
+    def bulk_create_for_import(self, accounts: list[Account]) -> int:
+        """Insert new accounts in one query (lead import, converted rows).
+
+        Always the repository's own company, never the entity's. Must run
+        inside the caller's transaction.
+        """
+        accounts = list(accounts)
+        if not accounts:
+            return 0
+        models = [
+            DjangoAccountModel(
+                id=account.id,
+                company_id=self._company_id,
+                account_owner_id=account.account_owner_id,
+                account_name=account.account_name,
+                account_site=account.account_site,
+                account_number=account.account_number,
+                account_type=account.account_type,
+                industry=account.industry,
+                annual_revenue=account.annual_revenue,
+                rating=account.rating,
+                phone=account.phone,
+                website=account.website,
+                ticker_symbol=account.ticker_symbol,
+                ownership=account.ownership,
+                employees=account.employees,
+                sic_code=account.sic_code,
+                billing_address=account.billing_address,
+                billing_city=account.billing_city,
+                billing_state=account.billing_state,
+                billing_country=account.billing_country,
+                billing_postal_code=account.billing_postal_code,
+                description=account.description,
+                created_by_id=account.created_by_id,
+                created_at=account.created_at,
+                modified_by_id=account.modified_by_id,
+                updated_at=account.updated_at,
+                is_deleted=account.is_deleted,
+            )
+            for account in accounts
+        ]
+        DjangoAccountModel.objects.bulk_create(models, batch_size=500)
+        return len(models)
+
     def get_many_by_ids(self, ids: list[UUID]) -> list[Account]:
         ids = list(ids)
         if not ids:
