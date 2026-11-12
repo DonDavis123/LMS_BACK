@@ -34,6 +34,16 @@ class CallRecordingRepository(ABC):
         pass
 
     @abstractmethod
+    def total_size_bytes(self) -> int:
+        """Bytes of audio kept for recordings of ALL companies.
+
+        Deliberately not tenant scoped: every company shares one storage
+        bucket, so its size limit has to be checked against the whole bucket.
+        Only a number is returned, never another company's data.
+        """
+        pass
+
+    @abstractmethod
     def delete(self, recording_id: UUID) -> None:
         """Permanently remove the recording row."""
         pass

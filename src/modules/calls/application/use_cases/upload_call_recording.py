@@ -45,6 +45,10 @@ def call_targets(call) -> list[tuple[str, object]]:
 
 class UploadCallRecordingUseCase:
     NOT_COMPLETED_MESSAGE = "Recordings can only be added to a completed call."
+    STORAGE_FULL_MESSAGE = (
+        "Recording storage is full. Delete old recordings or ask your "
+        "administrator to free up space."
+    )
 
     def __init__(
         self,
@@ -55,6 +59,7 @@ class UploadCallRecordingUseCase:
         transaction_manager: TransactionManager,
         max_size_bytes: int = DEFAULT_MAX_SIZE_BYTES,
         max_per_call: int = DEFAULT_MAX_PER_CALL,
+        max_total_bytes: int | None = None,
     ):
         self.call_repository = call_repository
         self.recording_repository = recording_repository
@@ -63,6 +68,8 @@ class UploadCallRecordingUseCase:
         self.transaction_manager = transaction_manager
         self.max_size_bytes = max_size_bytes
         self.max_per_call = max_per_call
+        # ``None`` means the storage has no overall size limit.
+        self.max_total_bytes = max_total_bytes
 
     def execute(self, data: UploadCallRecordingDTO) -> GetCallRecordingDTO:
         call = self.call_repository.get_by_id(data.call_id)
@@ -89,6 +96,12 @@ class UploadCallRecordingUseCase:
             max_size_bytes=self.max_size_bytes,
             duration_seconds=data.duration_seconds,
         )
+
+        if self.max_total_bytes is not None and (
+            self.recording_repository.total_size_bytes() + recording.size_bytes
+            > self.max_total_bytes
+        ):
+            raise ValueError(self.STORAGE_FULL_MESSAGE)
 
         recording.storage_key = self.storage.store(
             call_id=call.id,

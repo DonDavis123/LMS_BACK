@@ -64,7 +64,7 @@ Errors use the usual `{"detail": "..."}` shape:
 
 | Status | When |
 |---|---|
-| `400` | No file, empty file, not audio, over the size limit, too many recordings, call not completed, bad duration. |
+| `400` | No file, empty file, not audio, over the size limit, too many recordings, call not completed, bad duration, or the overall recording storage is full (`Recording storage is full. ...`). |
 | `404` | Unknown call (or a call of another company). |
 | `413` | The request body is far larger than the size limit (refused before it is read). |
 
@@ -119,6 +119,7 @@ metadata (`call_recordings` table, a few hundred bytes per recording).
 | `MEDIA_ROOT` | `<project>/media` | Local folder, used only without a bucket. |
 | `CALL_RECORDING_MAX_MB` | `25` | Largest accepted recording (Supabase free plan: 50 MB per file at most). |
 | `CALL_RECORDING_MAX_PER_CALL` | `10` | Most recordings on one call. |
+| `CALL_RECORDING_STORAGE_LIMIT_MB` | `900` with a bucket, `0` without | Most audio all companies together may keep. New uploads are refused with `400` once it would be exceeded. `0` = no limit. Keep it below the plan's 1 GB (1024 MB). |
 
 ### Supabase setup (once)
 
@@ -135,6 +136,15 @@ metadata (`call_recordings` table, a few hundred bytes per recording).
 The free plan gives 1 GB of storage in total, roughly 1,000 five-minute MP3
 recordings; watch it under Storage -> Usage. Large phone recordings (WAV) fill
 it quickly.
+
+The backend enforces that budget itself: the sizes of all recordings (every
+company, the bucket is shared) are added up before each upload, and an upload
+that would pass `CALL_RECORDING_STORAGE_LIMIT_MB` is refused with a clear `400`
+before anything is sent to Supabase. Deleting a recording frees its space
+immediately. The check counts what the database knows about; audio that was
+orphaned by a crash is not counted, which is why the default leaves ~12 %
+headroom. The plan's separate 50 MB per-file cap is covered by
+`CALL_RECORDING_MAX_MB`.
 
 When a call is permanently deleted (for example when a retired user's calls
 are cleaned up) its recordings are deleted with it, including the audio files.

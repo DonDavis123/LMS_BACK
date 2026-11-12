@@ -407,6 +407,18 @@ CALL_RECORDING_MAX_MB = int(os.getenv("CALL_RECORDING_MAX_MB", "25"))
 # Most recordings one call can hold.
 CALL_RECORDING_MAX_PER_CALL = int(os.getenv("CALL_RECORDING_MAX_PER_CALL", "10"))
 
+# Most audio, in megabytes, ALL companies together may keep in the bucket.
+# Supabase's free plan holds 1 GB (1024 MB) in total, so with a Supabase bucket
+# the default stops uploads at 900 MB and leaves headroom for files that are
+# not counted (clean-up still pending, other files in the same project).
+# Without a bucket (local development) there is no limit. Use 0 for "no limit".
+CALL_RECORDING_STORAGE_LIMIT_MB = int(
+    os.getenv(
+        "CALL_RECORDING_STORAGE_LIMIT_MB",
+        "900" if SUPABASE_STORAGE_BUCKET else "0",
+    )
+)
+
 
 # -------------------------------------------------------------------
 # Email

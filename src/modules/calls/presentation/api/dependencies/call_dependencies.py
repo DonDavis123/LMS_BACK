@@ -100,6 +100,13 @@ def recording_limits() -> tuple[int, int]:
     )
 
 
+def recording_storage_limit_bytes() -> int | None:
+    """Most audio all companies may keep in total; ``None`` for no limit."""
+    limit_mb = getattr(settings, "CALL_RECORDING_STORAGE_LIMIT_MB", None)
+
+    return int(limit_mb) * 1024 * 1024 if limit_mb else None
+
+
 def get_upload_call_recording_use_case(ctx: TenantContext) -> UploadCallRecordingUseCase:
     max_size_bytes, max_per_call = recording_limits()
 
@@ -111,6 +118,7 @@ def get_upload_call_recording_use_case(ctx: TenantContext) -> UploadCallRecordin
         transaction_manager(),
         max_size_bytes=max_size_bytes,
         max_per_call=max_per_call,
+        max_total_bytes=recording_storage_limit_bytes(),
     )
 
 

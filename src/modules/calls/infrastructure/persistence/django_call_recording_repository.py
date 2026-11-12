@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from django.db.models import Sum
+
 from src.modules.calls.application.dto.call_recording import GetCallRecordingDTO
 from src.modules.calls.application.interfaces.call_recording_repository import (
     CallRecordingRepository,
@@ -72,6 +74,11 @@ class DjangoCallRecordingRepository(CallRecordingRepository):
 
     def count_by_call_id(self, call_id: UUID) -> int:
         return self._base_queryset().filter(call_id=call_id).count()
+
+    def total_size_bytes(self) -> int:
+        # Not filtered by company on purpose: the storage bucket is shared.
+        total = DjangoCallRecordingModel.objects.aggregate(total=Sum("size_bytes"))
+        return total["total"] or 0
 
     def delete(self, recording_id: UUID) -> None:
         self._base_queryset().filter(id=recording_id).delete()
