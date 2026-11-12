@@ -4,6 +4,11 @@ from src.modules.accounts.application.use_cases.get_accounts import GetAccountsU
 from src.modules.accounts.application.use_cases.get_account_details import GetAccountDetailsUseCase
 from src.modules.accounts.application.use_cases.update_account import UpdateAccountUseCase
 from src.modules.accounts.application.use_cases.delete_account import DeleteAccountUseCase
+from src.modules.accounts.application.use_cases.add_account_document import AddAccountDocumentUseCase
+from src.modules.accounts.application.use_cases.list_account_documents import ListAccountDocumentsUseCase
+from src.modules.accounts.application.use_cases.update_account_document import UpdateAccountDocumentUseCase
+from src.modules.accounts.application.use_cases.delete_account_document import DeleteAccountDocumentUseCase
+from src.modules.accounts.infrastructure.persistence.django_account_document_repository import DjangoAccountDocumentRepository
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
@@ -36,6 +41,7 @@ def get_account_details_use_case(ctx: TenantContext) -> GetAccountDetailsUseCase
     return GetAccountDetailsUseCase(
         DjangoAccountRepository(company_id=ctx.company_id),
         DjangoContactRepository(company_id=ctx.company_id),
+        DjangoAccountDocumentRepository(company_id=ctx.company_id),
     )
 
 
@@ -55,5 +61,39 @@ def get_delete_account_use_case(ctx: TenantContext) -> DeleteAccountUseCase:
         DjangoTaskRepository(company_id=ctx.company_id),
         DjangoCallRepository(company_id=ctx.company_id),
         DjangoTimelineRepository(company_id=ctx.company_id),
+        DjangoTransactionManager(),
+    )
+
+
+def get_add_account_document_use_case(ctx: TenantContext) -> AddAccountDocumentUseCase:
+    return AddAccountDocumentUseCase(
+        DjangoAccountRepository(company_id=ctx.company_id),
+        DjangoAccountDocumentRepository(company_id=ctx.company_id),
+        recorder(ctx),
+        DjangoTransactionManager(),
+    )
+
+
+def get_list_account_documents_use_case(ctx: TenantContext) -> ListAccountDocumentsUseCase:
+    return ListAccountDocumentsUseCase(
+        DjangoAccountRepository(company_id=ctx.company_id),
+        DjangoAccountDocumentRepository(company_id=ctx.company_id),
+    )
+
+
+def get_update_account_document_use_case(ctx: TenantContext) -> UpdateAccountDocumentUseCase:
+    return UpdateAccountDocumentUseCase(
+        DjangoAccountRepository(company_id=ctx.company_id),
+        DjangoAccountDocumentRepository(company_id=ctx.company_id),
+        recorder(ctx),
+        DjangoTransactionManager(),
+    )
+
+
+def get_delete_account_document_use_case(ctx: TenantContext) -> DeleteAccountDocumentUseCase:
+    return DeleteAccountDocumentUseCase(
+        DjangoAccountRepository(company_id=ctx.company_id),
+        DjangoAccountDocumentRepository(company_id=ctx.company_id),
+        recorder(ctx),
         DjangoTransactionManager(),
     )

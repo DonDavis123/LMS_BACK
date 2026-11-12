@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from .account_document import AccountDocumentSerializer
+
 
 class AccountContactSerializer(serializers.Serializer):
     id = serializers.UUIDField()
@@ -46,3 +48,4 @@ class AccountDetailsSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField()
 
     contacts = AccountContactSerializer(many=True)
+    documents = AccountDocumentSerializer(many=True)

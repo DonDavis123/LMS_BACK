@@ -4,6 +4,9 @@ from src.modules.accounts.application.dto.account_details_dto import (
     AccountContactDTO,
     GetAccountDetailsDTO,
 )
+from src.modules.accounts.application.interfaces.account_document_repository import (
+    AccountDocumentRepository,
+)
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
@@ -17,9 +20,11 @@ class GetAccountDetailsUseCase:
         self,
         account_repository: AccountRepository,
         contact_repository: ContactRepository,
+        document_repository: AccountDocumentRepository | None = None,
     ):
         self.account_repository = account_repository
         self.contact_repository = contact_repository
+        self.document_repository = document_repository
 
     def execute(
         self,
@@ -36,6 +41,12 @@ class GetAccountDetailsUseCase:
         account, account_owner_name = result
         contacts = self.contact_repository.get_by_account_id_with_owner(
             account.id,
+        )
+
+        documents = (
+            self.document_repository.list_by_account_id(account.id)
+            if self.document_repository is not None
+            else []
         )
 
         return GetAccountDetailsDTO(
@@ -84,4 +95,6 @@ class GetAccountDetailsUseCase:
                 )
                 for contact, contact_owner_name in contacts
             ],
+
+            documents=documents,
         )

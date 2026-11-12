@@ -1,6 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
+
+from src.modules.accounts.application.dto.account_document import (
+    GetAccountDocumentDTO,
+)
 
 
 @dataclass
@@ -50,3 +54,4 @@ class GetAccountDetailsDTO:
     updated_at: datetime
 
     contacts: list[AccountContactDTO]
+    documents: list[GetAccountDocumentDTO] = field(default_factory=list)
