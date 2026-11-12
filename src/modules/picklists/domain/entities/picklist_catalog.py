@@ -18,6 +18,24 @@ from src.modules.leads.domain.entities.lead_status import LeadStatus
 # hidden or deleted.
 SYSTEM_VALUE = "None"
 
+# Colours an admin can give an option. These are palette keys, not CSS: the
+# frontend maps each key to its own (light/dark aware) styles. An empty string
+# means "no colour chosen".
+PICKLIST_COLORS = (
+    "slate",
+    "blue",
+    "sky",
+    "teal",
+    "green",
+    "lime",
+    "amber",
+    "orange",
+    "red",
+    "pink",
+    "purple",
+    "indigo",
+)
+
 # Safety net so a runaway client cannot create thousands of options.
 MAX_OPTIONS_PER_FIELD = 200
 

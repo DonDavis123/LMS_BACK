@@ -101,6 +101,7 @@ class DjangoPicklistRepository(PicklistRepository):
                 "sort_order": option.sort_order,
                 "is_active": option.is_active,
                 "is_system": option.is_system,
+                "color": option.color,
             },
         )
         return self._to_domain(model)
@@ -136,4 +137,5 @@ class DjangoPicklistRepository(PicklistRepository):
             is_system=model.is_system,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            color=model.color,
         )

@@ -574,3 +574,71 @@ class ReorderingTests(PicklistTestCase):
         ids = self.ids("rating")
         response = self.adm.put(f"{LEADS}rating/reorder/", {"ordered_ids": ids}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class OptionColorTests(PicklistTestCase):
+    def test_options_start_without_a_colour(self):
+        for option in self.options(self.sa, "lead_status"):
+            self.assertEqual(option["color"], "")
+
+    def test_option_can_be_created_with_a_colour(self):
+        response = self.sa.post(
+            create_url("lead_status"),
+            {"value": "Demo Booked", "color": "purple"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        self.assertEqual(response.data["color"], "purple")
+
+        stored = {o["value"]: o["color"] for o in self.options(self.sa, "lead_status")}
+        self.assertEqual(stored["Demo Booked"], "purple")
+
+    def test_colour_can_be_changed_and_cleared(self):
+        created = self.add(self.sa, "lead_status", "Demo Booked")
+
+        response = self.sa.patch(update_url(created["id"]), {"color": "teal"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.assertEqual(response.data["color"], "teal")
+        self.assertEqual(response.data["value"], "Demo Booked")
+
+        response = self.sa.patch(update_url(created["id"]), {"color": ""}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.assertEqual(response.data["color"], "")
+
+    def test_unknown_colour_is_rejected(self):
+        created = self.add(self.sa, "lead_status", "Demo Booked")
+
+        response = self.sa.patch(update_url(created["id"]), {"color": "#ff0000"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.sa.post(
+            create_url("lead_status"), {"value": "Other", "color": "not-a-colour"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_colour_change_does_not_touch_leads_or_the_name(self):
+        created = self.add(self.sa, "lead_status", "Demo Booked")
+        self.make_lead(self.company_a, self.super_a, "Coloured", lead_status="Demo Booked")
+
+        self.sa.patch(update_url(created["id"]), {"color": "red"}, format="json")
+
+        self.assertTrue(
+            DjangoLeadModel.objects.filter(company=self.company_a, lead_status="Demo Booked").exists()
+        )
+
+    def test_built_in_none_colour_cannot_be_changed(self):
+        none_id = self.option_id(self.sa, "lead_status", "None")
+        response = self.sa.patch(update_url(none_id), {"color": "red"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_only_superadmin_can_change_a_colour(self):
+        created = self.add(self.sa, "lead_status", "Demo Booked")
+        response = self.adm.patch(update_url(created["id"]), {"color": "blue"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_colour_is_visible_to_every_user_of_the_company(self):
+        self.sa.post(
+            create_url("lead_status"), {"value": "Demo Booked", "color": "pink"}, format="json"
+        )
+        colours = {o["value"]: o["color"] for o in self.options(self.adm, "lead_status")}
+        self.assertEqual(colours["Demo Booked"], "pink")

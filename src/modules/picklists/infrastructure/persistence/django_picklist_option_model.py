@@ -25,6 +25,10 @@ class DjangoPicklistOptionModel(models.Model):
 
     value = models.CharField(max_length=150)
 
+    # Palette key (see PICKLIST_COLORS) used to tint this option in the UI.
+    # Empty means "no colour chosen" and the screens fall back to their default.
+    color = models.CharField(max_length=20, blank=True, default="")
+
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     is_system = models.BooleanField(default=False)

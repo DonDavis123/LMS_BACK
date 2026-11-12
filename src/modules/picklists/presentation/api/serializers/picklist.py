@@ -7,6 +7,8 @@ class PicklistOptionSerializer(serializers.Serializer):
     sort_order = serializers.IntegerField()
     is_active = serializers.BooleanField()
     is_system = serializers.BooleanField()
+    # Palette key, or "" when no colour has been chosen.
+    color = serializers.CharField(allow_blank=True)
     # Present only in the admin view (include_inactive=true).
     usage_count = serializers.IntegerField(allow_null=True)
 
@@ -21,16 +23,19 @@ class PicklistFieldSerializer(serializers.Serializer):
 class CreatePicklistOptionSerializer(serializers.Serializer):
     # Length/whitespace rules live in the domain (they differ per field).
     value = serializers.CharField(trim_whitespace=False)
+    # Palette key; whether it is a known colour is checked in the domain.
+    color = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class UpdatePicklistOptionSerializer(serializers.Serializer):
     value = serializers.CharField(required=False, trim_whitespace=False)
     is_active = serializers.BooleanField(required=False)
+    color = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate(self, attrs):
         if not attrs:
             raise serializers.ValidationError(
-                "Provide a new value and/or is_active."
+                "Provide a new value, color and/or is_active."
             )
         return attrs
 

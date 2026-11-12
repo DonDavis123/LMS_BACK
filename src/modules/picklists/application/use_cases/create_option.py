@@ -7,6 +7,7 @@ from src.modules.picklists.domain.entities.picklist_catalog import (
 )
 from src.modules.picklists.domain.entities.picklist_option import (
     PicklistOption,
+    normalize_option_color,
     normalize_option_value,
 )
 
@@ -15,9 +16,12 @@ class CreatePicklistOptionUseCase:
     def __init__(self, picklist_repository: PicklistRepository):
         self.picklist_repository = picklist_repository
 
-    def execute(self, module: str, field: str, value: str) -> PicklistOption:
+    def execute(
+        self, module: str, field: str, value: str, color: str | None = None
+    ) -> PicklistOption:
         definition = get_picklist_field(module, field)
         text = normalize_option_value(value, definition)
+        chosen_color = normalize_option_color(color)
 
         self.picklist_repository.ensure_defaults(module)
 
@@ -35,5 +39,6 @@ class CreatePicklistOptionUseCase:
             field=field,
             value=text,
             sort_order=self.picklist_repository.next_sort_order(module, field),
+            color=chosen_color,
         )
         return self.picklist_repository.save(option)

@@ -11,6 +11,7 @@ class PicklistOptionDTO:
     is_system: bool
     # Only filled in for the admin (include_inactive) view.
     usage_count: int | None = None
+    color: str = ""
 
 
 @dataclass(frozen=True)

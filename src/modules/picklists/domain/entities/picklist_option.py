@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from .picklist_catalog import PicklistField
+from .picklist_catalog import PICKLIST_COLORS, PicklistField
 
 
 def normalize_option_value(raw: object, definition: PicklistField) -> str:
@@ -25,6 +25,19 @@ def normalize_option_value(raw: object, definition: PicklistField) -> str:
     return value
 
 
+def normalize_option_color(raw: object) -> str:
+    """Validate a colour palette key. ``None`` / blank clears the colour."""
+    if raw is None:
+        return ""
+    if not isinstance(raw, str):
+        raise ValueError("Option colour must be text.")
+
+    color = raw.strip().lower()
+    if color and color not in PICKLIST_COLORS:
+        raise ValueError("Unknown option colour.")
+    return color
+
+
 @dataclass
 class PicklistOption:
     id: UUID
@@ -36,6 +49,7 @@ class PicklistOption:
     is_system: bool
     created_at: datetime
     updated_at: datetime
+    color: str = ""
 
     @classmethod
     def create(
@@ -45,6 +59,7 @@ class PicklistOption:
         value: str,
         sort_order: int,
         is_system: bool = False,
+        color: str = "",
     ) -> "PicklistOption":
         now = datetime.now(timezone.utc)
         return cls(
@@ -57,6 +72,7 @@ class PicklistOption:
             is_system=is_system,
             created_at=now,
             updated_at=now,
+            color=color,
         )
 
     def _ensure_editable(self) -> None:
@@ -68,6 +84,10 @@ class PicklistOption:
     def rename(self, new_value: str) -> None:
         self._ensure_editable()
         self.value = new_value
+
+    def set_color(self, new_color: str) -> None:
+        self._ensure_editable()
+        self.color = new_color
 
     def deactivate(self) -> None:
         self._ensure_editable()

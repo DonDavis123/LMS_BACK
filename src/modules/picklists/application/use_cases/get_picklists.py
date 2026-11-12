@@ -59,6 +59,7 @@ class GetPicklistsUseCase:
                             sort_order=option.sort_order,
                             is_active=option.is_active,
                             is_system=option.is_system,
+                            color=option.color,
                             usage_count=(
                                 usage.get(option.value, 0) if include_inactive else None
                             ),

@@ -31,6 +31,7 @@ class CreatePicklistOptionView(APIView):
                 module=module,
                 field=field,
                 value=serializer.validated_data["value"],
+                color=serializer.validated_data.get("color"),
             )
         except ValueError as error:
             return error_response(error)
@@ -43,6 +44,7 @@ class CreatePicklistOptionView(APIView):
                     "sort_order": option.sort_order,
                     "is_active": option.is_active,
                     "is_system": option.is_system,
+                    "color": option.color,
                     "usage_count": 0,
                 }
             ).data,

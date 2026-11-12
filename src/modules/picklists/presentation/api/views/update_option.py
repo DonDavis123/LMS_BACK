@@ -35,6 +35,7 @@ class UpdatePicklistOptionView(APIView):
                 option_id=option_id,
                 value=data.get("value", _UNSET),
                 is_active=data.get("is_active", _UNSET),
+                color=data.get("color", _UNSET),
             )
         except ValueError as error:
             return error_response(error)
@@ -47,6 +48,7 @@ class UpdatePicklistOptionView(APIView):
                     "sort_order": option.sort_order,
                     "is_active": option.is_active,
                     "is_system": option.is_system,
+                    "color": option.color,
                     "usage_count": None,
                 }
             ).data,

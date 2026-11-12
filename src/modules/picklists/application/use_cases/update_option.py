@@ -9,6 +9,7 @@ from src.modules.picklists.application.interfaces.picklist_usage_gateway import 
 from src.modules.picklists.domain.entities.picklist_catalog import get_picklist_field
 from src.modules.picklists.domain.entities.picklist_option import (
     PicklistOption,
+    normalize_option_color,
     normalize_option_value,
 )
 from src.modules.shared.application.interfaces.transaction_manager import (
@@ -19,7 +20,7 @@ _UNSET = object()
 
 
 class UpdatePicklistOptionUseCase:
-    """Rename an option and/or show or hide it."""
+    """Rename an option, change its colour and/or show or hide it."""
 
     def __init__(
         self,
@@ -36,6 +37,7 @@ class UpdatePicklistOptionUseCase:
         option_id: UUID,
         value: str | object = _UNSET,
         is_active: bool | object = _UNSET,
+        color: str | None | object = _UNSET,
     ) -> PicklistOption:
         option = self.picklist_repository.get_by_id(option_id)
         if option is None:
@@ -55,6 +57,11 @@ class UpdatePicklistOptionUseCase:
                         f'"{new_value}" already exists for {definition.label}.'
                     )
                 option.rename(new_value)
+
+        if color is not _UNSET:
+            new_color = normalize_option_color(color)
+            if new_color != option.color:
+                option.set_color(new_color)
 
         if is_active is not _UNSET:
             if is_active:
