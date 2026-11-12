@@ -13,3 +13,5 @@ gunicorn
 whitenoise
 et_xmlfile==2.0.0
 openpyxl==3.1.5
+django-storages[s3]
+boto3

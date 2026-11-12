@@ -23,6 +23,9 @@ Unauthenticated requests get `401`/`403`.
 | `GET` | `/api/calls/<call_id>/history/` | Detailed history of **every call** on the same lead / contact (date and time, duration, notes, edits). |
 | `PATCH` | `/api/calls/<call_id>/` | Edit start time, duration, type, outcome or description. |
 | `DELETE` | `/api/calls/<call_id>/` | Soft delete. |
+| `GET` / `POST` | `/api/calls/<call_id>/recordings/` | List / upload the voice recordings of a call. See [call-recordings-api.md](call-recordings-api.md). |
+| `DELETE` | `/api/calls/<call_id>/recordings/<recording_id>/` | Delete one recording. |
+| `GET` | `/api/calls/<call_id>/recordings/<recording_id>/file/` | Stream / download the audio. |
 | `GET` | `/api/timeline/calls/<call_id>/` | Raw timeline events of one call (`CALL` entity type). |
 
 The call also shows up in `/api/timeline/leads/<id>/`, `/api/timeline/contacts/<id>/`
@@ -35,7 +38,7 @@ and, when it has an account, `/api/timeline/accounts/<id>/`.
 | `call_type` | `Outbound` (default), `Inbound` |
 | `outcome` | `Connected`, `Not Attended`, `Busy`, `Voicemail`, `Wrong Number`, `Callback Requested` |
 | `entry_method` | `MANUAL` (default), `TIMER` |
-| timeline `event_type` | `CALL_LOGGED`, `CALL_UPDATED`, `CALL_DELETED` |
+| timeline `event_type` | `CALL_LOGGED`, `CALL_UPDATED`, `CALL_DELETED`, `CALL_RECORDING_ADDED`, `CALL_RECORDING_DELETED` |
 
 `duration_seconds` is always seconds: a manual entry of 12 minutes is sent as
 `720`, a timer entry sends the measured seconds.

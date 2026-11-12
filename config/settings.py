@@ -341,6 +341,74 @@ STATIC_URL = "static/"
 
 
 # -------------------------------------------------------------------
+# Call recordings (uploaded voice recordings of calls)
+# -------------------------------------------------------------------
+
+# Recordings are never served from a public URL: the authenticated endpoint
+# GET /api/calls/<id>/recordings/<id>/file/ streams them.
+#
+# Where the audio is kept (the "call_recordings" storage below):
+#   * SUPABASE_STORAGE_BUCKET set  -> a PRIVATE Supabase Storage bucket, reached
+#     through Supabase's S3-compatible API. Use this in production: Render's
+#     disk is wiped on every deploy, Supabase Storage is not.
+#   * not set                      -> the MEDIA_ROOT folder (local development).
+#
+# Supabase values: Dashboard -> Storage -> S3 Connection (endpoint, region)
+# and "New access key" (access key id + secret).
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT") or (BASE_DIR / "media"))
+
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "").strip()
+
+if SUPABASE_STORAGE_BUCKET:
+    from botocore.config import Config as _BotoConfig
+
+    try:
+        # Newer boto3 adds checksum headers that S3-compatible services may
+        # reject; only send them when an operation requires them.
+        _boto_config = _BotoConfig(
+            request_checksum_calculation="when_required",
+            response_checksum_validation="when_required",
+        )
+    except TypeError:  # older botocore does not add them at all
+        _boto_config = _BotoConfig()
+
+    _CALL_RECORDINGS_STORAGE = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": SUPABASE_STORAGE_BUCKET,
+            "endpoint_url": os.environ["SUPABASE_S3_ENDPOINT"],
+            "region_name": os.getenv("SUPABASE_S3_REGION", "us-east-1"),
+            "access_key": os.environ["SUPABASE_S3_ACCESS_KEY_ID"],
+            "secret_key": os.environ["SUPABASE_S3_SECRET_ACCESS_KEY"],
+            "addressing_style": "path",
+            "signature_version": "s3v4",
+            "default_acl": None,
+            "file_overwrite": False,
+            "client_config": _boto_config,
+        },
+    }
+else:
+    _CALL_RECORDINGS_STORAGE = {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    }
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+    "call_recordings": _CALL_RECORDINGS_STORAGE,
+}
+
+# Largest accepted recording, in megabytes. Supabase's free plan refuses
+# single files above 50 MB, so keep this at or below 50.
+CALL_RECORDING_MAX_MB = int(os.getenv("CALL_RECORDING_MAX_MB", "25"))
+
+# Most recordings one call can hold.
+CALL_RECORDING_MAX_PER_CALL = int(os.getenv("CALL_RECORDING_MAX_PER_CALL", "10"))
+
+
+# -------------------------------------------------------------------
 # Email
 # -------------------------------------------------------------------
 

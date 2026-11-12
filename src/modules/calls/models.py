@@ -1,4 +1,7 @@
-from src.modules.calls.infrastructure.persistence.models import DjangoCallModel
+from src.modules.calls.infrastructure.persistence.models import (
+    DjangoCallModel,
+    DjangoCallRecordingModel,
+)
 
 
-__all__ = ["DjangoCallModel"]
+__all__ = ["DjangoCallModel", "DjangoCallRecordingModel"]

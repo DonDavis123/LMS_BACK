@@ -22,3 +22,6 @@ htmlcov/
 .env
 .env.*
 !.env.example
+
+# Uploaded call recordings (local MEDIA_ROOT)
+media/
