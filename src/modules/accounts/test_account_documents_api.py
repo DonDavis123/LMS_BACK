@@ -265,3 +265,136 @@ class AccountDocumentTenantIsolationTests(AccountDocumentsTestCase):
         self.assertTrue(
             DjangoAccountDocumentModel.objects.filter(id=document_id).exists()
         )
+
+
+class CreateAccountWithDocumentsTests(AccountDocumentsTestCase):
+
+    def create(self, client, **extra):
+        return client.post(
+            "/api/accounts/create/",
+            {"account_name": "Gamma Co", **extra},
+            format="json",
+        )
+
+    def test_account_is_created_with_its_documents(self):
+        response = self.create(
+            self.client_a,
+            documents=[
+                {"name": "Contract", "url": "https://example.com/c.pdf"},
+                {"name": "NDA", "url": "https://example.com/nda.pdf"},
+            ],
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        stored = DjangoAccountDocumentModel.objects.filter(
+            account_id=response.data["id"],
+        ).order_by("created_at")
+        self.assertEqual([doc.name for doc in stored], ["Contract", "NDA"])
+        self.assertTrue(all(doc.company_id == self.company_a.id for doc in stored))
+        self.assertEqual(
+            TimelineEvent.objects.filter(event_type="ACCOUNT_DOCUMENT_ADDED").count(),
+            2,
+        )
+
+    def test_documents_are_optional(self):
+        response = self.create(self.client_a)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(DjangoAccountDocumentModel.objects.count(), 0)
+
+    def test_invalid_document_url_creates_nothing(self):
+        response = self.create(
+            self.client_a,
+            documents=[
+                {"name": "Good", "url": "https://example.com/ok"},
+                {"name": "Bad", "url": "javascript:alert(1)"},
+            ],
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(
+            DjangoAccountModel.objects.filter(account_name="Gamma Co").exists()
+        )
+        self.assertEqual(DjangoAccountDocumentModel.objects.count(), 0)
+
+    def test_created_documents_show_in_account_details(self):
+        account_id = self.create(
+            self.client_a,
+            documents=[{"name": "Contract", "url": "https://example.com/c.pdf"}],
+        ).data["id"]
+
+        response = self.client_a.get(f"/api/accounts/{account_id}/")
+
+        self.assertEqual(
+            [row["name"] for row in response.data["documents"]], ["Contract"],
+        )
+
+
+class AccountOwnerTests(AccountDocumentsTestCase):
+    """The owner chosen in the create / edit form must actually be saved."""
+
+    def setUp(self):
+        super().setUp()
+        self.colleague_a = make_user(
+            self.company_a, User.Role.ADMIN, "colleague-a@example.com",
+        )
+
+    def test_create_uses_the_chosen_owner(self):
+        response = self.client_a.post(
+            "/api/accounts/create/",
+            {"account_name": "Gamma Co", "account_owner_id": str(self.colleague_a.id)},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            DjangoAccountModel.objects.get(id=response.data["id"]).account_owner_id,
+            self.colleague_a.id,
+        )
+
+    def test_create_without_owner_defaults_to_the_creator(self):
+        response = self.client_a.post(
+            "/api/accounts/create/", {"account_name": "Gamma Co"}, format="json",
+        )
+
+        self.assertEqual(
+            DjangoAccountModel.objects.get(id=response.data["id"]).account_owner_id,
+            self.admin_a.id,
+        )
+
+    def update(self, client, account, **extra):
+        return client.put(
+            f"/api/accounts/{account.id}/update",
+            {"account_name": account.account_name, **extra},
+            format="json",
+        )
+
+    def test_update_changes_the_owner(self):
+        response = self.update(
+            self.client_a, self.account_a,
+            account_owner_id=str(self.colleague_a.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.account_a.refresh_from_db()
+        self.assertEqual(self.account_a.account_owner_id, self.colleague_a.id)
+        event = TimelineEvent.objects.get(event_type="ACCOUNT_UPDATED")
+        self.assertIn(self.colleague_a.name, event.message)
+        self.assertNotIn(str(self.colleague_a.id), event.message)
+
+    def test_update_without_owner_keeps_the_owner(self):
+        response = self.update(self.client_a, self.account_a, phone="123")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.account_a.refresh_from_db()
+        self.assertEqual(self.account_a.account_owner_id, self.admin_a.id)
+
+    def test_owner_from_another_company_is_rejected(self):
+        response = self.update(
+            self.client_a, self.account_a, account_owner_id=str(self.admin_b.id),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.account_a.refresh_from_db()
+        self.assertEqual(self.account_a.account_owner_id, self.admin_a.id)

@@ -35,3 +35,11 @@ class GetAccountDocumentDTO:
     created_at: datetime
     modified_by_id: UUID
     updated_at: datetime
+
+
+@dataclass
+class NewAccountDocumentDTO:
+    """A document supplied together with a new account (create form)."""
+
+    name: str
+    url: str

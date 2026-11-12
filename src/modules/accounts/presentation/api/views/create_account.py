@@ -5,6 +5,9 @@ from rest_framework.views import APIView
 
 from src.modules.shared.presentation.permissions import IsCompanyUser
 from src.modules.shared.presentation.tenant import get_tenant_context
+from src.modules.accounts.application.dto.account_document import (
+    NewAccountDocumentDTO,
+)
 from src.modules.accounts.application.dto.create_account_dto import (
     CreateAccountDTO,
 )
@@ -55,6 +58,11 @@ class CreateAccountView(APIView):
 
             # Description
             description=data.get("description"),
+
+            documents=[
+                NewAccountDocumentDTO(name=item["name"], url=item["url"])
+                for item in data.get("documents", [])
+            ],
         )
 
         ctx = get_tenant_context(request)

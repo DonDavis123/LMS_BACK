@@ -1,10 +1,14 @@
 from src.modules.accounts.application.dto.create_account_dto import (
     CreateAccountDTO,
 )
+from src.modules.accounts.application.interfaces.account_document_repository import (
+    AccountDocumentRepository,
+)
 from src.modules.accounts.application.interfaces.account_repository import (
     AccountRepository,
 )
 from src.modules.accounts.domain.entities.account import Account
+from src.modules.accounts.domain.entities.account_document import AccountDocument
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 from src.modules.users.application.interfaces.user_repository import UserRepository
@@ -18,11 +22,13 @@ class CreateAccountUseCase:
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
         user_repository: UserRepository,
+        document_repository: AccountDocumentRepository | None = None,
     ):
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
         self.user_repository = user_repository
+        self.document_repository = document_repository
 
     def execute(
         self,
@@ -71,8 +77,41 @@ class CreateAccountUseCase:
             created_by_id=current_user_id,
         )
 
+        # Built (and therefore validated) before anything is saved, so a bad
+        # document name / URL rejects the whole request and no account is
+        # left behind without its documents.
+        documents = [
+            AccountDocument.create(
+                account_id=account.id,
+                name=item.name,
+                url=item.url,
+                created_by_id=current_user_id,
+            )
+            for item in (data.documents or [])
+        ]
+        if documents and self.document_repository is None:
+            raise ValueError("Documents cannot be saved right now.")
+
         def creation():
             saved = self.account_repository.save(account)
             self.timeline_recorder.record(event_type="ACCOUNT_CREATED", actor_id=current_user_id, message=f"Account {saved.account_name} was created.", metadata={"account_id": str(saved.id), "account_name": saved.account_name}, targets=[("ACCOUNT", saved.id)])
+
+            for document in documents:
+                saved_document = self.document_repository.save(document)
+                self.timeline_recorder.record(
+                    event_type="ACCOUNT_DOCUMENT_ADDED",
+                    actor_id=current_user_id,
+                    message=(
+                        f'Document "{saved_document.name}" was added to account '
+                        f"{saved.account_name}."
+                    ),
+                    metadata={
+                        "document_id": str(saved_document.id),
+                        "name": saved_document.name,
+                        "url": saved_document.url,
+                    },
+                    targets=[("ACCOUNT", saved.id)],
+                )
+
             return saved
         return self.transaction_manager.execute(creation)

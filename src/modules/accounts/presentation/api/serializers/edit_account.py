@@ -2,6 +2,11 @@ from rest_framework import serializers
 
 
 class UpdateAccountSerializer(serializers.Serializer):
+    account_owner_id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+    )
+
     account_name = serializers.CharField(
         max_length=255,
     )

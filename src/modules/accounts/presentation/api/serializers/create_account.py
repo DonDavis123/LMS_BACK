@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from .account_document import AccountDocumentInputSerializer
+
 
 class CreateAccountSerializer(serializers.Serializer):
 
@@ -137,4 +139,10 @@ class CreateAccountSerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
         allow_null=True,
+    )
+
+    # Documents (name + URL) to attach to the new account. Optional.
+    documents = AccountDocumentInputSerializer(
+        many=True,
+        required=False,
     )

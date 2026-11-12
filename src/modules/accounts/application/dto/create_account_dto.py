@@ -1,5 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
+
+from src.modules.accounts.application.dto.account_document import (
+    NewAccountDocumentDTO,
+)
 
 
 @dataclass
@@ -29,3 +33,6 @@ class CreateAccountDTO:
 
     # Description
     description: str | None
+
+    # Documents (name + URL) attached when the account is created
+    documents: list[NewAccountDocumentDTO] = field(default_factory=list)

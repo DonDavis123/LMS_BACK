@@ -34,6 +34,7 @@ class UpdateAccountView(APIView):
 
         dto = UpdateAccountDTO(
             account_id=account_id,
+            account_owner_id=data.get("account_owner_id"),
 
             account_name=data["account_name"],
             account_site=data.get("account_site"),

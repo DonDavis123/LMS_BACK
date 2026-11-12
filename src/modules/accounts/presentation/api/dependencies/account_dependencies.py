@@ -30,6 +30,7 @@ def get_create_account_use_case(ctx: TenantContext) -> CreateAccountUseCase:
         recorder(ctx),
         DjangoTransactionManager(),
         DjangoUserRepository(company_id=ctx.company_id),
+        DjangoAccountDocumentRepository(company_id=ctx.company_id),
     )
 
 
@@ -51,6 +52,7 @@ def get_update_account_use_case(ctx: TenantContext) -> UpdateAccountUseCase:
         recorder(ctx),
         DjangoTransactionManager(),
         picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id),
+        user_repository=DjangoUserRepository(company_id=ctx.company_id),
     )
 
 

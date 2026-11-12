@@ -27,3 +27,6 @@ class UpdateAccountDTO:
     billing_postal_code: str | None
 
     description: str | None
+
+    # New owner. None keeps the current owner.
+    account_owner_id: UUID | None = None
