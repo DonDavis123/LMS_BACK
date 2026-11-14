@@ -6,6 +6,10 @@ from rest_framework.views import APIView
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.meetings.application.dto.create_meeting import CreateMeetingDTO
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
+from src.modules.meetings.application.interfaces.video_conference_provider import (
+    VideoConferenceNotConnectedError,
+)
+from src.modules.meetings.domain.enums.conference_status import ConferenceStatus
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.meetings.presentation.api.dependencies.meeting_dependencies import (
@@ -85,14 +89,33 @@ class MeetingListView(APIView):
             related_record_type=related_record_type,
             related_record_ids=related_record_ids,
             participant_groups=_participant_groups(participants),
+            add_google_meet=data.get("add_google_meet", False),
         )
 
         try:
             meeting = get_create_meeting_use_case(get_tenant_context(request)).execute(dto)
+        except VideoConferenceNotConnectedError as error:
+            return Response(
+                {"detail": str(error), "code": "google_not_connected"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except ValueError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
+        message = "Meeting created successfully."
+        if meeting.conference_status == ConferenceStatus.FAILED:
+            message = (
+                "Meeting created, but Google Meet could not be created. "
+                "You can retry from the meeting."
+            )
+
         return Response(
-            {"id": str(meeting.id), "message": "Meeting created successfully."},
+            {
+                "id": str(meeting.id),
+                "message": message,
+                "meet_link": meeting.meet_link,
+                "conference_status": meeting.conference_status.value,
+                "conference_error": meeting.conference_error,
+            },
             status=status.HTTP_201_CREATED,
         )

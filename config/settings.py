@@ -96,6 +96,7 @@ INSTALLED_APPS = [
     "src.modules.calendar.apps.CalendarConfig",
     "src.modules.picklists.apps.PicklistsConfig",
     "src.modules.lead_capture.apps.LeadCaptureConfig",
+    "src.modules.google_integration.apps.GoogleIntegrationConfig",
 ]
 
 
@@ -468,6 +469,29 @@ DEFAULT_FROM_EMAIL = os.getenv(
     EMAIL_HOST_USER,
 )
 FRONTEND_URL = os.getenv("FRONTEND_URL")
+
+# -------------------------------------------------------------------
+# Google integration (Google Calendar / Google Meet for meetings)
+# -------------------------------------------------------------------
+# OAuth client of type "Web application" from Google Cloud Console.
+# Keep the real values in the deployment environment only.
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+# Must exactly match an authorized redirect URI of the OAuth client, e.g.
+# https://<backend>/api/integrations/google/callback/
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "")
+# Fernet key used to encrypt refresh tokens at rest. Generate one with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+GOOGLE_TOKEN_ENCRYPTION_KEY = os.getenv("GOOGLE_TOKEN_ENCRYPTION_KEY", "")
+# Seconds the signed OAuth "state" stays valid.
+GOOGLE_OAUTH_STATE_MAX_AGE = int(os.getenv("GOOGLE_OAUTH_STATE_MAX_AGE", "600"))
+# Seconds before a call to a Google API gives up.
+GOOGLE_API_TIMEOUT = int(os.getenv("GOOGLE_API_TIMEOUT", "15"))
+# Frontend page the browser returns to after Google's consent screen
+# (appended to FRONTEND_URL with ?status=connected|error&message=...).
+GOOGLE_FRONTEND_RETURN_PATH = os.getenv(
+    "GOOGLE_FRONTEND_RETURN_PATH", "/integrations/google/callback"
+)
 
 # Secret used exclusively by the external scheduler for internal notification processing.
 # Keep the real value in the deployment environment; never commit it to source control.

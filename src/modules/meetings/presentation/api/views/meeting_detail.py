@@ -81,7 +81,13 @@ class MeetingDetailView(APIView):
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            {"id": str(meeting.id), "message": "Meeting updated successfully."},
+            {
+                "id": str(meeting.id),
+                "message": "Meeting updated successfully.",
+                "meet_link": meeting.meet_link,
+                "conference_status": meeting.conference_status.value,
+                "conference_error": meeting.conference_error,
+            },
             status=status.HTTP_200_OK,
         )
 

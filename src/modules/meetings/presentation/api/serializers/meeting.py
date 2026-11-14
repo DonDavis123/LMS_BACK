@@ -15,6 +15,8 @@ class MeetingListSerializer(serializers.Serializer):
     contact_names = serializers.ListField(child=serializers.CharField())
     host_id = serializers.UUIDField()
     host_name = serializers.CharField()
+    meet_link = serializers.CharField(allow_null=True)
+    conference_status = serializers.CharField()
 
     def get_related_to_type(self, obj: GetMeetingsDTO):
         return obj.related_to_type.value if obj.related_to_type else None
@@ -53,6 +55,17 @@ class MeetingDetailSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(source="meeting.updated_at")
     related_to = MeetingRelatedRecordSerializer(many=True)
     participants = MeetingParticipantSerializer(many=True)
+    meet_link = serializers.CharField(source="meeting.meet_link", allow_null=True)
+    conference_provider = serializers.SerializerMethodField()
+    conference_status = serializers.SerializerMethodField()
+    conference_error = serializers.CharField(source="meeting.conference_error", allow_null=True)
+
+    def get_conference_provider(self, obj: GetMeetingDTO):
+        provider = obj.meeting.conference_provider
+        return provider.value if provider else None
+
+    def get_conference_status(self, obj: GetMeetingDTO):
+        return obj.meeting.conference_status.value
 
     def get_host(self, obj: GetMeetingDTO):
       return {
@@ -70,3 +83,19 @@ class MeetingDetailSerializer(serializers.Serializer):
 class MeetingWriteResponseSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     message = serializers.CharField()
+
+
+class MeetingConferenceSerializer(serializers.Serializer):
+    """Conference fields of a Meeting domain entity."""
+
+    id = serializers.UUIDField()
+    meet_link = serializers.CharField(allow_null=True)
+    conference_provider = serializers.SerializerMethodField()
+    conference_status = serializers.SerializerMethodField()
+    conference_error = serializers.CharField(allow_null=True)
+
+    def get_conference_provider(self, obj):
+        return obj.conference_provider.value if obj.conference_provider else None
+
+    def get_conference_status(self, obj):
+        return obj.conference_status.value

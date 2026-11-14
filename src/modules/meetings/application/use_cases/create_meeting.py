@@ -5,6 +5,7 @@ from src.modules.leads.application.interfaces.lead_repository import LeadReposit
 from src.modules.meetings.application.dto.create_meeting import CreateMeetingDTO
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
+from src.modules.meetings.application.services.meeting_conference_service import MeetingConferenceService
 from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
@@ -23,6 +24,7 @@ class CreateMeetingUseCase:
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
         reminder_sync_service: ReminderSyncService | None = None,
+        conference_service: MeetingConferenceService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
@@ -31,11 +33,22 @@ class CreateMeetingUseCase:
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
         self.reminder_sync_service = reminder_sync_service
+        self.conference_service = conference_service
 
     def execute(self, data: CreateMeetingDTO) -> Meeting:
         self._validate_users(data.host_id, data.created_by_id)
         self._validate_related(data.related_record_type, data.related_record_ids)
         self._validate_participants(data.participant_groups)
+
+        if data.add_google_meet:
+            if self.conference_service is None:
+                raise ValueError("Google Meet is not available.")
+            # Fails before anything is saved (not connected / all-day).
+            self.conference_service.ensure_can_create(
+                data.host_id,
+                data.is_all_day,
+                data.created_by_id,
+            )
 
         meeting = Meeting.create(
             title=data.title,
@@ -75,7 +88,14 @@ class CreateMeetingUseCase:
             )
             return saved
 
-        return self.transaction_manager.execute(creation)
+        saved = self.transaction_manager.execute(creation)
+
+        if data.add_google_meet:
+            # After the commit: a Google failure is recorded on the meeting
+            # (status "failed", retryable) and never undoes the CRM meeting.
+            saved = self.conference_service.attach(saved)
+
+        return saved
 
     @staticmethod
     def _related_targets(record_type, record_ids) -> list[tuple[str, UUID]]:

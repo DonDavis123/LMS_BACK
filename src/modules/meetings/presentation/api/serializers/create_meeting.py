@@ -42,3 +42,4 @@ class CreateMeetingSerializer(serializers.Serializer):
     host_id = serializers.UUIDField()
     related_to = RelatedToRequestSerializer(required=False, allow_null=True)
     participants = ParticipantsRequestSerializer(required=False)
+    add_google_meet = serializers.BooleanField(required=False, default=False)

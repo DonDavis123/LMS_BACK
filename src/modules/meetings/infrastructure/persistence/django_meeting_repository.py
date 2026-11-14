@@ -16,6 +16,8 @@ from src.modules.meetings.application.dto.get_meetings import GetMeetingsDTO
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.domain.entities.meeting import Meeting
+from src.modules.meetings.domain.enums.conference_provider import ConferenceProvider
+from src.modules.meetings.domain.enums.conference_status import ConferenceStatus
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
@@ -60,6 +62,14 @@ class DjangoMeetingRepository(MeetingRepository):
                 "host_id": meeting.host_id,
                 "created_by_id": meeting.created_by_id,
                 "is_deleted": meeting.is_deleted,
+                "meet_link": meeting.meet_link,
+                "external_event_id": meeting.external_event_id,
+                "conference_provider": (
+                    meeting.conference_provider.value if meeting.conference_provider else None
+                ),
+                "conference_status": meeting.conference_status.value,
+                "conference_error": meeting.conference_error,
+                "calendar_owner_id": meeting.calendar_owner_id,
             },
         )
         return self._to_domain(model)
@@ -124,11 +134,11 @@ class DjangoMeetingRepository(MeetingRepository):
         participants = []
         for row in participant_rows:
             if row.participant_type == MeetingParticipantType.LEAD.value and row.lead:
-                participants.append(MeetingParticipantDTO(row.lead_id, MeetingParticipantType.LEAD, row.lead.name))
+                participants.append(MeetingParticipantDTO(row.lead_id, MeetingParticipantType.LEAD, row.lead.name, row.lead.email))
             elif row.participant_type == MeetingParticipantType.CONTACT.value and row.contact:
-                participants.append(MeetingParticipantDTO(row.contact_id, MeetingParticipantType.CONTACT, row.contact.name))
+                participants.append(MeetingParticipantDTO(row.contact_id, MeetingParticipantType.CONTACT, row.contact.name, row.contact.email))
             elif row.participant_type == MeetingParticipantType.USER.value and row.user:
-                participants.append(MeetingParticipantDTO(row.user_id, MeetingParticipantType.USER, row.user.name))
+                participants.append(MeetingParticipantDTO(row.user_id, MeetingParticipantType.USER, row.user.name, row.user.google_email or row.user.email))
 
         return GetMeetingDTO(
             meeting=self._to_domain(model),
@@ -221,6 +231,8 @@ class DjangoMeetingRepository(MeetingRepository):
                     contact_names=contact_names,
                     host_id=model.host_id,
                     host_name=model.host.name,
+                    meet_link=model.meet_link,
+                    conference_status=model.conference_status,
                 )
             )
 
@@ -449,4 +461,14 @@ class DjangoMeetingRepository(MeetingRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
             is_deleted=model.is_deleted,
+            meet_link=model.meet_link,
+            external_event_id=model.external_event_id,
+            conference_provider=(
+                ConferenceProvider(model.conference_provider)
+                if model.conference_provider
+                else None
+            ),
+            conference_status=ConferenceStatus(model.conference_status),
+            conference_error=model.conference_error,
+            calendar_owner_id=model.calendar_owner_id,
         )

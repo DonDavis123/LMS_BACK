@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+from src.modules.meetings.domain.enums.conference_provider import ConferenceProvider
+from src.modules.meetings.domain.enums.conference_status import ConferenceStatus
+
 
 @dataclass
 class Meeting:
@@ -18,6 +21,14 @@ class Meeting:
     created_at: datetime
     updated_at: datetime
     is_deleted: bool
+    # Video conference (Google Meet). All optional so plain meetings are unchanged.
+    meet_link: str | None = None
+    external_event_id: str | None = None
+    conference_provider: ConferenceProvider | None = None
+    conference_status: ConferenceStatus = ConferenceStatus.NONE
+    conference_error: str | None = None
+    # User whose calendar holds the external event.
+    calendar_owner_id: UUID | None = None
 
     @classmethod
     def create(
@@ -70,3 +81,26 @@ class Meeting:
             raise ValueError("Meeting is already deleted.")
 
         self.is_deleted = True
+
+    @property
+    def has_conference(self) -> bool:
+        return bool(self.external_event_id) and self.conference_status == ConferenceStatus.CREATED
+
+    def mark_conference_created(
+        self,
+        provider: ConferenceProvider,
+        external_event_id: str,
+        meet_link: str,
+        calendar_owner_id: UUID,
+    ) -> None:
+        self.conference_provider = provider
+        self.external_event_id = external_event_id
+        self.meet_link = meet_link
+        self.calendar_owner_id = calendar_owner_id
+        self.conference_status = ConferenceStatus.CREATED
+        self.conference_error = None
+
+    def mark_conference_failed(self, provider: ConferenceProvider, error: str) -> None:
+        self.conference_provider = provider
+        self.conference_status = ConferenceStatus.FAILED
+        self.conference_error = (error or "Google Meet could not be created.")[:1000]

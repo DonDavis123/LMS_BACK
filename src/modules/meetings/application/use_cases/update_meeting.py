@@ -6,6 +6,7 @@ from src.modules.meetings.application.dto.participant_group import ParticipantGr
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.meetings.application.dto.update_meeting import UpdateMeetingDTO, _UNSET
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
+from src.modules.meetings.application.services.meeting_conference_service import MeetingConferenceService
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
@@ -28,6 +29,7 @@ class UpdateMeetingUseCase:
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
         reminder_sync_service: ReminderSyncService | None = None,
+        conference_service: MeetingConferenceService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
@@ -36,6 +38,7 @@ class UpdateMeetingUseCase:
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
         self.reminder_sync_service = reminder_sync_service
+        self.conference_service = conference_service
 
     def execute(self, data: UpdateMeetingDTO, current_user_id: UUID | None = None):
         meeting = self.meeting_repository.get_by_id(data.meeting_id)
@@ -52,6 +55,9 @@ class UpdateMeetingUseCase:
 
         if "host_id" in fields:
             self._validate_user(fields["host_id"], "Meeting host")
+
+        if meeting.external_event_id and fields.get("is_all_day"):
+            raise ValueError("A meeting with Google Meet cannot be changed to an all-day meeting.")
 
         related_changed = data.related_record_type is not _UNSET or data.related_record_ids is not _UNSET
         if related_changed:
@@ -84,6 +90,7 @@ class UpdateMeetingUseCase:
             "reminder_at",
         )
         old_values = {field: getattr(meeting, field) for field in updateable_fields}
+        participants_actually_changed = False
 
         def update():
             for field, value in fields.items():
@@ -158,6 +165,10 @@ class UpdateMeetingUseCase:
                 existing_detail,
                 updated_detail,
             )
+            nonlocal participants_actually_changed
+            participants_actually_changed = bool(
+                relationship_changes and "participants" in relationship_changes
+            )
             if relationship_changes:
                 changes["relationships"] = relationship_changes
 
@@ -204,7 +215,18 @@ class UpdateMeetingUseCase:
 
             return saved
 
-        return self.transaction_manager.execute(update)
+        saved = self.transaction_manager.execute(update)
+
+        if self.conference_service is not None and saved.external_event_id:
+            event_fields = ("title", "description", "location", "start_at", "end_at", "host_id")
+            event_changed = any(
+                old_values[field] != getattr(saved, field) for field in event_fields
+            )
+            if event_changed or participants_actually_changed:
+                # After the commit; the provider emails the attendees the update.
+                saved = self.conference_service.sync(saved)
+
+        return saved
 
     @staticmethod
     def _timeline_targets(detail) -> list[tuple[str, UUID]]:

@@ -22,3 +22,4 @@ class CreateMeetingDTO:
     related_record_type: MeetingRelatedRecordType | None = None
     related_record_ids: tuple[UUID, ...] = ()
     participant_groups: tuple[ParticipantGroup, ...] = ()
+    add_google_meet: bool = False

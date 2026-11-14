@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
+from src.modules.meetings.application.services.meeting_conference_service import MeetingConferenceService
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
@@ -13,11 +14,13 @@ class DeleteMeetingUseCase:
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
         reminder_sync_service: ReminderSyncService | None = None,
+        conference_service: MeetingConferenceService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
         self.reminder_sync_service = reminder_sync_service
+        self.conference_service = conference_service
 
     def execute(self, meeting_id: UUID, current_user_id=None) -> None:
         meeting = self.meeting_repository.get_by_id(meeting_id)
@@ -58,3 +61,7 @@ class DeleteMeetingUseCase:
             )
 
         self.transaction_manager.execute(deletion)
+
+        if self.conference_service is not None:
+            # After the commit; the provider emails the cancellation.
+            self.conference_service.cancel(meeting)

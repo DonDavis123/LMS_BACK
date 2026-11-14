@@ -62,6 +62,10 @@ urlpatterns = [
         include("src.modules.timeline.presentation.api.urls"),
     ),
     path(
+        "api/integrations/google/",
+        include("src.modules.google_integration.presentation.api.urls"),
+    ),
+    path(
         "api/meetings/",
         include("src.modules.meetings.presentation.api.urls"),
     ),

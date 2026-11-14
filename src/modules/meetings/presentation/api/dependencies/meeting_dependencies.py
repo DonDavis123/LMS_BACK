@@ -1,7 +1,17 @@
 from src.modules.shared.application.tenant_context import TenantContext
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
+from src.modules.google_integration.presentation.api.dependencies.google_dependencies import (
+    get_google_access_token_service,
+)
+from src.modules.meetings.application.services.meeting_conference_service import (
+    MeetingConferenceService,
+)
+from src.modules.meetings.application.use_cases.add_meeting_conference import (
+    AddMeetingConferenceUseCase,
+)
 from src.modules.meetings.application.use_cases.create_meeting import CreateMeetingUseCase
+from src.modules.meetings.infrastructure.google_meet_provider import GoogleMeetProvider
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import DjangoReminderRepository
 from src.modules.meetings.application.use_cases.delete_meeting import DeleteMeetingUseCase
@@ -27,6 +37,14 @@ def reminder_sync_service(ctx: TenantContext):
     return ReminderSyncService(DjangoReminderRepository(company_id=ctx.company_id))
 
 
+def conference_service(ctx: TenantContext) -> MeetingConferenceService:
+    return MeetingConferenceService(
+        DjangoMeetingRepository(company_id=ctx.company_id),
+        DjangoUserRepository(company_id=ctx.company_id),
+        GoogleMeetProvider(get_google_access_token_service(ctx.company_id)),
+    )
+
+
 def get_create_meeting_use_case(ctx: TenantContext) -> CreateMeetingUseCase:
     return CreateMeetingUseCase(
         DjangoMeetingRepository(company_id=ctx.company_id),
@@ -36,6 +54,7 @@ def get_create_meeting_use_case(ctx: TenantContext) -> CreateMeetingUseCase:
         recorder(ctx),
         transaction_manager(),
         reminder_sync_service(ctx),
+        conference_service(ctx),
     )
 
 
@@ -56,6 +75,7 @@ def get_update_meeting_use_case(ctx: TenantContext) -> UpdateMeetingUseCase:
         recorder(ctx),
         transaction_manager(),
         reminder_sync_service(ctx),
+        conference_service(ctx),
     )
 
 
@@ -65,4 +85,12 @@ def get_delete_meeting_use_case(ctx: TenantContext) -> DeleteMeetingUseCase:
         recorder(ctx),
         transaction_manager(),
         reminder_sync_service(ctx),
+        conference_service(ctx),
+    )
+
+
+def get_add_meeting_conference_use_case(ctx: TenantContext) -> AddMeetingConferenceUseCase:
+    return AddMeetingConferenceUseCase(
+        DjangoMeetingRepository(company_id=ctx.company_id),
+        conference_service(ctx),
     )

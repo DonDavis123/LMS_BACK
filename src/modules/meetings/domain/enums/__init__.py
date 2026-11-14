@@ -1,4 +1,11 @@
+from .conference_provider import ConferenceProvider
+from .conference_status import ConferenceStatus
 from .meeting_participant_type import MeetingParticipantType
 from .meeting_related_record_type import MeetingRelatedRecordType
 
-__all__ = ["MeetingParticipantType", "MeetingRelatedRecordType"]
+__all__ = [
+    "ConferenceProvider",
+    "ConferenceStatus",
+    "MeetingParticipantType",
+    "MeetingRelatedRecordType",
+]

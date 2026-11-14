@@ -17,3 +17,5 @@ class GetMeetingsDTO:
     contact_names: tuple[str, ...]
     host_id: UUID
     host_name: str
+    meet_link: str | None = None
+    conference_status: str = "none"

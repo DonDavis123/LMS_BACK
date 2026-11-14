@@ -18,6 +18,7 @@ class MeetingParticipantDTO:
     id: UUID
     participant_type: MeetingParticipantType
     name: str
+    email: str | None = None
 
 
 @dataclass(frozen=True)
