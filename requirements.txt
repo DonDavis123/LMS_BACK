@@ -16,3 +16,4 @@ openpyxl==3.1.5
 django-storages[s3]
 boto3
 cryptography
+requests
