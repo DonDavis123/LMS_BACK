@@ -34,6 +34,10 @@ class ConferenceEvent:
     # Minutes before the start for the organizer's Google Calendar popup and
     # email reminders. None leaves Google's defaults.
     reminder_minutes: int | None = None
+    # Several reminders chosen on the meeting form (minutes before the start).
+    # When not None it replaces ``reminder_minutes``; an empty tuple means the
+    # organizer gets no Google reminders.
+    reminder_overrides: tuple[int, ...] | None = None
 
 
 @dataclass(frozen=True)

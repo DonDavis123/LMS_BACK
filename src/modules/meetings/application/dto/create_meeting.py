@@ -22,3 +22,8 @@ class CreateMeetingDTO:
     add_google_meet: bool = False
     # None follows ``add_google_meet`` (a Meet meeting has always been emailed).
     send_email_notifications: bool | None = None
+    # Minutes before the start: any of 1440, 60, 30, 15. [] = none, None = not chosen.
+    reminder_offsets: list[int] | None = None
+    # Custom reminder email; empty falls back to meeting title / description.
+    reminder_subject: str | None = None
+    reminder_message: str | None = None

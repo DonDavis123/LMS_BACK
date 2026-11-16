@@ -12,6 +12,10 @@ from src.modules.meetings.application.services.meeting_notification_service impo
     MeetingNotificationService,
 )
 from src.modules.meetings.application.services.related_validation import validate_related_groups
+from src.modules.meetings.domain.entities.meeting import (
+    MAX_REMINDER_SUBJECT_LENGTH,
+    normalize_reminder_offsets,
+)
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
@@ -58,6 +62,7 @@ class UpdateMeetingUseCase:
         allowed = {
             "title", "description", "location", "is_all_day", "start_at", "end_at",
             "host_id", "reminder_at", "send_email_notifications",
+            "reminder_offsets", "reminder_subject", "reminder_message",
         }
         unknown = set(fields) - allowed
         if unknown:
@@ -65,6 +70,15 @@ class UpdateMeetingUseCase:
 
         if "host_id" in fields:
             self._validate_user(fields["host_id"], "Meeting host")
+
+        fields = dict(fields)
+        if "reminder_offsets" in fields:
+            fields["reminder_offsets"] = normalize_reminder_offsets(fields["reminder_offsets"])
+        for text_field in ("reminder_subject", "reminder_message"):
+            if text_field in fields:
+                fields[text_field] = (fields[text_field] or "").strip() or None
+        if (fields.get("reminder_subject") or "") and len(fields["reminder_subject"]) > MAX_REMINDER_SUBJECT_LENGTH:
+            raise ValueError("Reminder subject is too long.")
 
         if meeting.external_event_id and fields.get("is_all_day"):
             raise ValueError("A meeting with Google Meet cannot be changed to an all-day meeting.")
@@ -93,6 +107,7 @@ class UpdateMeetingUseCase:
             "end_at",
             "host_id",
             "reminder_at",
+            "reminder_offsets",
         )
         old_values = {field: getattr(meeting, field) for field in updateable_fields}
         was_notifying = meeting.send_email_notifications
@@ -209,6 +224,7 @@ class UpdateMeetingUseCase:
                                 "end_at": "End Time",
                                 "host_id": "Host",
                                 "reminder_at": "Reminder",
+                                "reminder_offsets": "Reminders",
                             },
                         )
                     )
@@ -241,7 +257,8 @@ class UpdateMeetingUseCase:
 
         if self.conference_service is not None and saved.external_event_id:
             turned_on = saved.send_email_notifications and not was_notifying
-            if event_changed or participants_actually_changed or turned_on:
+            reminders_changed = old_values["reminder_offsets"] != saved.reminder_offsets
+            if event_changed or participants_actually_changed or turned_on or reminders_changed:
                 # After the commit; the provider emails the attendees the update
                 # (switching email on sends them the invite they never got).
                 saved = self.conference_service.sync(saved)

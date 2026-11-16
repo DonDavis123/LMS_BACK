@@ -158,6 +158,11 @@ class MeetingNotificationService:
 
     def build_email(self, meeting: Meeting, kind: str) -> MeetingReminder:
         host = self.user_repository.get_by_id(meeting.host_id)
+        creator = (
+            self.user_repository.get_by_id(meeting.created_by_id)
+            if kind == KIND_REMINDER
+            else None
+        )
         has_meet = (
             meeting.conference_status == ConferenceStatus.CREATED and bool(meeting.meet_link)
         )
@@ -168,9 +173,20 @@ class MeetingNotificationService:
             host_name=host.name if host is not None else "",
             meet_link=meeting.meet_link if has_meet else None,
             location=meeting.location,
-            description=meeting.description,
+            # Reminder: the creator's own text wins, otherwise the meeting
+            # heading is the subject and its description is the body.
+            description=(
+                (meeting.reminder_message or meeting.description)
+                if kind == KIND_REMINDER
+                else meeting.description
+            ),
             kind=kind,
             is_all_day=meeting.is_all_day,
+            subject=meeting.reminder_subject if kind == KIND_REMINDER else None,
+            sender_name=creator.name if creator is not None else None,
+            reply_to=(
+                (creator.google_email or creator.email) if creator is not None else None
+            ),
         )
 
     def _email(self, meeting: Meeting, kind: str, exclude_user_ids: set[UUID]) -> None:

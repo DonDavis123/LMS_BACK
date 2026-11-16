@@ -83,6 +83,9 @@ class MeetingListView(APIView):
             participant_groups=_participant_groups(participants),
             add_google_meet=data.get("add_google_meet", False),
             send_email_notifications=data.get("send_email_notifications"),
+            reminder_offsets=data.get("reminder_offsets"),
+            reminder_subject=data.get("reminder_subject"),
+            reminder_message=data.get("reminder_message"),
         )
 
         try:

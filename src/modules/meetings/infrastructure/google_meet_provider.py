@@ -206,7 +206,18 @@ class GoogleMeetProvider(VideoConferenceProvider):
             "end": moment(event.end_at),
             "attendees": [{"email": email} for email in event.attendee_emails],
         }
-        if event.reminder_minutes is not None:
+        if event.reminder_overrides is not None:
+            # Reminders picked on the meeting form. Google allows at most five
+            # overrides per event: a popup for each choice, plus an email for
+            # the one closest to the start while there is room.
+            overrides = [
+                {"method": "popup", "minutes": minutes}
+                for minutes in event.reminder_overrides[:5]
+            ]
+            if event.reminder_overrides and len(overrides) < 5:
+                overrides.append({"method": "email", "minutes": event.reminder_overrides[-1]})
+            body["reminders"] = {"useDefault": False, "overrides": overrides}
+        elif event.reminder_minutes is not None:
             # Google Calendar popup + email reminders for the organizer.
             body["reminders"] = {
                 "useDefault": False,

@@ -74,6 +74,12 @@ class MeetingDetailSerializer(serializers.Serializer):
     conference_status = serializers.SerializerMethodField()
     conference_error = serializers.CharField(source="meeting.conference_error", allow_null=True)
     send_email_notifications = serializers.BooleanField(source="meeting.send_email_notifications")
+    # null = never chosen (older meeting, 15-minute default), [] = none.
+    reminder_offsets = serializers.ListField(
+        child=serializers.IntegerField(), source="meeting.reminder_offsets", allow_null=True
+    )
+    reminder_subject = serializers.CharField(source="meeting.reminder_subject", allow_null=True)
+    reminder_message = serializers.CharField(source="meeting.reminder_message", allow_null=True)
 
     def get_conference_provider(self, obj: GetMeetingDTO):
         provider = obj.meeting.conference_provider

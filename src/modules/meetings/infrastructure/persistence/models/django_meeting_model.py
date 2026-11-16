@@ -124,6 +124,17 @@ class DjangoMeetingModel(models.Model):
 
     send_email_notifications = models.BooleanField(default=False)
 
+    # Minutes before the start to email a reminder, e.g. [1440, 60, 15].
+    # NULL = never chosen (older meetings), [] = "none".
+    reminder_offsets = models.JSONField(blank=True, null=True)
+
+    # ISO times of the reminders that were already emailed.
+    reminders_sent_for = models.JSONField(blank=True, default=list)
+
+    # Optional custom reminder email. Empty = meeting title / description.
+    reminder_subject = models.CharField(max_length=255, blank=True, null=True)
+    reminder_message = models.TextField(blank=True, null=True)
+
     class Meta:
         db_table = "meetings"
         indexes = [

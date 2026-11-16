@@ -73,6 +73,10 @@ class DjangoMeetingRepository(MeetingRepository):
                 "calendar_owner_id": meeting.calendar_owner_id,
                 "participant_reminder_for": meeting.participant_reminder_for,
                 "send_email_notifications": meeting.send_email_notifications,
+                "reminder_offsets": meeting.reminder_offsets,
+                "reminders_sent_for": meeting.reminders_sent_for or [],
+                "reminder_subject": meeting.reminder_subject,
+                "reminder_message": meeting.reminder_message,
             },
         )
         return self._to_domain(model)
@@ -272,12 +276,18 @@ class DjangoMeetingRepository(MeetingRepository):
             self._base_queryset()
             .filter(
                 is_deleted=False,
-                send_email_notifications=True,
                 end_at__gt=as_of,
             )
+            # Reminders chosen on the form are emailed even when invitations
+            # are off; older meetings follow the email switch as before.
+            .filter(Q(send_email_notifications=True) | Q(reminder_offsets__isnull=False))
             .order_by("start_at", "id")
         )
-        return [self._to_domain(model) for model in models]
+        return [
+            self._to_domain(model)
+            for model in models
+            if model.send_email_notifications or model.reminder_offsets
+        ]
 
     def replace_relationships(
         self,
@@ -509,4 +519,8 @@ class DjangoMeetingRepository(MeetingRepository):
             calendar_owner_id=model.calendar_owner_id,
             participant_reminder_for=model.participant_reminder_for,
             send_email_notifications=model.send_email_notifications,
+            reminder_offsets=model.reminder_offsets,
+            reminders_sent_for=list(model.reminders_sent_for or []),
+            reminder_subject=model.reminder_subject,
+            reminder_message=model.reminder_message,
         )

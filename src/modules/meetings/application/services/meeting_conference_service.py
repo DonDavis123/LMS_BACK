@@ -176,7 +176,17 @@ class MeetingConferenceService:
             client_event_id=meeting.id.hex,
             with_meet=with_meet,
             notify_attendees=meeting.send_email_notifications,
-            reminder_minutes=self._reminder_minutes(meeting),
+            reminder_minutes=(
+                self._reminder_minutes(meeting) if meeting.reminder_offsets is None else None
+            ),
+            reminder_overrides=(
+                None
+                if meeting.reminder_offsets is None
+                else tuple(
+                    min(minutes, _MAX_REMINDER_MINUTES)
+                    for minutes in meeting.reminder_offsets
+                )
+            ),
         )
 
     @staticmethod

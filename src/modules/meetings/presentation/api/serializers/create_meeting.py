@@ -38,3 +38,18 @@ class CreateMeetingSerializer(RelatedToSerializerMixin, serializers.Serializer):
     send_email_notifications = serializers.BooleanField(
         required=False, allow_null=True, default=None
     )
+    # Minutes before the start: any of 1440 (1 day), 60, 30, 15. [] = none.
+    reminder_offsets = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_null=True,
+        allow_empty=True,
+        default=None,
+    )
+    # Optional custom reminder email (defaults: title / description).
+    reminder_subject = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, allow_null=True
+    )
+    reminder_message = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )

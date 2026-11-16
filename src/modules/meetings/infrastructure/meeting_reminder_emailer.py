@@ -41,6 +41,8 @@ class MeetingReminderEmailer(MeetingReminderNotifier):
                 body=text,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[recipient_email],  # one email per person: no address leaks
+                # Replies go to the person who created the meeting.
+                reply_to=[reminder.reply_to] if reminder.reply_to else None,
             )
             message.attach_alternative(html, "text/html")
             message.send(fail_silently=False)
@@ -54,7 +56,8 @@ class MeetingReminderEmailer(MeetingReminderNotifier):
             return f"Updated: {title}"
         if reminder.kind == KIND_CANCELLATION:
             return f"Cancelled: {title}"
-        return f"Reminder: {title} starts soon"
+        # Reminder: the creator's subject, else just the meeting heading.
+        return (reminder.subject or "").strip() or title
 
     @staticmethod
     def _intro(reminder: MeetingReminder) -> str:
@@ -64,7 +67,9 @@ class MeetingReminderEmailer(MeetingReminderNotifier):
             return "This meeting has been updated. The details below are current."
         if reminder.kind == KIND_CANCELLATION:
             return "This meeting has been cancelled."
-        return "Your meeting is about to start."
+        if reminder.sender_name:
+            return f"Reminder from {reminder.sender_name}: your meeting is coming up."
+        return "Your meeting is coming up."
 
     @staticmethod
     def _when(reminder: MeetingReminder) -> str:

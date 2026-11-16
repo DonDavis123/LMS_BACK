@@ -24,6 +24,11 @@ class MeetingReminder:
     description: str | None = None
     kind: str = KIND_REMINDER
     is_all_day: bool = False
+    # Reminder only: the creator's custom subject (None = meeting title) and
+    # the creator who the email is sent on behalf of.
+    subject: str | None = None
+    sender_name: str | None = None
+    reply_to: str | None = None
 
 
 class MeetingReminderNotifier(ABC):

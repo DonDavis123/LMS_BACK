@@ -71,6 +71,9 @@ class CreateMeetingUseCase:
                 if data.send_email_notifications is None
                 else data.send_email_notifications
             ),
+            reminder_offsets=data.reminder_offsets,
+            reminder_subject=data.reminder_subject,
+            reminder_message=data.reminder_message,
         )
 
         def creation() -> Meeting:
