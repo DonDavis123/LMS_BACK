@@ -2,6 +2,9 @@ from uuid import UUID
 
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.application.services.meeting_conference_service import MeetingConferenceService
+from src.modules.meetings.application.services.meeting_notification_service import (
+    MeetingNotificationService,
+)
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
@@ -15,12 +18,14 @@ class DeleteMeetingUseCase:
         transaction_manager: TransactionManager,
         reminder_sync_service: ReminderSyncService | None = None,
         conference_service: MeetingConferenceService | None = None,
+        notification_service: MeetingNotificationService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
         self.reminder_sync_service = reminder_sync_service
         self.conference_service = conference_service
+        self.notification_service = notification_service
 
     def execute(self, meeting_id: UUID, current_user_id=None) -> None:
         meeting = self.meeting_repository.get_by_id(meeting_id)
@@ -28,6 +33,13 @@ class DeleteMeetingUseCase:
             raise ValueError("Meeting not found.")
         if meeting.is_deleted:
             raise ValueError("Meeting is already deleted.")
+
+        # Resolved while the meeting is still active (needs its participants).
+        cancellation_emails = None
+        if self.notification_service is not None:
+            cancellation_emails = self.notification_service.prepare_cancellation(
+                meeting, current_user_id
+            )
 
         def deletion():
             detail = self.meeting_repository.get_by_id_with_details(meeting_id)
@@ -65,3 +77,7 @@ class DeleteMeetingUseCase:
         if self.conference_service is not None:
             # After the commit; the provider emails the cancellation.
             self.conference_service.cancel(meeting)
+
+        if self.notification_service is not None:
+            # Meetings without a Google event: tell everyone it is cancelled.
+            self.notification_service.send_cancellation(meeting, cancellation_emails)

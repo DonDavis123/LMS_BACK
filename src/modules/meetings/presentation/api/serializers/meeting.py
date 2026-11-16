@@ -38,6 +38,7 @@ class MeetingRelatedRecordSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     record_type = serializers.SerializerMethodField()
     name = serializers.CharField()
+    email = serializers.CharField(allow_null=True, required=False)
 
     def get_record_type(self, obj):
         return obj.record_type.value
@@ -47,6 +48,7 @@ class MeetingParticipantSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     participant_type = serializers.SerializerMethodField()
     name = serializers.CharField()
+    email = serializers.CharField(allow_null=True, required=False)
 
     def get_participant_type(self, obj):
         return obj.participant_type.value
@@ -71,6 +73,7 @@ class MeetingDetailSerializer(serializers.Serializer):
     conference_provider = serializers.SerializerMethodField()
     conference_status = serializers.SerializerMethodField()
     conference_error = serializers.CharField(source="meeting.conference_error", allow_null=True)
+    send_email_notifications = serializers.BooleanField(source="meeting.send_email_notifications")
 
     def get_conference_provider(self, obj: GetMeetingDTO):
         provider = obj.meeting.conference_provider

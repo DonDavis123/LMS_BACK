@@ -72,6 +72,7 @@ class DjangoMeetingRepository(MeetingRepository):
                 "conference_error": meeting.conference_error,
                 "calendar_owner_id": meeting.calendar_owner_id,
                 "participant_reminder_for": meeting.participant_reminder_for,
+                "send_email_notifications": meeting.send_email_notifications,
             },
         )
         return self._to_domain(model)
@@ -128,9 +129,9 @@ class DjangoMeetingRepository(MeetingRepository):
         related = []
         for row in related_rows:
             if row.record_type == MeetingRelatedRecordType.LEAD.value and row.lead:
-                related.append(MeetingRelatedRecordDTO(row.lead_id, MeetingRelatedRecordType.LEAD, row.lead.name))
+                related.append(MeetingRelatedRecordDTO(row.lead_id, MeetingRelatedRecordType.LEAD, row.lead.name, row.lead.email))
             elif row.record_type == MeetingRelatedRecordType.CONTACT.value and row.contact:
-                related.append(MeetingRelatedRecordDTO(row.contact_id, MeetingRelatedRecordType.CONTACT, row.contact.name))
+                related.append(MeetingRelatedRecordDTO(row.contact_id, MeetingRelatedRecordType.CONTACT, row.contact.name, row.contact.email))
 
         participants = []
         for row in participant_rows:
@@ -262,6 +263,18 @@ class DjangoMeetingRepository(MeetingRepository):
                 end_at__gt=as_of,
             )
             .exclude(meet_link="")
+            .order_by("start_at", "id")
+        )
+        return [self._to_domain(model) for model in models]
+
+    def get_email_reminder_candidates(self, as_of: datetime) -> list[Meeting]:
+        models = (
+            self._base_queryset()
+            .filter(
+                is_deleted=False,
+                send_email_notifications=True,
+                end_at__gt=as_of,
+            )
             .order_by("start_at", "id")
         )
         return [self._to_domain(model) for model in models]
@@ -495,4 +508,5 @@ class DjangoMeetingRepository(MeetingRepository):
             conference_error=model.conference_error,
             calendar_owner_id=model.calendar_owner_id,
             participant_reminder_for=model.participant_reminder_for,
+            send_email_notifications=model.send_email_notifications,
         )

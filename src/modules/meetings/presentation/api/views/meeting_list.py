@@ -82,6 +82,7 @@ class MeetingListView(APIView):
             related_groups=related_groups_from_validated(data.get("related_to")),
             participant_groups=_participant_groups(participants),
             add_google_meet=data.get("add_google_meet", False),
+            send_email_notifications=data.get("send_email_notifications"),
         )
 
         try:
@@ -108,6 +109,9 @@ class MeetingListView(APIView):
                 "meet_link": meeting.meet_link,
                 "conference_status": meeting.conference_status.value,
                 "conference_error": meeting.conference_error,
+                "send_email_notifications": meeting.send_email_notifications,
+                # People who should be emailed but have no usable address.
+                "email_skipped": meeting.email_skipped,
             },
             status=status.HTTP_201_CREATED,
         )

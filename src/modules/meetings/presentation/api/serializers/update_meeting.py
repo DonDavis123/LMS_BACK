@@ -30,5 +30,6 @@ class UpdateMeetingSerializer(RelatedToSerializerMixin, serializers.Serializer):
     end_at = serializers.DateTimeField(required=False)
     reminder_at = serializers.DateTimeField(required=False, allow_null=True)
     host_id = serializers.UUIDField(required=False)
+    send_email_notifications = serializers.BooleanField(required=False)
     related_to = RelatedToGroupSerializer(many=True, required=False, allow_null=True)
     participants = ParticipantsUpdateSerializer(required=False, allow_null=True)

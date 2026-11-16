@@ -33,3 +33,8 @@ class CreateMeetingSerializer(RelatedToSerializerMixin, serializers.Serializer):
     related_to = RelatedToGroupSerializer(many=True, required=False, allow_null=True)
     participants = ParticipantsRequestSerializer(required=False)
     add_google_meet = serializers.BooleanField(required=False, default=False)
+    # Email invitations/updates/cancellations and the reminder before the
+    # meeting, with or without Google Meet. Omitted: follows add_google_meet.
+    send_email_notifications = serializers.BooleanField(
+        required=False, allow_null=True, default=None
+    )

@@ -1,5 +1,4 @@
 import logging
-import re
 from uuid import UUID
 
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
@@ -9,16 +8,21 @@ from src.modules.meetings.application.interfaces.video_conference_provider impor
     VideoConferenceNotConnectedError,
     VideoConferenceProvider,
 )
-from src.modules.meetings.domain.entities.meeting import Meeting
+from src.modules.meetings.application.services.meeting_recipients import (
+    MeetingRecipientResolver,
+)
+from src.modules.meetings.domain.entities.meeting import DEFAULT_REMINDER_LEAD, Meeting
 from src.modules.users.application.interfaces.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
-_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Google Calendar accepts reminder overrides up to four weeks ahead.
+_MAX_REMINDER_MINUTES = 40320
 
 
 class MeetingConferenceService:
-    """Keeps a meeting's video-call event in step with the CRM meeting.
+    """Keeps a meeting's Google Calendar event (with or without a Meet link)
+    in step with the CRM meeting.
 
     Use cases call this *after* their database transaction has committed, so a
     slow or failing provider can never roll back or block the CRM data.
@@ -33,6 +37,7 @@ class MeetingConferenceService:
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
         self.provider = provider
+        self.recipients = MeetingRecipientResolver(meeting_repository, user_repository)
 
     def ensure_can_create(
         self,
@@ -54,6 +59,16 @@ class MeetingConferenceService:
                 "Google Meet can be added."
             )
 
+    def can_create_calendar_event(self, meeting: Meeting) -> bool:
+        """A plain calendar event needs a connected host and a timed meeting."""
+        if meeting.is_all_day:
+            return False
+        try:
+            return self.provider.get_connected_account_email(meeting.host_id) is not None
+        except Exception:  # noqa: BLE001 - never block a save on a Google lookup
+            logger.warning("Could not check Google connection for meeting %s", meeting.id)
+            return False
+
     def attach(self, meeting: Meeting) -> Meeting:
         """Create the event + Meet link for a saved meeting.
 
@@ -62,7 +77,7 @@ class MeetingConferenceService:
         """
         owner_id = meeting.host_id
         try:
-            event = self._build_event(meeting, owner_id)
+            event = self._build_event(meeting, owner_id, with_meet=True)
             result = self.provider.create_event(owner_id, event)
         except VideoConferenceError as exc:
             logger.warning("Google Meet creation failed for meeting %s: %s", meeting.id, exc)
@@ -77,6 +92,42 @@ class MeetingConferenceService:
         )
         return self.meeting_repository.save(meeting)
 
+    def attach_calendar_event(self, meeting: Meeting) -> Meeting:
+        """Create a Google Calendar event *without* Meet, so invitees get a
+        calendar invite. Best effort: on any failure the meeting is returned
+        unchanged and the caller falls back to plain emails."""
+        owner_id = meeting.host_id
+        try:
+            event = self._build_event(meeting, owner_id, with_meet=False)
+            result = self.provider.create_event(owner_id, event)
+        except VideoConferenceError as exc:
+            logger.warning("Google Calendar event failed for meeting %s: %s", meeting.id, exc)
+            return meeting
+
+        meeting.mark_calendar_event_created(result.event_id, owner_id)
+        return self.meeting_repository.save(meeting)
+
+    def add_meet_to_event(self, meeting: Meeting) -> Meeting:
+        """Add a Meet link to a meeting whose calendar event has none yet."""
+        owner_id = meeting.calendar_owner_id or meeting.host_id
+        try:
+            event = self._build_event(meeting, owner_id, with_meet=True)
+            link = self.provider.update_event(owner_id, meeting.external_event_id, event)
+            if not link:
+                raise VideoConferenceError("Google did not return a Meet link for the event.")
+        except VideoConferenceError as exc:
+            logger.warning("Adding Google Meet failed for meeting %s: %s", meeting.id, exc)
+            meeting.mark_conference_failed(self.provider.provider_type, str(exc))
+            return self.meeting_repository.save(meeting)
+
+        meeting.mark_conference_created(
+            provider=self.provider.provider_type,
+            external_event_id=meeting.external_event_id,
+            meet_link=link,
+            calendar_owner_id=owner_id,
+        )
+        return self.meeting_repository.save(meeting)
+
     def sync(self, meeting: Meeting) -> Meeting:
         """Push title/time/participant changes to the existing event."""
         if not meeting.external_event_id:
@@ -85,12 +136,12 @@ class MeetingConferenceService:
         owner_id = meeting.calendar_owner_id or meeting.host_id
         previous_error = meeting.conference_error
         try:
-            event = self._build_event(meeting, owner_id)
+            event = self._build_event(meeting, owner_id, with_meet=False)
             self.provider.update_event(owner_id, meeting.external_event_id, event)
             meeting.conference_error = None
         except VideoConferenceError as exc:
-            # The link still works; keep status ``created`` and surface the
-            # sync problem so it can be retried.
+            # The event still exists; keep its status and surface the sync
+            # problem so it can be retried.
             logger.warning("Google event sync failed for meeting %s: %s", meeting.id, exc)
             meeting.conference_error = str(exc)[:1000]
 
@@ -99,21 +150,22 @@ class MeetingConferenceService:
         return meeting
 
     def cancel(self, meeting: Meeting) -> None:
-        """Cancel the event (the provider emails cancellations). Best effort."""
+        """Cancel the event (Google emails the cancellation when email
+        notifications are on). Best effort."""
         if not meeting.external_event_id:
             return
 
         owner_id = meeting.calendar_owner_id or meeting.host_id
         try:
-            self.provider.cancel_event(owner_id, meeting.external_event_id)
+            self.provider.cancel_event(
+                owner_id,
+                meeting.external_event_id,
+                notify_attendees=meeting.send_email_notifications,
+            )
         except VideoConferenceError as exc:
             logger.warning("Google event cancel failed for meeting %s: %s", meeting.id, exc)
 
-    def reminder_recipient_emails(self, meeting: Meeting) -> tuple[str, ...]:
-        """Who gets the reminder email: the same people Google invited."""
-        return self._attendee_emails(meeting, meeting.calendar_owner_id or meeting.host_id)
-
-    def _build_event(self, meeting: Meeting, owner_id: UUID) -> ConferenceEvent:
+    def _build_event(self, meeting: Meeting, owner_id: UUID, with_meet: bool) -> ConferenceEvent:
         return ConferenceEvent(
             title=meeting.title,
             description=meeting.description,
@@ -122,44 +174,24 @@ class MeetingConferenceService:
             end_at=meeting.end_at,
             attendee_emails=self._attendee_emails(meeting, owner_id),
             client_event_id=meeting.id.hex,
+            with_meet=with_meet,
+            notify_attendees=meeting.send_email_notifications,
+            reminder_minutes=self._reminder_minutes(meeting),
         )
 
+    @staticmethod
+    def _reminder_minutes(meeting: Meeting) -> int:
+        remind_at = meeting.participant_reminder_time(DEFAULT_REMINDER_LEAD)
+        minutes = int((meeting.start_at - remind_at).total_seconds() // 60)
+        return max(0, min(minutes, _MAX_REMINDER_MINUTES))
+
     def _attendee_emails(self, meeting: Meeting, owner_id: UUID) -> tuple[str, ...]:
-        """Participants (users, leads, contacts) and the host, minus the organizer.
-
-        "Related To" records are not invited, only participants.
-        """
-        candidates: list[str | None] = []
-
-        if meeting.host_id != owner_id:
-            host = self.user_repository.get_by_id(meeting.host_id)
-            if host is not None and host.is_active:
-                candidates.append(host.google_email or host.email)
-
-        detail = self.meeting_repository.get_by_id_with_details(meeting.id)
-        if detail is not None:
-            for participant in detail.participants:
-                if participant.id == owner_id:
-                    continue
-                candidates.append(participant.email)
-
+        """Everyone Google should invite: the host, participants *and* Related
+        To leads/contacts, minus the organizer (who owns the event)."""
         organizer_email = (self.provider.get_connected_account_email(owner_id) or "").lower()
-        owner = self.user_repository.get_by_id(owner_id)
-        excluded = {organizer_email}
-        if owner is not None:
-            excluded.add((owner.email or "").lower())
-            excluded.add((owner.google_email or "").lower())
-        excluded.discard("")
-
-        seen: set[str] = set()
-        emails: list[str] = []
-        for candidate in candidates:
-            email = (candidate or "").strip()
-            key = email.lower()
-            if not email or not _EMAIL_PATTERN.match(email):
-                continue
-            if key in excluded or key in seen:
-                continue
-            seen.add(key)
-            emails.append(email)
-        return tuple(emails)
+        resolved = self.recipients.resolve(
+            meeting,
+            exclude_user_ids={owner_id},
+            exclude_emails={organizer_email} if organizer_email else set(),
+        )
+        return resolved.emails

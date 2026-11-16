@@ -122,6 +122,8 @@ class DjangoMeetingModel(models.Model):
         null=True,
     )
 
+    send_email_notifications = models.BooleanField(default=False)
+
     class Meta:
         db_table = "meetings"
         indexes = [

@@ -164,6 +164,15 @@ class FakeMeetingRepo(MeetingRepository):
             and meeting.end_at > as_of
         ]
 
+    def get_email_reminder_candidates(self, as_of):
+        return [
+            meeting
+            for meeting in self.meetings.values()
+            if not getattr(meeting, "is_deleted", False)
+            and getattr(meeting, "send_email_notifications", False)
+            and meeting.end_at > as_of
+        ]
+
     def get_by_start_at_range(self, start_at, end_at):
         return [
             meeting

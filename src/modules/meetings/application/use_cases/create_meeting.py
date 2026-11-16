@@ -7,6 +7,9 @@ from src.modules.meetings.application.dto.related_group import RelatedGroup
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.application.services.meeting_conference_service import MeetingConferenceService
+from src.modules.meetings.application.services.meeting_notification_service import (
+    MeetingNotificationService,
+)
 from src.modules.meetings.application.services.related_validation import validate_related_groups
 from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
@@ -26,6 +29,7 @@ class CreateMeetingUseCase:
         transaction_manager: TransactionManager,
         reminder_sync_service: ReminderSyncService | None = None,
         conference_service: MeetingConferenceService | None = None,
+        notification_service: MeetingNotificationService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
@@ -35,6 +39,7 @@ class CreateMeetingUseCase:
         self.transaction_manager = transaction_manager
         self.reminder_sync_service = reminder_sync_service
         self.conference_service = conference_service
+        self.notification_service = notification_service
 
     def execute(self, data: CreateMeetingDTO) -> Meeting:
         self._validate_users(data.host_id, data.created_by_id)
@@ -61,6 +66,11 @@ class CreateMeetingUseCase:
             location=data.location,
             is_all_day=data.is_all_day,
             reminder_at=data.reminder_at,
+            send_email_notifications=(
+                data.add_google_meet
+                if data.send_email_notifications is None
+                else data.send_email_notifications
+            ),
         )
 
         def creation() -> Meeting:
@@ -94,6 +104,11 @@ class CreateMeetingUseCase:
             # After the commit: a Google failure is recorded on the meeting
             # (status "failed", retryable) and never undoes the CRM meeting.
             saved = self.conference_service.attach(saved)
+
+        if self.notification_service is not None:
+            # Invites for meetings without a Google event, and the list of
+            # people who could not be emailed. Never raises.
+            saved = self.notification_service.on_created(saved, data.created_by_id)
 
         return saved
 

@@ -8,6 +8,9 @@ from src.modules.reminders.application.services.reminder_sync_service import Rem
 from src.modules.meetings.application.dto.update_meeting import UpdateMeetingDTO, _UNSET
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.application.services.meeting_conference_service import MeetingConferenceService
+from src.modules.meetings.application.services.meeting_notification_service import (
+    MeetingNotificationService,
+)
 from src.modules.meetings.application.services.related_validation import validate_related_groups
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
@@ -32,6 +35,7 @@ class UpdateMeetingUseCase:
         transaction_manager: TransactionManager,
         reminder_sync_service: ReminderSyncService | None = None,
         conference_service: MeetingConferenceService | None = None,
+        notification_service: MeetingNotificationService | None = None,
     ):
         self.meeting_repository = meeting_repository
         self.user_repository = user_repository
@@ -41,6 +45,7 @@ class UpdateMeetingUseCase:
         self.transaction_manager = transaction_manager
         self.reminder_sync_service = reminder_sync_service
         self.conference_service = conference_service
+        self.notification_service = notification_service
 
     def execute(self, data: UpdateMeetingDTO, current_user_id: UUID | None = None):
         meeting = self.meeting_repository.get_by_id(data.meeting_id)
@@ -50,7 +55,10 @@ class UpdateMeetingUseCase:
             raise ValueError("Deleted Meeting cannot be updated.")
 
         fields = data.fields
-        allowed = {"title", "description", "location", "is_all_day", "start_at", "end_at", "host_id", "reminder_at"}
+        allowed = {
+            "title", "description", "location", "is_all_day", "start_at", "end_at",
+            "host_id", "reminder_at", "send_email_notifications",
+        }
         unknown = set(fields) - allowed
         if unknown:
             raise ValueError(f"Unsupported Meeting fields: {', '.join(sorted(unknown))}.")
@@ -87,7 +95,15 @@ class UpdateMeetingUseCase:
             "reminder_at",
         )
         old_values = {field: getattr(meeting, field) for field in updateable_fields}
+        was_notifying = meeting.send_email_notifications
         participants_actually_changed = False
+
+        # Who already hears about the meeting, before anything changes.
+        previous_recipients: frozenset[str] = frozenset()
+        if self.notification_service is not None and was_notifying:
+            previous_recipients = self.notification_service.recipient_snapshot(
+                meeting, current_user_id
+            )
 
         def update():
             for field, value in fields.items():
@@ -218,14 +234,28 @@ class UpdateMeetingUseCase:
 
         saved = self.transaction_manager.execute(update)
 
+        event_fields = ("title", "description", "location", "start_at", "end_at", "host_id")
+        event_changed = any(
+            old_values[field] != getattr(saved, field) for field in event_fields
+        )
+
         if self.conference_service is not None and saved.external_event_id:
-            event_fields = ("title", "description", "location", "start_at", "end_at", "host_id")
-            event_changed = any(
-                old_values[field] != getattr(saved, field) for field in event_fields
-            )
-            if event_changed or participants_actually_changed:
-                # After the commit; the provider emails the attendees the update.
+            turned_on = saved.send_email_notifications and not was_notifying
+            if event_changed or participants_actually_changed or turned_on:
+                # After the commit; the provider emails the attendees the update
+                # (switching email on sends them the invite they never got).
                 saved = self.conference_service.sync(saved)
+
+        if self.notification_service is not None:
+            # Emails for meetings without a Google event (or just switched on)
+            # and the list of people who could not be emailed. Never raises.
+            saved = self.notification_service.on_updated(
+                saved,
+                acting_user_id=current_user_id,
+                was_notifying=was_notifying,
+                event_changed=event_changed or participants_actually_changed,
+                previous_recipients=previous_recipients,
+            )
 
         return saved
 

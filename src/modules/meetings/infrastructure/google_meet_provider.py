@@ -33,7 +33,10 @@ class GoogleMeetProvider(VideoConferenceProvider):
     """Google Calendar adapter: one event per meeting, with a Meet link.
 
     ``sendUpdates=all`` makes Google email the invite, every later update and
-    the cancellation to the attendees, from the organizer's own Gmail.
+    the cancellation to the attendees, from the organizer's own Gmail. It is
+    ``none`` when the meeting has email notifications switched off. The event
+    also sets popup + email reminders on the organizer's calendar; attendees
+    get their own Google Calendar default reminders for the event.
     """
 
     def __init__(self, access_token_service: GoogleAccessTokenService):
@@ -54,18 +57,17 @@ class GoogleMeetProvider(VideoConferenceProvider):
         headers = self._headers(owner_user_id)
         body = self._event_body(event, creating=True)
         body["id"] = event.client_event_id
-        body["conferenceData"] = {
-            "createRequest": {
-                "requestId": event.client_event_id,
-                "conferenceSolutionKey": {"type": "hangoutsMeet"},
-            }
-        }
+        if event.with_meet:
+            body["conferenceData"] = self._create_request(event.client_event_id)
 
         response = self._request(
             "POST",
             EVENTS_URL,
             headers,
-            params={"conferenceDataVersion": 1, "sendUpdates": "all"},
+            params={
+                "conferenceDataVersion": 1,
+                "sendUpdates": self._send_updates(event.notify_attendees),
+            },
             json=body,
         )
 
@@ -84,6 +86,9 @@ class GoogleMeetProvider(VideoConferenceProvider):
         event_id = data.get("id") or event.client_event_id
         link = self._extract_meet_link(data)
 
+        if not event.with_meet:
+            return ConferenceEventResult(event_id=event_id, meet_link=link)
+
         attempts = 0
         while not link and attempts < _LINK_POLL_ATTEMPTS:
             # Meet links are sometimes generated a moment after the insert.
@@ -98,24 +103,49 @@ class GoogleMeetProvider(VideoConferenceProvider):
 
         return ConferenceEventResult(event_id=event_id, meet_link=link)
 
-    def update_event(self, owner_user_id: UUID, event_id: str, event: ConferenceEvent) -> None:
+    def update_event(
+        self, owner_user_id: UUID, event_id: str, event: ConferenceEvent
+    ) -> str | None:
         headers = self._headers(owner_user_id)
+        body = self._event_body(event, creating=False)
+        if event.with_meet:
+            # Adds Meet to an event that has none yet.
+            body["conferenceData"] = self._create_request(f"{event.client_event_id}-meet")
+
         response = self._request(
             "PATCH",
             f"{EVENTS_URL}/{event_id}",
             headers,
-            params={"conferenceDataVersion": 1, "sendUpdates": "all"},
-            json=self._event_body(event, creating=False),
+            params={
+                "conferenceDataVersion": 1,
+                "sendUpdates": self._send_updates(event.notify_attendees),
+            },
+            json=body,
         )
         self._raise_for_error(response)
 
-    def cancel_event(self, owner_user_id: UUID, event_id: str) -> None:
+        if not event.with_meet:
+            return None
+
+        link = self._extract_meet_link(response.json())
+        attempts = 0
+        while not link and attempts < _LINK_POLL_ATTEMPTS:
+            time.sleep(_LINK_POLL_DELAY_SECONDS)
+            polled = self._request("GET", f"{EVENTS_URL}/{event_id}", headers)
+            self._raise_for_error(polled)
+            link = self._extract_meet_link(polled.json())
+            attempts += 1
+        return link
+
+    def cancel_event(
+        self, owner_user_id: UUID, event_id: str, notify_attendees: bool = True
+    ) -> None:
         headers = self._headers(owner_user_id)
         response = self._request(
             "DELETE",
             f"{EVENTS_URL}/{event_id}",
             headers,
-            params={"sendUpdates": "all"},
+            params={"sendUpdates": self._send_updates(notify_attendees)},
         )
         # Already gone (404) or deleted (410) counts as cancelled.
         if response.status_code in (404, 410):
@@ -136,6 +166,19 @@ class GoogleMeetProvider(VideoConferenceProvider):
                 str(exc) or "Google integration is not available."
             ) from exc
         return {"Authorization": f"Bearer {token.access_token}"}
+
+    @staticmethod
+    def _send_updates(notify_attendees: bool) -> str:
+        return "all" if notify_attendees else "none"
+
+    @staticmethod
+    def _create_request(request_id: str) -> dict:
+        return {
+            "createRequest": {
+                "requestId": request_id,
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            }
+        }
 
     @staticmethod
     def _timeout() -> int:
@@ -163,6 +206,15 @@ class GoogleMeetProvider(VideoConferenceProvider):
             "end": moment(event.end_at),
             "attendees": [{"email": email} for email in event.attendee_emails],
         }
+        if event.reminder_minutes is not None:
+            # Google Calendar popup + email reminders for the organizer.
+            body["reminders"] = {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "popup", "minutes": event.reminder_minutes},
+                    {"method": "email", "minutes": event.reminder_minutes},
+                ],
+            }
         # On create, omit empty values. On patch send them, so a cleared
         # description/location is cleared in Google as well.
         if event.description or not creating:

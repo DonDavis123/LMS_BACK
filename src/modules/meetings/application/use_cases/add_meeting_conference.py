@@ -10,8 +10,9 @@ from src.modules.meetings.domain.entities.meeting import Meeting
 class AddMeetingConferenceUseCase:
     """Adds Google Meet to an existing meeting, or retries a failed attempt.
 
-    If the meeting already has a Meet event, its event is re-synced instead
-    (also a way to retry a failed update).
+    If the meeting already has a Meet link, its event is re-synced instead
+    (also a way to retry a failed update). A meeting whose Google Calendar
+    event has no Meet link yet gets the link added to that event.
     """
 
     def __init__(
@@ -27,7 +28,7 @@ class AddMeetingConferenceUseCase:
         if meeting is None:
             raise ValueError("Meeting not found.")
 
-        if meeting.external_event_id:
+        if meeting.external_event_id and meeting.meet_link:
             return self.conference_service.sync(meeting)
 
         self.conference_service.ensure_can_create(
@@ -35,4 +36,15 @@ class AddMeetingConferenceUseCase:
             meeting.is_all_day,
             current_user_id,
         )
+
+        # Adding Meet invites people by email, as it always has. Without this
+        # a meeting created with email notifications off would add the link
+        # and tell nobody.
+        if not meeting.send_email_notifications:
+            meeting.send_email_notifications = True
+            meeting = self.meeting_repository.save(meeting)
+
+        if meeting.external_event_id:
+            # A calendar event without Meet already exists: add the link to it.
+            return self.conference_service.add_meet_to_event(meeting)
         return self.conference_service.attach(meeting)

@@ -1,9 +1,12 @@
 # Google Meet for meetings
 
-Meetings can get a Google Meet link, and every participant is emailed a
+Meetings can get a Google Meet link, and everyone on the meeting is emailed a
 Google Calendar invite. Google sends the invite, every later update and the
-cancellation, from the **host's own Gmail** (`sendUpdates=all`). The CRM's own
-mailing module is not involved.
+cancellation, from the **host's own Gmail** (`sendUpdates=all`).
+
+Email is **independent of Meet**. The meeting has a `send_email_notifications`
+option (see "Email notifications" below); with it on, people are emailed
+whether or not Google Meet is added.
 
 The calendar event always lives on the **meeting host's** Google calendar, so
 the host must have connected their Google account.
@@ -72,7 +75,9 @@ Revokes the token at Google and deletes the stored connection.
 
 ### Create: `POST /api/meetings/`
 
-Send `"add_google_meet": true` with the usual body.
+Send `"add_google_meet": true` with the usual body. Send
+`"send_email_notifications": true` to email everyone (with or without Meet);
+when omitted it follows `add_google_meet`.
 
 - Host not connected: `400` `{"detail": "...", "code": "google_not_connected"}`; nothing is saved.
 - All-day meeting: `400`; nothing is saved.
@@ -87,9 +92,17 @@ Response `201`:
   "message": "Meeting created successfully.",
   "meet_link": "https://meet.google.com/abc-defg-hij",
   "conference_status": "created",
-  "conference_error": null
+  "conference_error": null,
+  "send_email_notifications": true,
+  "email_skipped": [
+    { "name": "Jo Smith", "type": "CONTACT", "role": "participant", "reason": "no_email" }
+  ]
 }
 ```
+
+`email_skipped` lists people who should have been emailed but have no usable
+address (`reason`: `no_email` or `invalid_email`; `role`: `host`,
+`participant` or `related`). It is also returned by `PATCH`.
 
 ### Update: `PATCH /api/meetings/<id>/`
 
@@ -116,17 +129,44 @@ re-syncs a meeting whose last update failed to reach Google.
 ### Read: `GET /api/meetings/` and `GET /api/meetings/<id>/`
 
 The list returns `meet_link` and `conference_status`. The detail also returns
-`conference_provider` and `conference_error`.
+`conference_provider`, `conference_error`, `send_email_notifications`, and the
+`email` of every participant and related record.
 
 `conference_status`: `none` | `created` | `failed`.
 
-## Who is invited
+## Email notifications
 
-The meeting's participants (users, leads, contacts), plus the host if the host
-is not the calendar owner. The calendar owner is never invited as an attendee
-(they are the organizer). Duplicate, blank and malformed emails are skipped.
-Users are invited at their `google_email` when set, otherwise their `email`.
-"Related To" records are not invited.
+`send_email_notifications` (create and `PATCH`) switches emails on for a
+meeting. It does not need Google Meet.
+
+| Situation | Invite / update / cancellation | Reminder before the meeting |
+| --- | --- | --- |
+| Email on, host connected to Google (timed meeting) | Google, through a calendar event (with a Meet link only if requested) | CRM email to everyone except the host (Google reminds the host) |
+| Email on, host not connected, all-day meeting, or Google failed | CRM email (same mail setup as the reminder) | CRM email to everyone including the host |
+| Email off | none | none |
+
+Every email shows the meeting **title** and **description**, plus when, host,
+location and the Meet link if there is one.
+
+Meetings that had a Meet link before this option existed were switched on by
+migration `0009`. Adding Meet later with `POST /conference/` switches email on.
+Switching email on later sends everyone the invite they never got.
+
+### Who is emailed
+
+The host, every participant (users, leads, contacts) **and every "Related To"
+lead/contact**. Duplicates are sent once. Users are emailed at their
+`google_email` when set, otherwise their `email`. People without a valid
+address are not emailed and come back in `email_skipped` (also logged on
+reminders). The person who scheduled or edited the meeting does not get an
+invite/update email for their own action.
+
+### Google Calendar reminders
+
+Each Google event sets popup + email reminders on the organizer's calendar at
+the meeting's reminder time (default 15 minutes before). Google applies an
+attendee's own default reminders to their copy of the event, so the CRM
+reminder email below is what guarantees everyone is reminded.
 
 ## Limitations
 
@@ -138,15 +178,14 @@ Users are invited at their `google_email` when set, otherwise their `email`.
 - Meetings that are auto-deleted because their Related To lead/contact was
   deleted do not cancel their Google event.
 - Reminders and the timeline do not include the Meet link.
+- Contacts' `email_opt_out` is not checked: meeting emails are transactional.
 
-## Participant reminder emails
+## Reminder emails
 
-Google only reminds people whose calendar is Google, and only per their own
-calendar settings. So the CRM also emails every participant (users, leads,
-contacts with an email) the Meet link shortly before the meeting.
+Runs inside the existing notification cron (`POST /api/internal/notifications/process/`
+or `manage.py process_notifications`). **The cron must run about every minute.**
 
-- Runs inside the existing notification cron (`POST /api/internal/notifications/process/`
-  or `manage.py process_notifications`). **The cron must run about every minute.**
+- Covers every meeting with `send_email_notifications` on, with or without Meet.
 - Sent at the meeting's `reminder_at` if one is set, otherwise 15 minutes before `start_at`.
 - Sent once per reminder time. Rescheduling the meeting re-arms it.
 - A meeting created inside the reminder window gets no reminder (the invite just went out).

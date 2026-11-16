@@ -7,6 +7,9 @@ from src.modules.google_integration.presentation.api.dependencies.google_depende
 from src.modules.meetings.application.services.meeting_conference_service import (
     MeetingConferenceService,
 )
+from src.modules.meetings.application.services.meeting_notification_service import (
+    MeetingNotificationService,
+)
 from src.modules.meetings.application.use_cases.add_meeting_conference import (
     AddMeetingConferenceUseCase,
 )
@@ -49,6 +52,25 @@ def conference_service(ctx: TenantContext) -> MeetingConferenceService:
     )
 
 
+def notification_service(ctx: TenantContext) -> MeetingNotificationService:
+    return _build_notification_service(ctx.company_id)
+
+
+def _build_notification_service(company_id) -> MeetingNotificationService:
+    meeting_repository = DjangoMeetingRepository(company_id=company_id)
+    user_repository = DjangoUserRepository(company_id=company_id)
+    return MeetingNotificationService(
+        meeting_repository,
+        user_repository,
+        MeetingReminderEmailer(),
+        MeetingConferenceService(
+            meeting_repository,
+            user_repository,
+            GoogleMeetProvider(get_google_access_token_service(company_id)),
+        ),
+    )
+
+
 def get_create_meeting_use_case(ctx: TenantContext) -> CreateMeetingUseCase:
     return CreateMeetingUseCase(
         DjangoMeetingRepository(company_id=ctx.company_id),
@@ -59,6 +81,7 @@ def get_create_meeting_use_case(ctx: TenantContext) -> CreateMeetingUseCase:
         transaction_manager(),
         reminder_sync_service(ctx),
         conference_service(ctx),
+        notification_service(ctx),
     )
 
 
@@ -80,6 +103,7 @@ def get_update_meeting_use_case(ctx: TenantContext) -> UpdateMeetingUseCase:
         transaction_manager(),
         reminder_sync_service(ctx),
         conference_service(ctx),
+        notification_service(ctx),
     )
 
 
@@ -90,6 +114,7 @@ def get_delete_meeting_use_case(ctx: TenantContext) -> DeleteMeetingUseCase:
         transaction_manager(),
         reminder_sync_service(ctx),
         conference_service(ctx),
+        notification_service(ctx),
     )
 
 
@@ -106,10 +131,6 @@ def get_send_meeting_participant_reminders_use_case(
     """Used by the notification cron, which has no request/TenantContext."""
     return SendMeetingParticipantRemindersUseCase(
         DjangoMeetingRepository(company_id=company_id),
-        MeetingConferenceService(
-            DjangoMeetingRepository(company_id=company_id),
-            DjangoUserRepository(company_id=company_id),
-            GoogleMeetProvider(get_google_access_token_service(company_id)),
-        ),
+        _build_notification_service(company_id),
         MeetingReminderEmailer(),
     )

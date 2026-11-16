@@ -80,6 +80,8 @@ class MeetingDetailView(APIView):
                 "meet_link": meeting.meet_link,
                 "conference_status": meeting.conference_status.value,
                 "conference_error": meeting.conference_error,
+                "send_email_notifications": meeting.send_email_notifications,
+                "email_skipped": meeting.email_skipped,
             },
             status=status.HTTP_200_OK,
         )

@@ -55,14 +55,18 @@ class FakeProvider(VideoConferenceProvider):
         if self.fail_create:
             raise VideoConferenceError("Google Calendar error (500)")
         self.created.append((owner_user_id, event))
-        return ConferenceEventResult(event_id="evt-1", meet_link="https://meet.google.com/abc-defg-hij")
+        return ConferenceEventResult(
+            event_id="evt-1",
+            meet_link="https://meet.google.com/abc-defg-hij" if event.with_meet else None,
+        )
 
     def update_event(self, owner_user_id, event_id, event):
         if self.fail_update:
             raise VideoConferenceError("Google Calendar error (500)")
         self.updated.append((owner_user_id, event_id, event))
+        return "https://meet.google.com/abc-defg-hij" if event.with_meet else None
 
-    def cancel_event(self, owner_user_id, event_id):
+    def cancel_event(self, owner_user_id, event_id, notify_attendees=True):
         self.cancelled.append((owner_user_id, event_id))
 
 

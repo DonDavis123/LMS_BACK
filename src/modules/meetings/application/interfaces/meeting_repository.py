@@ -49,6 +49,11 @@ class MeetingRepository(ABC):
         pass
 
     @abstractmethod
+    def get_email_reminder_candidates(self, as_of: datetime) -> list[Meeting]:
+        """Active meetings with email notifications on that have not ended yet."""
+        pass
+
+    @abstractmethod
     def replace_relationships(
         self,
         meeting_id: UUID,

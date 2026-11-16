@@ -20,3 +20,5 @@ class CreateMeetingDTO:
     related_groups: tuple[RelatedGroup, ...] = ()
     participant_groups: tuple[ParticipantGroup, ...] = ()
     add_google_meet: bool = False
+    # None follows ``add_google_meet`` (a Meet meeting has always been emailed).
+    send_email_notifications: bool | None = None

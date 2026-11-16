@@ -1,9 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from src.modules.meetings.domain.enums.conference_provider import ConferenceProvider
 from src.modules.meetings.domain.enums.conference_status import ConferenceStatus
+
+# Participants are reminded this long before the start unless a reminder time is set.
+DEFAULT_REMINDER_LEAD = timedelta(minutes=15)
 
 
 @dataclass
@@ -31,6 +34,12 @@ class Meeting:
     calendar_owner_id: UUID | None = None
     # Reminder time that the participant reminder email was already sent for.
     participant_reminder_for: datetime | None = None
+    # Email invitations/updates/cancellations and the reminder email before the
+    # meeting. Independent of Google Meet.
+    send_email_notifications: bool = False
+    # Not persisted: recipients that could not be emailed (no usable address),
+    # filled in by the notification flow so the API can report them.
+    email_skipped: list = field(default_factory=list, compare=False, repr=False)
 
     @classmethod
     def create(
@@ -44,6 +53,7 @@ class Meeting:
         location: str | None = None,
         is_all_day: bool = False,
         reminder_at: datetime | None = None,
+        send_email_notifications: bool = False,
     ) -> "Meeting":
         if not title or not title.strip():
             raise ValueError("Meeting title cannot be empty.")
@@ -76,6 +86,7 @@ class Meeting:
             created_at=now,
             updated_at=now,
             is_deleted=False,
+            send_email_notifications=send_email_notifications,
         )
 
     def soft_delete(self) -> None:
@@ -92,6 +103,12 @@ class Meeting:
     @property
     def has_conference(self) -> bool:
         return bool(self.external_event_id) and self.conference_status == ConferenceStatus.CREATED
+
+    def mark_calendar_event_created(self, external_event_id: str, calendar_owner_id: UUID) -> None:
+        """A Google Calendar event exists but without a Meet link."""
+        self.external_event_id = external_event_id
+        self.calendar_owner_id = calendar_owner_id
+        self.conference_error = None
 
     def mark_conference_created(
         self,

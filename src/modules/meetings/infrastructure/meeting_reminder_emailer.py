@@ -11,6 +11,9 @@ from src.modules.authentication.infrastructure.email.http_email_service import (
     HttpEmailService,
 )
 from src.modules.meetings.application.interfaces.meeting_reminder_notifier import (
+    KIND_CANCELLATION,
+    KIND_INVITATION,
+    KIND_UPDATE,
     MeetingReminder,
     MeetingReminderNotifier,
 )
@@ -19,11 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 class MeetingReminderEmailer(MeetingReminderNotifier):
-    """Sends the reminder through the same mail setup as password resets
-    (HTTP relay when EMAIL_PROVIDER is ``http``, otherwise Django SMTP)."""
+    """Sends meeting emails (invitation, update, cancellation, reminder)
+    through the same mail setup as password resets (HTTP relay when
+    EMAIL_PROVIDER is ``http``, otherwise Django SMTP).
+
+    Every email shows the meeting heading (title) and its description.
+    """
 
     def send(self, recipient_email: str, reminder: MeetingReminder) -> None:
-        subject = f"Reminder: {reminder.title} starts soon"
+        subject = self._subject(reminder)
         text, html = self._render(reminder)
 
         if settings.EMAIL_PROVIDER == "http":
@@ -39,31 +46,77 @@ class MeetingReminderEmailer(MeetingReminderNotifier):
             message.send(fail_silently=False)
 
     @staticmethod
-    def _render(reminder: MeetingReminder) -> tuple[str, str]:
+    def _subject(reminder: MeetingReminder) -> str:
+        title = reminder.title
+        if reminder.kind == KIND_INVITATION:
+            return f"Invitation: {title}"
+        if reminder.kind == KIND_UPDATE:
+            return f"Updated: {title}"
+        if reminder.kind == KIND_CANCELLATION:
+            return f"Cancelled: {title}"
+        return f"Reminder: {title} starts soon"
+
+    @staticmethod
+    def _intro(reminder: MeetingReminder) -> str:
+        if reminder.kind == KIND_INVITATION:
+            return "You have been invited to a meeting."
+        if reminder.kind == KIND_UPDATE:
+            return "This meeting has been updated. The details below are current."
+        if reminder.kind == KIND_CANCELLATION:
+            return "This meeting has been cancelled."
+        return "Your meeting is about to start."
+
+    @staticmethod
+    def _when(reminder: MeetingReminder) -> str:
         start = timezone.localtime(reminder.start_at)
         end = timezone.localtime(reminder.end_at)
-        when = (
+        if reminder.is_all_day:
+            return f"{start.strftime('%a, %d %b %Y')} (all day)"
+        return (
             f"{start.strftime('%a, %d %b %Y, %I:%M %p')} to "
             f"{end.strftime('%I:%M %p')} {start.tzname() or ''}"
         ).strip()
 
-        lines = [f"Your meeting \"{reminder.title}\" is about to start.", "", f"When: {when}"]
+    @classmethod
+    def _render(cls, reminder: MeetingReminder) -> tuple[str, str]:
+        intro = cls._intro(reminder)
+        when = cls._when(reminder)
+        description = (reminder.description or "").strip()
+        cancelled = reminder.kind == KIND_CANCELLATION
+
+        # ---- plain text
+        lines = [reminder.title, "=" * min(len(reminder.title), 60), "", intro, ""]
+        if description:
+            lines += ["Description:", description, ""]
+        lines.append(f"When: {when}")
         if reminder.host_name:
             lines.append(f"Host: {reminder.host_name}")
         if reminder.location:
             lines.append(f"Location: {reminder.location}")
-        lines += ["", f"Join with Google Meet: {reminder.meet_link}"]
+        if reminder.meet_link and not cancelled:
+            lines += ["", f"Join with Google Meet: {reminder.meet_link}"]
         text = "\n".join(lines)
 
-        rows = [f"<p>Your meeting <strong>{escape(reminder.title)}</strong> is about to start.</p>",
-                f"<p><strong>When:</strong> {escape(when)}</p>"]
+        # ---- html
+        rows = [
+            f'<h2 style="margin:0 0 8px;font-size:20px">{escape(reminder.title)}</h2>',
+            f"<p>{escape(intro)}</p>",
+        ]
+        if description:
+            rows.append(
+                '<p style="margin:12px 0 4px"><strong>Description</strong></p>'
+                '<div style="white-space:pre-wrap;margin:0 0 12px">'
+                f"{escape(description)}</div>"
+            )
+        rows.append(f"<p><strong>When:</strong> {escape(when)}</p>")
         if reminder.host_name:
             rows.append(f"<p><strong>Host:</strong> {escape(reminder.host_name)}</p>")
         if reminder.location:
             rows.append(f"<p><strong>Location:</strong> {escape(reminder.location)}</p>")
-        link = escape(reminder.meet_link, quote=True)
-        rows.append(f'<p><a href="{link}">Join with Google Meet</a></p>')
-        rows.append(f"<p style=\"color:#666;font-size:12px\">{link}</p>")
+        if reminder.meet_link and not cancelled:
+            link = escape(reminder.meet_link, quote=True)
+            rows.append(f'<p><a href="{link}">Join with Google Meet</a></p>')
+            rows.append(f'<p style="color:#666;font-size:12px">{link}</p>')
         return text, "".join(rows)
 
     @staticmethod

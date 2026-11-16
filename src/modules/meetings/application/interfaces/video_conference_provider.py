@@ -27,12 +27,20 @@ class ConferenceEvent:
     # Stable id derived from the CRM meeting, so retrying a create whose
     # response was lost cannot produce a duplicate event.
     client_event_id: str
+    # False creates a plain calendar event (no Meet link).
+    with_meet: bool = True
+    # Whether Google emails the attendees (invite, updates, cancellation).
+    notify_attendees: bool = True
+    # Minutes before the start for the organizer's Google Calendar popup and
+    # email reminders. None leaves Google's defaults.
+    reminder_minutes: int | None = None
 
 
 @dataclass(frozen=True)
 class ConferenceEventResult:
     event_id: str
-    meet_link: str
+    # None for a calendar event created without Meet.
+    meet_link: str | None
 
 
 class VideoConferenceProvider(ABC):
@@ -57,9 +65,15 @@ class VideoConferenceProvider(ABC):
         pass
 
     @abstractmethod
-    def update_event(self, owner_user_id: UUID, event_id: str, event: ConferenceEvent) -> None:
+    def update_event(
+        self, owner_user_id: UUID, event_id: str, event: ConferenceEvent
+    ) -> str | None:
+        """Patch the event. Returns the Meet link when ``event.with_meet`` is
+        set and the event has one (also how Meet is added to an existing event)."""
         pass
 
     @abstractmethod
-    def cancel_event(self, owner_user_id: UUID, event_id: str) -> None:
+    def cancel_event(
+        self, owner_user_id: UUID, event_id: str, notify_attendees: bool = True
+    ) -> None:
         pass

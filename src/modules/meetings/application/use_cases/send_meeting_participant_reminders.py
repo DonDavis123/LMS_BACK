@@ -2,21 +2,25 @@ import logging
 from datetime import datetime, timedelta
 
 from src.modules.meetings.application.interfaces.meeting_reminder_notifier import (
+    KIND_REMINDER,
     MeetingReminder,
     MeetingReminderNotifier,
 )
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
-from src.modules.meetings.application.services.meeting_conference_service import (
-    MeetingConferenceService,
-)
+from src.modules.meetings.domain.entities.meeting import DEFAULT_REMINDER_LEAD
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_REMINDER_LEAD = timedelta(minutes=15)
+__all__ = ["SendMeetingParticipantRemindersUseCase", "DEFAULT_REMINDER_LEAD"]
 
 
 class SendMeetingParticipantRemindersUseCase:
-    """Emails the Meet link to participants shortly before a meeting starts.
+    """Emails everyone shortly before a meeting starts.
+
+    Covers every meeting that has email notifications on, with or without a
+    Google Meet link. The email carries the meeting heading and description,
+    plus the Meet link when there is one. Recipients are the host, the
+    participants and the Related To leads/contacts.
 
     Meant to run every minute from the notification cron. A meeting is
     reminded once per reminder time: ``participant_reminder_for`` remembers
@@ -26,12 +30,12 @@ class SendMeetingParticipantRemindersUseCase:
     def __init__(
         self,
         meeting_repository: MeetingRepository,
-        conference_service: MeetingConferenceService,
+        notification_service,
         notifier: MeetingReminderNotifier,
         default_lead: timedelta = DEFAULT_REMINDER_LEAD,
     ):
         self.meeting_repository = meeting_repository
-        self.conference_service = conference_service
+        self.notification_service = notification_service
         self.notifier = notifier
         self.default_lead = default_lead
 
@@ -39,7 +43,7 @@ class SendMeetingParticipantRemindersUseCase:
         """Return how many reminder emails were sent."""
         sent_total = 0
 
-        for meeting in self.meeting_repository.get_conference_meetings_not_ended(as_of):
+        for meeting in self.meeting_repository.get_email_reminder_candidates(as_of):
             remind_at = meeting.participant_reminder_time(self.default_lead)
 
             if remind_at > as_of:
@@ -53,20 +57,18 @@ class SendMeetingParticipantRemindersUseCase:
                 self._mark_done(meeting, remind_at)
                 continue
 
-            recipients = self.conference_service.reminder_recipient_emails(meeting)
-            detail = self.meeting_repository.get_by_id_with_details(meeting.id)
-            reminder = MeetingReminder(
-                title=meeting.title,
-                start_at=meeting.start_at,
-                end_at=meeting.end_at,
-                meet_link=meeting.meet_link,
-                host_name=detail.host_name if detail else "",
-                location=meeting.location,
-                description=meeting.description,
-            )
+            recipients = self.notification_service.reminder_recipients(meeting)
+            if recipients.skipped:
+                logger.info(
+                    "Meeting %s reminder: %d recipient(s) without a usable email",
+                    meeting.id,
+                    len(recipients.skipped),
+                )
+
+            reminder = self.notification_service.build_email(meeting, KIND_REMINDER)
 
             sent = 0
-            for email in recipients:
+            for email in recipients.emails:
                 try:
                     self.notifier.send(email, reminder)
                     sent += 1
@@ -75,7 +77,7 @@ class SendMeetingParticipantRemindersUseCase:
                         "Meeting reminder email failed for meeting %s", meeting.id
                     )
 
-            if recipients and sent == 0:
+            if recipients.emails and sent == 0:
                 # Nothing got through (mail relay down?). Leave it unmarked so
                 # the next cron run retries until the meeting ends.
                 continue

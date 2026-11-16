@@ -156,7 +156,9 @@ class GoogleMeetProviderTests(unittest.TestCase):
     def test_update_patches_with_send_updates(self, request):
         request.return_value = response(body={})
 
-        self.provider.update_event(self.owner, "evt", make_event(description=None))
+        self.provider.update_event(
+            self.owner, "evt", make_event(description=None, with_meet=False)
+        )
 
         args, kwargs = request.call_args
         self.assertEqual(args[0], "PATCH")
@@ -187,6 +189,74 @@ class GoogleMeetProviderTests(unittest.TestCase):
 
         with self.assertRaises(VideoConferenceError):
             self.provider.cancel_event(self.owner, "evt")
+
+    @mock.patch(REQUEST)
+    def test_calendar_event_without_meet_has_no_conference_and_skips_polling(self, request):
+        request.return_value = response(body={"id": "abc123"})
+
+        result = self.provider.create_event(self.owner, make_event(with_meet=False))
+
+        self.assertEqual((result.event_id, result.meet_link), ("abc123", None))
+        self.assertEqual(request.call_count, 1)  # no link polling
+        self.assertNotIn("conferenceData", request.call_args.kwargs["json"])
+
+    @mock.patch(REQUEST)
+    def test_email_off_sends_no_google_emails(self, request):
+        request.return_value = response(body={"id": "abc123", "hangoutLink": "https://meet.google.com/x"})
+
+        self.provider.create_event(self.owner, make_event(notify_attendees=False))
+        self.assertEqual(request.call_args.kwargs["params"]["sendUpdates"], "none")
+
+        request.return_value = response(body={})
+        self.provider.update_event(
+            self.owner, "evt", make_event(with_meet=False, notify_attendees=False)
+        )
+        self.assertEqual(request.call_args.kwargs["params"]["sendUpdates"], "none")
+
+        request.return_value = response(204)
+        self.provider.cancel_event(self.owner, "evt", notify_attendees=False)
+        self.assertEqual(request.call_args.kwargs["params"], {"sendUpdates": "none"})
+
+    @mock.patch(REQUEST)
+    def test_reminders_are_set_on_the_event(self, request):
+        request.return_value = response(body={"id": "abc123", "hangoutLink": "https://meet.google.com/x"})
+
+        self.provider.create_event(self.owner, make_event(reminder_minutes=30))
+
+        self.assertEqual(
+            request.call_args.kwargs["json"]["reminders"],
+            {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "popup", "minutes": 30},
+                    {"method": "email", "minutes": 30},
+                ],
+            },
+        )
+
+    @mock.patch(REQUEST)
+    def test_update_can_add_meet_to_an_existing_event(self, request):
+        request.return_value = response(body={"id": "evt", "hangoutLink": "https://meet.google.com/n"})
+
+        link = self.provider.update_event(self.owner, "evt", make_event(with_meet=True))
+
+        self.assertEqual(link, "https://meet.google.com/n")
+        body = request.call_args.kwargs["json"]
+        self.assertEqual(body["conferenceData"]["createRequest"]["requestId"], "abc123-meet")
+
+    @mock.patch(REQUEST)
+    def test_attendees_can_include_many_guests(self, request):
+        request.return_value = response(body={"id": "abc123"})
+
+        self.provider.create_event(
+            self.owner,
+            make_event(with_meet=False, attendee_emails=("a@example.com", "b@example.com")),
+        )
+
+        self.assertEqual(
+            request.call_args.kwargs["json"]["attendees"],
+            [{"email": "a@example.com"}, {"email": "b@example.com"}],
+        )
 
 
 if __name__ == "__main__":

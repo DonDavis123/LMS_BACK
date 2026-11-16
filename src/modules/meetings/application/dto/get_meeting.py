@@ -11,6 +11,7 @@ class MeetingRelatedRecordDTO:
     id: UUID
     record_type: MeetingRelatedRecordType
     name: str
+    email: str | None = None
 
 
 @dataclass(frozen=True)
