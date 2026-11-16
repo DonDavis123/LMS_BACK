@@ -14,6 +14,7 @@ from src.modules.meetings.application.dto.get_meeting import (
 )
 from src.modules.meetings.application.dto.get_meetings import GetMeetingsDTO
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
+from src.modules.meetings.application.dto.related_group import RelatedGroup
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.conference_provider import ConferenceProvider
@@ -78,14 +79,13 @@ class DjangoMeetingRepository(MeetingRepository):
     def save_with_relationships(
         self,
         meeting: Meeting,
-        related_record_type: MeetingRelatedRecordType | None = None,
-        related_record_ids: tuple[UUID, ...] = (),
+        related_groups: tuple[RelatedGroup, ...] = (),
         participant_groups: tuple[ParticipantGroup, ...] = (),
     ) -> Meeting:
         with transaction.atomic():
             saved = self.save(meeting)
             self._replace_relationships_locked(
-                saved.id, related_record_type, related_record_ids, participant_groups,
+                saved.id, related_groups, participant_groups,
             )
             return self._to_domain(self._base_queryset().get(id=saved.id))
 
@@ -116,7 +116,7 @@ class DjangoMeetingRepository(MeetingRepository):
                 Q(contact__isnull=True) | Q(contact__is_deleted=False)
             )
             .select_related("lead", "contact")
-            .order_by("id")
+            .order_by("record_type", "id")
         )
         participant_rows = (
             DjangoMeetingParticipantModel.objects
@@ -191,7 +191,7 @@ class DjangoMeetingRepository(MeetingRepository):
                 .filter(Q(lead__isnull=True) | Q(lead__is_deleted=False))
                 .filter(Q(contact__isnull=True) | Q(contact__is_deleted=False))
                 .select_related("lead", "contact")
-                .order_by("id")
+                .order_by("record_type", "id")
             )
             for row in rows:
                 if row.record_type == MeetingRelatedRecordType.LEAD.value and row.lead:
@@ -229,6 +229,7 @@ class DjangoMeetingRepository(MeetingRepository):
                     reminder_at=model.reminder_at,
                     related_to_type=related_type,
                     related_to_names=tuple(name for _, name in related),
+                    related_to_items=tuple((item_type, name) for item_type, name in related),
                     contact_names=contact_names,
                     host_id=model.host_id,
                     host_name=model.host.name,
@@ -268,14 +269,13 @@ class DjangoMeetingRepository(MeetingRepository):
     def replace_relationships(
         self,
         meeting_id: UUID,
-        related_record_type: MeetingRelatedRecordType | None,
-        related_record_ids: tuple[UUID, ...],
+        related_groups: tuple[RelatedGroup, ...],
         participant_groups: tuple[ParticipantGroup, ...],
     ) -> None:
         with transaction.atomic():
             self._lock_active_meeting(meeting_id)
             self._replace_relationships_locked(
-                meeting_id, related_record_type, related_record_ids, participant_groups,
+                meeting_id, related_groups, participant_groups,
             )
 
     def soft_delete_by_id(self, meeting_id: UUID) -> Meeting | None:
@@ -340,16 +340,17 @@ class DjangoMeetingRepository(MeetingRepository):
             )
             deleted_ids: list[UUID] = []
             for meeting_id in candidate_ids:
-                active_related = DjangoMeetingRelatedRecordModel.objects.filter(
-                    meeting__company_id=self._company_id, meeting_id=meeting_id, record_type=record_type.value
+                related_rows = DjangoMeetingRelatedRecordModel.objects.filter(
+                    meeting__company_id=self._company_id, meeting_id=meeting_id
                 )
-                if not active_related.exists():
+                if not related_rows.exists():
                     continue
-                # Only rows pointing to currently active Lead/Contact records count.
-                if record_type == MeetingRelatedRecordType.LEAD:
-                    active_exists = active_related.filter(lead__is_deleted=False).exists()
-                else:
-                    active_exists = active_related.filter(contact__is_deleted=False).exists()
+                # A meeting can relate to leads and contacts at once, so it is
+                # only orphaned when no active record of either type is left.
+                active_exists = related_rows.filter(
+                    Q(lead__isnull=False, lead__is_deleted=False)
+                    | Q(contact__isnull=False, contact__is_deleted=False)
+                ).exists()
                 if active_exists:
                     continue
                 updated = self._base_queryset().filter(id=meeting_id, is_deleted=False).update(is_deleted=True)
@@ -360,25 +361,35 @@ class DjangoMeetingRepository(MeetingRepository):
     def _replace_relationships_locked(
         self,
         meeting_id: UUID,
-        related_record_type: MeetingRelatedRecordType | None,
-        related_record_ids: tuple[UUID, ...],
+        related_groups: tuple[RelatedGroup, ...],
         participant_groups: tuple[ParticipantGroup, ...],
     ) -> None:
         self._lock_active_meeting(meeting_id)
-        if related_record_ids and related_record_type is None:
-            raise ValueError("Related record type is required when related records are supplied.")
-        if len(related_record_ids) != len(set(related_record_ids)):
-            raise ValueError("Duplicate related records are not allowed.")
-
+        self._validate_related_groups(related_groups)
         self._validate_participant_groups(participant_groups)
         DjangoMeetingRelatedRecordModel.objects.filter(meeting__company_id=self._company_id, meeting_id=meeting_id).delete()
         DjangoMeetingParticipantModel.objects.filter(meeting__company_id=self._company_id, meeting_id=meeting_id).delete()
 
-        if related_record_ids:
-            self._add_related_records_locked(meeting_id, related_record_type, related_record_ids)
+        for group in related_groups:
+            if group.record_ids:
+                self._add_related_records_locked(meeting_id, group.record_type, group.record_ids)
         for group in participant_groups:
             if group.participant_ids:
                 self._add_participants_locked(meeting_id, group.participant_type, group.participant_ids)
+
+    @staticmethod
+    def _validate_related_groups(groups: tuple[RelatedGroup, ...]) -> None:
+        # Leads and contacts can be mixed freely; the same record cannot be
+        # listed twice, and each type may appear in only one group.
+        seen_types: set[MeetingRelatedRecordType] = set()
+        for group in groups:
+            if not group.record_ids:
+                continue
+            if group.record_type in seen_types:
+                raise ValueError("Duplicate related records are not allowed.")
+            seen_types.add(group.record_type)
+            if len(group.record_ids) != len(set(group.record_ids)):
+                raise ValueError("Duplicate related records are not allowed.")
 
     @staticmethod
     def _validate_participant_groups(groups: tuple[ParticipantGroup, ...]) -> None:
@@ -394,9 +405,6 @@ class DjangoMeetingRepository(MeetingRepository):
     def _add_related_records_locked(self, meeting_id, record_type, record_ids):
         self._lock_active_meeting(meeting_id)
         self._validate_unique_ids(record_ids, "related records")
-        existing_types = set(DjangoMeetingRelatedRecordModel.objects.filter(meeting__company_id=self._company_id, meeting_id=meeting_id).values_list("record_type", flat=True))
-        if existing_types and existing_types != {record_type.value}:
-            raise ValueError("A Meeting cannot have both Lead and Contact Related To records.")
         if record_type == MeetingRelatedRecordType.LEAD:
             valid_ids = set(DjangoLeadModel.objects.filter(company_id=self._company_id, id__in=record_ids, is_deleted=False).values_list("id", flat=True))
         elif record_type == MeetingRelatedRecordType.CONTACT:

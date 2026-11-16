@@ -7,7 +7,6 @@ from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
 from src.modules.meetings.application.dto.update_meeting import UpdateMeetingDTO, _UNSET
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
-from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.meetings.presentation.api.dependencies.meeting_dependencies import (
     get_delete_meeting_use_case,
     get_meeting_use_case,
@@ -15,6 +14,7 @@ from src.modules.meetings.presentation.api.dependencies.meeting_dependencies imp
 )
 
 from ..serializers.meeting import MeetingDetailSerializer
+from ..serializers.related_to import related_groups_from_validated
 from ..serializers.update_meeting import UpdateMeetingSerializer
 from src.modules.shared.presentation.permissions import IsCompanyUser
 
@@ -51,16 +51,10 @@ class MeetingDetailView(APIView):
         relationship_keys = {"related_to", "participants"}
         fields = {key: value for key, value in data.items() if key not in relationship_keys}
 
-        related_record_type = _UNSET
-        related_record_ids = _UNSET
+        # Omitted = leave Related To alone; null or [] = clear it.
+        related_groups = _UNSET
         if "related_to" in data:
-            related_to = data["related_to"]
-            if related_to is None:
-                related_record_type = None
-                related_record_ids = ()
-            else:
-                related_record_type = MeetingRelatedRecordType(related_to["type"])
-                related_record_ids = tuple(related_to["ids"])
+            related_groups = related_groups_from_validated(data["related_to"])
 
         participant_groups = _UNSET
         if "participants" in data:
@@ -70,8 +64,7 @@ class MeetingDetailView(APIView):
         dto = UpdateMeetingDTO(
             meeting_id=meeting_id,
             fields=fields,
-            related_record_type=related_record_type,
-            related_record_ids=related_record_ids,
+            related_groups=related_groups,
             participant_groups=participant_groups,
         )
 

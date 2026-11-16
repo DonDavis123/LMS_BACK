@@ -11,6 +11,7 @@ from src.modules.contacts.infrastructure.persistence.django_contact_model import
 from src.modules.leads.infrastructure.persistence.django_lead_model import (
     DjangoLeadModel,
 )
+from src.modules.meetings.application.dto.related_group import RelatedGroup
 from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.meeting_participant_type import (
     MeetingParticipantType,
@@ -166,8 +167,12 @@ class MeetingInfrastructureTests(TestCase):
         meeting = self._meeting()
         self.repository.save_with_relationships(
             meeting,
-            related_record_type=MeetingRelatedRecordType.LEAD,
-            related_record_ids=(self.lead.id, self.second_lead.id),
+            related_groups=(
+                RelatedGroup(
+                    MeetingRelatedRecordType.LEAD,
+                    (self.lead.id, self.second_lead.id),
+                ),
+            ),
         )
 
         self.assertEqual(
@@ -182,8 +187,12 @@ class MeetingInfrastructureTests(TestCase):
         meeting = self._meeting()
         self.repository.save_with_relationships(
             meeting,
-            related_record_type=MeetingRelatedRecordType.CONTACT,
-            related_record_ids=(self.contact.id, self.second_contact.id),
+            related_groups=(
+                RelatedGroup(
+                    MeetingRelatedRecordType.CONTACT,
+                    (self.contact.id, self.second_contact.id),
+                ),
+            ),
         )
 
         self.assertEqual(
@@ -194,20 +203,111 @@ class MeetingInfrastructureTests(TestCase):
             2,
         )
 
-    def test_related_to_cannot_mix_leads_and_contacts(self):
+    def test_related_to_can_mix_leads_and_contacts(self):
         meeting = self._meeting()
         self.repository.save_with_relationships(
             meeting,
-            related_record_type=MeetingRelatedRecordType.LEAD,
-            related_record_ids=(self.lead.id,),
+            related_groups=(
+                RelatedGroup(
+                    MeetingRelatedRecordType.LEAD,
+                    (self.lead.id, self.second_lead.id),
+                ),
+                RelatedGroup(
+                    MeetingRelatedRecordType.CONTACT,
+                    (self.contact.id, self.second_contact.id),
+                ),
+            ),
         )
 
+        detail = self.repository.get_by_id_with_details(meeting.id)
+        self.assertEqual(len(detail.related_to), 4)
+        self.assertEqual(
+            {item.record_type for item in detail.related_to},
+            {MeetingRelatedRecordType.LEAD, MeetingRelatedRecordType.CONTACT},
+        )
+
+    def test_replace_relationships_replaces_the_whole_selection(self):
+        meeting = self._meeting()
+        self.repository.save_with_relationships(
+            meeting,
+            related_groups=(
+                RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+            ),
+        )
+
+        self.repository.replace_relationships(
+            meeting.id,
+            (
+                RelatedGroup(MeetingRelatedRecordType.LEAD, (self.second_lead.id,)),
+                RelatedGroup(MeetingRelatedRecordType.CONTACT, (self.contact.id,)),
+            ),
+            (),
+        )
+
+        detail = self.repository.get_by_id_with_details(meeting.id)
+        self.assertEqual(
+            {item.id for item in detail.related_to},
+            {self.second_lead.id, self.contact.id},
+        )
+
+        self.repository.replace_relationships(meeting.id, (), ())
+        detail = self.repository.get_by_id_with_details(meeting.id)
+        self.assertEqual(detail.related_to, ())
+
+    def test_same_type_listed_in_two_groups_is_rejected(self):
+        meeting = self._meeting()
+
         with self.assertRaises(ValueError):
-            self.repository.add_related_records(
-                meeting.id,
-                MeetingRelatedRecordType.CONTACT,
-                (self.contact.id,),
+            self.repository.save_with_relationships(
+                meeting,
+                related_groups=(
+                    RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+                    RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+                ),
             )
+
+    def test_meeting_survives_when_one_related_type_is_deleted(self):
+        meeting = self._meeting()
+        self.repository.save_with_relationships(
+            meeting,
+            related_groups=(
+                RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+                RelatedGroup(MeetingRelatedRecordType.CONTACT, (self.contact.id,)),
+            ),
+        )
+
+        self.lead.is_deleted = True
+        self.lead.save(update_fields=["is_deleted"])
+
+        deleted = self.repository.soft_delete_if_orphaned(
+            MeetingRelatedRecordType.LEAD,
+            self.lead.id,
+        )
+
+        self.assertEqual(deleted, [])
+        self.assertIsNotNone(self.repository.get_by_id(meeting.id))
+
+    def test_meeting_is_deleted_when_every_related_record_is_deleted(self):
+        meeting = self._meeting()
+        self.repository.save_with_relationships(
+            meeting,
+            related_groups=(
+                RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+                RelatedGroup(MeetingRelatedRecordType.CONTACT, (self.contact.id,)),
+            ),
+        )
+
+        self.lead.is_deleted = True
+        self.lead.save(update_fields=["is_deleted"])
+        self.contact.is_deleted = True
+        self.contact.save(update_fields=["is_deleted"])
+
+        deleted = self.repository.soft_delete_if_orphaned(
+            MeetingRelatedRecordType.CONTACT,
+            self.contact.id,
+        )
+
+        self.assertEqual(deleted, [meeting.id])
 
     def test_all_participant_types_can_be_used_together(self):
         meeting = self._meeting()
@@ -259,8 +359,9 @@ class MeetingInfrastructureTests(TestCase):
         meeting = self._meeting()
         self.repository.save_with_relationships(
             meeting,
-            related_record_type=MeetingRelatedRecordType.LEAD,
-            related_record_ids=(self.lead.id,),
+            related_groups=(
+                RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+            ),
         )
 
         with self.assertRaises(ValueError):
@@ -276,8 +377,12 @@ class MeetingInfrastructureTests(TestCase):
         with self.assertRaises(ValueError):
             self.repository.save_with_relationships(
                 meeting,
-                related_record_type=MeetingRelatedRecordType.LEAD,
-                related_record_ids=(self.lead.id, self.lead.id),
+                related_groups=(
+                    RelatedGroup(
+                        MeetingRelatedRecordType.LEAD,
+                        (self.lead.id, self.lead.id),
+                    ),
+                ),
             )
 
         self.assertFalse(

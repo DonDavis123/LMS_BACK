@@ -8,6 +8,7 @@ from src.modules.meetings.domain.entities.meeting import Meeting
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
+from src.modules.meetings.application.dto.related_group import RelatedGroup
 from src.modules.shared.application.dto.list_query import ListQuery, PaginatedResult
 
 
@@ -20,8 +21,7 @@ class MeetingRepository(ABC):
     def save_with_relationships(
         self,
         meeting: Meeting,
-        related_record_type: MeetingRelatedRecordType | None = None,
-        related_record_ids: tuple[UUID, ...] = (),
+        related_groups: tuple[RelatedGroup, ...] = (),
         participant_groups: tuple[ParticipantGroup, ...] = (),
     ) -> Meeting:
         pass
@@ -52,8 +52,7 @@ class MeetingRepository(ABC):
     def replace_relationships(
         self,
         meeting_id: UUID,
-        related_record_type: MeetingRelatedRecordType | None,
-        related_record_ids: tuple[UUID, ...],
+        related_groups: tuple[RelatedGroup, ...],
         participant_groups: tuple[ParticipantGroup, ...],
     ) -> None:
         pass

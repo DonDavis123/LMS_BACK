@@ -1,16 +1,6 @@
 from rest_framework import serializers
 
-from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
-
-
-class RelatedToRequestSerializer(serializers.Serializer):
-    type = serializers.ChoiceField(
-        choices=[(item.value, item.value) for item in MeetingRelatedRecordType]
-    )
-    ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        allow_empty=True,
-    )
+from .related_to import RelatedToGroupSerializer, RelatedToSerializerMixin
 
 
 class ParticipantsRequestSerializer(serializers.Serializer):
@@ -31,7 +21,7 @@ class ParticipantsRequestSerializer(serializers.Serializer):
     )
 
 
-class CreateMeetingSerializer(serializers.Serializer):
+class CreateMeetingSerializer(RelatedToSerializerMixin, serializers.Serializer):
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     location = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
@@ -40,6 +30,6 @@ class CreateMeetingSerializer(serializers.Serializer):
     end_at = serializers.DateTimeField()
     reminder_at = serializers.DateTimeField(required=False, allow_null=True)
     host_id = serializers.UUIDField()
-    related_to = RelatedToRequestSerializer(required=False, allow_null=True)
+    related_to = RelatedToGroupSerializer(many=True, required=False, allow_null=True)
     participants = ParticipantsRequestSerializer(required=False)
     add_google_meet = serializers.BooleanField(required=False, default=False)

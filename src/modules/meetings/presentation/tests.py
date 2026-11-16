@@ -248,6 +248,108 @@ class MeetingPresentationApiTests(APITestCase):
             "USER",
         )
 
+    def test_create_with_multiple_leads_and_contacts_in_related_to(self):
+        meeting_id = self._create_meeting(
+            related_to=[
+                {
+                    "type": "LEAD",
+                    "ids": [str(self.lead.id), str(self.second_lead.id)],
+                },
+                {
+                    "type": "CONTACT",
+                    "ids": [str(self.contact.id)],
+                },
+            ],
+        )
+
+        response = self.client.get(f"/api/meetings/{meeting_id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["related_to"]), 3)
+        self.assertEqual(
+            sorted(item["record_type"] for item in response.data["related_to"]),
+            ["CONTACT", "LEAD", "LEAD"],
+        )
+
+    def test_list_returns_every_related_record_with_its_type(self):
+        self._create_meeting(
+            related_to=[
+                {"type": "LEAD", "ids": [str(self.lead.id)]},
+                {"type": "CONTACT", "ids": [str(self.contact.id)]},
+            ],
+        )
+
+        response = self.client.get("/api/meetings/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        related = response.data["results"][0]["related_to"]
+        self.assertEqual(
+            sorted((item["type"], item["name"]) for item in related),
+            [("CONTACT", "API Contact"), ("LEAD", "API Lead")],
+        )
+
+    def test_update_replaces_related_to_with_a_new_mixed_selection(self):
+        meeting_id = self._create_meeting(
+            related_to={"type": "LEAD", "ids": [str(self.lead.id)]},
+        )
+
+        response = self.client.patch(
+            f"/api/meetings/{meeting_id}/",
+            {
+                "related_to": [
+                    {"type": "LEAD", "ids": [str(self.second_lead.id)]},
+                    {"type": "CONTACT", "ids": [str(self.contact.id)]},
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(
+            DjangoMeetingRelatedRecordModel.objects.filter(
+                meeting_id=meeting_id
+            ).count(),
+            2,
+        )
+        self.assertFalse(
+            DjangoMeetingRelatedRecordModel.objects.filter(
+                meeting_id=meeting_id, lead_id=self.lead.id
+            ).exists()
+        )
+
+    def test_update_with_empty_related_to_list_clears_it(self):
+        meeting_id = self._create_meeting(
+            related_to={"type": "LEAD", "ids": [str(self.lead.id)]},
+        )
+
+        response = self.client.patch(
+            f"/api/meetings/{meeting_id}/",
+            {"related_to": []},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(
+            DjangoMeetingRelatedRecordModel.objects.filter(
+                meeting_id=meeting_id
+            ).count(),
+            0,
+        )
+
+    def test_duplicate_related_record_is_rejected(self):
+        response = self.client.post(
+            "/api/meetings/",
+            self._payload(
+                related_to=[
+                    {"type": "LEAD", "ids": [str(self.lead.id)]},
+                    {"type": "LEAD", "ids": [str(self.lead.id)]},
+                ],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_detail_returns_404_for_missing_meeting(self):
         response = self.client.get(
             f"/api/meetings/{uuid.uuid4()}/"

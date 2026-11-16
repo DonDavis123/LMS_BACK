@@ -4,6 +4,17 @@ from src.modules.meetings.application.dto.get_meeting import GetMeetingDTO
 from src.modules.meetings.application.dto.get_meetings import GetMeetingsDTO
 
 
+class MeetingListRelatedItemSerializer(serializers.Serializer):
+    type = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return obj[0].value
+
+    def get_name(self, obj):
+        return obj[1]
+
+
 class MeetingListSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     title = serializers.CharField()
@@ -12,6 +23,7 @@ class MeetingListSerializer(serializers.Serializer):
     reminder_at = serializers.DateTimeField(allow_null=True)
     related_to_type = serializers.SerializerMethodField()
     related_to_names = serializers.ListField(child=serializers.CharField())
+    related_to = MeetingListRelatedItemSerializer(source="related_to_items", many=True)
     contact_names = serializers.ListField(child=serializers.CharField())
     host_id = serializers.UUIDField()
     host_name = serializers.CharField()

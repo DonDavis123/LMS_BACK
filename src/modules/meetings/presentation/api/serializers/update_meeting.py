@@ -1,16 +1,6 @@
 from rest_framework import serializers
 
-from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
-
-
-class RelatedToUpdateSerializer(serializers.Serializer):
-    type = serializers.ChoiceField(
-        choices=[(item.value, item.value) for item in MeetingRelatedRecordType]
-    )
-    ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        allow_empty=True,
-    )
+from .related_to import RelatedToGroupSerializer, RelatedToSerializerMixin
 
 
 class ParticipantsUpdateSerializer(serializers.Serializer):
@@ -31,7 +21,7 @@ class ParticipantsUpdateSerializer(serializers.Serializer):
     )
 
 
-class UpdateMeetingSerializer(serializers.Serializer):
+class UpdateMeetingSerializer(RelatedToSerializerMixin, serializers.Serializer):
     title = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     location = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
@@ -40,5 +30,5 @@ class UpdateMeetingSerializer(serializers.Serializer):
     end_at = serializers.DateTimeField(required=False)
     reminder_at = serializers.DateTimeField(required=False, allow_null=True)
     host_id = serializers.UUIDField(required=False)
-    related_to = RelatedToUpdateSerializer(required=False, allow_null=True)
+    related_to = RelatedToGroupSerializer(many=True, required=False, allow_null=True)
     participants = ParticipantsUpdateSerializer(required=False, allow_null=True)

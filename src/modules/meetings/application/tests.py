@@ -6,6 +6,7 @@ from src.modules.meetings.application.dto.create_meeting import CreateMeetingDTO
 from src.modules.meetings.application.dto.get_meeting import GetMeetingDTO, MeetingParticipantDTO, MeetingRelatedRecordDTO
 from src.modules.meetings.application.dto.get_meetings import GetMeetingsDTO
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
+from src.modules.meetings.application.dto.related_group import RelatedGroup
 from src.modules.meetings.application.dto.update_meeting import UpdateMeetingDTO
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.application.use_cases.create_meeting import CreateMeetingUseCase
@@ -102,8 +103,7 @@ class FakeMeetingRepo(MeetingRepository):
     def save_with_relationships(
         self,
         meeting,
-        related_record_type=None,
-        related_record_ids=(),
+        related_groups=(),
         participant_groups=(),
     ):
         self.meetings[meeting.id] = meeting
@@ -111,8 +111,7 @@ class FakeMeetingRepo(MeetingRepository):
         self.replaced.append(
             (
                 meeting.id,
-                related_record_type,
-                related_record_ids,
+                related_groups,
                 participant_groups,
             )
         )
@@ -136,15 +135,13 @@ class FakeMeetingRepo(MeetingRepository):
     def replace_relationships(
         self,
         meeting_id,
-        related_record_type,
-        related_record_ids,
+        related_groups,
         participant_groups,
     ):
         self.replaced.append(
             (
                 meeting_id,
-                related_record_type,
-                related_record_ids,
+                related_groups,
                 participant_groups,
             )
         )
@@ -316,8 +313,9 @@ class MeetingApplicationTests(unittest.TestCase):
     def test_create_validates_related_lead(self):
         m = self.usecase.execute(
             self.dto(
-                related_record_type=MeetingRelatedRecordType.LEAD,
-                related_record_ids=(self.lead.id,),
+                related_groups=(
+                    RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+                ),
             )
         )
 
@@ -331,14 +329,73 @@ class MeetingApplicationTests(unittest.TestCase):
             ],
         )
 
-    def test_create_rejects_mixed_related_type_at_application_boundary(self):
+    def test_create_rejects_contact_id_listed_as_lead(self):
         with self.assertRaises(ValueError):
             self.usecase.execute(
                 self.dto(
-                    related_record_type=MeetingRelatedRecordType.LEAD,
-                    related_record_ids=(
-                        self.lead.id,
-                        self.contact.id,
+                    related_groups=(
+                        RelatedGroup(
+                            MeetingRelatedRecordType.LEAD,
+                            (self.lead.id, self.contact.id),
+                        ),
+                    ),
+                )
+            )
+
+    def test_create_allows_leads_and_contacts_together(self):
+        second_lead = FakeLead(uuid4(), "Second Lead")
+        self.leads[second_lead.id] = second_lead
+
+        m = self.usecase.execute(
+            self.dto(
+                related_groups=(
+                    RelatedGroup(
+                        MeetingRelatedRecordType.LEAD,
+                        (self.lead.id, second_lead.id),
+                    ),
+                    RelatedGroup(
+                        MeetingRelatedRecordType.CONTACT,
+                        (self.contact.id,),
+                    ),
+                ),
+            )
+        )
+
+        self.assertEqual(
+            self.timeline.events[-1]["targets"],
+            [
+                ("MEETING", m.id),
+                (MeetingRelatedRecordType.LEAD.value, self.lead.id),
+                (MeetingRelatedRecordType.LEAD.value, second_lead.id),
+                (MeetingRelatedRecordType.CONTACT.value, self.contact.id),
+            ],
+        )
+        self.assertEqual(len(self.repo.replaced[-1][1]), 2)
+
+    def test_create_rejects_duplicate_related_record(self):
+        with self.assertRaises(ValueError):
+            self.usecase.execute(
+                self.dto(
+                    related_groups=(
+                        RelatedGroup(
+                            MeetingRelatedRecordType.LEAD,
+                            (self.lead.id, self.lead.id),
+                        ),
+                    ),
+                )
+            )
+
+    def test_create_rejects_deleted_related_contact(self):
+        self.contact.is_deleted = True
+
+        with self.assertRaises(ValueError):
+            self.usecase.execute(
+                self.dto(
+                    related_groups=(
+                        RelatedGroup(
+                            MeetingRelatedRecordType.CONTACT,
+                            (self.contact.id,),
+                        ),
                     ),
                 )
             )
@@ -366,7 +423,7 @@ class MeetingApplicationTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            len(self.repo.replaced[-1][3]),
+            len(self.repo.replaced[-1][2]),
             3,
         )
 
@@ -466,16 +523,53 @@ class MeetingApplicationTests(unittest.TestCase):
             UpdateMeetingDTO(
                 m.id,
                 {},
-                MeetingRelatedRecordType.LEAD,
-                (self.lead.id,),
+                (RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),),
                 (),
             )
         )
 
         self.assertEqual(
-            self.repo.replaced[-1][2],
-            (self.lead.id,),
+            self.repo.replaced[-1][1],
+            (RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),),
         )
+
+    def test_update_related_to_leads_and_contacts_together(self):
+        m = self.usecase.execute(self.dto())
+        self.add_meeting_detail(m)
+
+        uc = UpdateMeetingUseCase(
+            self.repo,
+            FakeUserRepo(self.users),
+            FakeLeadRepo(self.leads),
+            FakeContactRepo(self.contacts),
+            self.timeline,
+            self.tx,
+        )
+
+        groups = (
+            RelatedGroup(MeetingRelatedRecordType.LEAD, (self.lead.id,)),
+            RelatedGroup(MeetingRelatedRecordType.CONTACT, (self.contact.id,)),
+        )
+        uc.execute(UpdateMeetingDTO(m.id, {}, groups, ()))
+
+        self.assertEqual(self.repo.replaced[-1][1], groups)
+
+    def test_update_can_clear_related_to(self):
+        m = self.usecase.execute(self.dto())
+        self.add_meeting_detail(m)
+
+        uc = UpdateMeetingUseCase(
+            self.repo,
+            FakeUserRepo(self.users),
+            FakeLeadRepo(self.leads),
+            FakeContactRepo(self.contacts),
+            self.timeline,
+            self.tx,
+        )
+
+        uc.execute(UpdateMeetingDTO(m.id, {}, (), ()))
+
+        self.assertEqual(self.repo.replaced[-1][1], ())
 
     def test_delete_soft(self):
         m = self.usecase.execute(
@@ -513,7 +607,7 @@ class MeetingApplicationTests(unittest.TestCase):
 
         self.assertEqual(
             self.repo.replaced[-1][1],
-            None,
+            (),
         )
 
     def test_orphan_cleanup_is_repository_driven(self):

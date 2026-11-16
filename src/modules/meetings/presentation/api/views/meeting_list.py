@@ -11,7 +11,6 @@ from src.modules.meetings.application.interfaces.video_conference_provider impor
 )
 from src.modules.meetings.domain.enums.conference_status import ConferenceStatus
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
-from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.meetings.presentation.api.dependencies.meeting_dependencies import (
     get_create_meeting_use_case,
     get_meetings_use_case,
@@ -20,6 +19,7 @@ from src.modules.shared.presentation.query_params import parse_list_query
 
 from ..serializers.create_meeting import CreateMeetingSerializer
 from ..serializers.meeting import MeetingListSerializer
+from ..serializers.related_to import related_groups_from_validated
 from src.modules.shared.presentation.permissions import IsCompanyUser
 
 
@@ -68,13 +68,6 @@ class MeetingListView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        related_to = data.get("related_to")
-        related_record_type = None
-        related_record_ids = ()
-        if related_to is not None:
-            related_record_type = MeetingRelatedRecordType(related_to["type"])
-            related_record_ids = tuple(related_to["ids"])
-
         participants = data.get("participants") or {}
         dto = CreateMeetingDTO(
             title=data["title"],
@@ -86,8 +79,7 @@ class MeetingListView(APIView):
             location=data.get("location"),
             is_all_day=data.get("is_all_day", False),
             reminder_at=data.get("reminder_at"),
-            related_record_type=related_record_type,
-            related_record_ids=related_record_ids,
+            related_groups=related_groups_from_validated(data.get("related_to")),
             participant_groups=_participant_groups(participants),
             add_google_meet=data.get("add_google_meet", False),
         )

@@ -2,10 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
-from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
-
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
+from src.modules.meetings.application.dto.related_group import RelatedGroup
 
 
 @dataclass(frozen=True)
@@ -19,7 +17,6 @@ class CreateMeetingDTO:
     location: str | None = None
     is_all_day: bool = False
     reminder_at: datetime | None = None
-    related_record_type: MeetingRelatedRecordType | None = None
-    related_record_ids: tuple[UUID, ...] = ()
+    related_groups: tuple[RelatedGroup, ...] = ()
     participant_groups: tuple[ParticipantGroup, ...] = ()
     add_google_meet: bool = False

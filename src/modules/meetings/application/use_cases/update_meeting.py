@@ -3,10 +3,12 @@ from uuid import UUID
 from src.modules.contacts.application.interfaces.contact_repository import ContactRepository
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 from src.modules.meetings.application.dto.participant_group import ParticipantGroup
+from src.modules.meetings.application.dto.related_group import RelatedGroup
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.meetings.application.dto.update_meeting import UpdateMeetingDTO, _UNSET
 from src.modules.meetings.application.interfaces.meeting_repository import MeetingRepository
 from src.modules.meetings.application.services.meeting_conference_service import MeetingConferenceService
+from src.modules.meetings.application.services.related_validation import validate_related_groups
 from src.modules.meetings.domain.enums.meeting_participant_type import MeetingParticipantType
 from src.modules.meetings.domain.enums.meeting_related_record_type import MeetingRelatedRecordType
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
@@ -59,16 +61,11 @@ class UpdateMeetingUseCase:
         if meeting.external_event_id and fields.get("is_all_day"):
             raise ValueError("A meeting with Google Meet cannot be changed to an all-day meeting.")
 
-        related_changed = data.related_record_type is not _UNSET or data.related_record_ids is not _UNSET
+        related_changed = data.related_groups is not _UNSET
+        related_groups: tuple[RelatedGroup, ...] = ()
         if related_changed:
-            if data.related_record_type is _UNSET or data.related_record_ids is _UNSET:
-                raise ValueError("Related To type and IDs must be supplied together when updating Related To.")
-            related_type = data.related_record_type
-            related_ids = tuple(data.related_record_ids)
-            self._validate_related(related_type, related_ids)
-        else:
-            related_type = None
-            related_ids = ()
+            related_groups = tuple(data.related_groups)
+            self._validate_related(related_groups)
 
         participants_changed = data.participant_groups is not _UNSET
         participant_groups = () if data.participant_groups is _UNSET else tuple(data.participant_groups)
@@ -114,11 +111,16 @@ class UpdateMeetingUseCase:
                 )
 
             if related_changed or participants_changed:
-                current_related_type = related_type
-                current_related_ids = related_ids
-                if not related_changed and existing_detail.related_to:
-                    current_related_type = existing_detail.related_to[0].record_type
-                    current_related_ids = tuple(item.id for item in existing_detail.related_to)
+                current_related_groups = related_groups
+                if not related_changed:
+                    # Participants changed on their own: keep Related To as it is.
+                    grouped_related: dict[MeetingRelatedRecordType, list[UUID]] = {}
+                    for item in existing_detail.related_to:
+                        grouped_related.setdefault(item.record_type, []).append(item.id)
+                    current_related_groups = tuple(
+                        RelatedGroup(record_type=record_type, record_ids=tuple(ids))
+                        for record_type, ids in grouped_related.items()
+                    )
 
                 current_participants = participant_groups
                 if not participants_changed:
@@ -135,8 +137,7 @@ class UpdateMeetingUseCase:
 
                 self.meeting_repository.replace_relationships(
                     meeting.id,
-                    current_related_type,
-                    current_related_ids,
+                    current_related_groups,
                     current_participants,
                 )
 
@@ -242,22 +243,30 @@ class UpdateMeetingUseCase:
     @staticmethod
     def _relationship_snapshot(detail) -> dict:
         return {
-            "related_to": [
-                {
-                    "type": item.record_type.value,
-                    "id": str(item.id),
-                    "name": item.name,
-                }
-                for item in detail.related_to
-            ],
-            "participants": [
-                {
-                    "type": item.participant_type.value,
-                    "id": str(item.id),
-                    "name": item.name,
-                }
-                for item in detail.participants
-            ],
+            # Sorted: rows get new ids on every save, so database order alone
+            # would report a change when the selection is identical.
+            "related_to": sorted(
+                (
+                    {
+                        "type": item.record_type.value,
+                        "id": str(item.id),
+                        "name": item.name,
+                    }
+                    for item in detail.related_to
+                ),
+                key=lambda entry: (entry["type"], entry["id"]),
+            ),
+            "participants": sorted(
+                (
+                    {
+                        "type": item.participant_type.value,
+                        "id": str(item.id),
+                        "name": item.name,
+                    }
+                    for item in detail.participants
+                ),
+                key=lambda entry: (entry["type"], entry["id"]),
+            ),
         }
 
     def _relationship_changes(self, old_detail, new_detail) -> dict | None:
@@ -293,27 +302,8 @@ class UpdateMeetingUseCase:
         if user is None or not user.is_active:
             raise ValueError(f"{label} does not exist or is inactive.")
 
-    def _validate_related(self, record_type, record_ids):
-        if not record_ids:
-            if record_type is not None:
-                raise ValueError("Related record IDs are required when Related To type is supplied.")
-            return
-        if record_type is None:
-            raise ValueError("Related record type is required when related records are supplied.")
-        if len(record_ids) != len(set(record_ids)):
-            raise ValueError("Duplicate Related To records are not allowed.")
-        if record_type == MeetingRelatedRecordType.LEAD:
-            for record_id in record_ids:
-                lead = self.lead_repository.get_by_id(record_id)
-                if lead is None or lead.is_deleted:
-                    raise ValueError("Selected lead not found or is deleted.")
-        elif record_type == MeetingRelatedRecordType.CONTACT:
-            for record_id in record_ids:
-                contact = self.contact_repository.get_by_id(record_id)
-                if contact is None or contact.is_deleted:
-                    raise ValueError("Selected contact not found or is deleted.")
-        else:
-            raise ValueError("Unsupported Related To type.")
+    def _validate_related(self, groups: tuple[RelatedGroup, ...]) -> None:
+        validate_related_groups(groups, self.lead_repository, self.contact_repository)
 
     def _validate_participants(self, groups):
         seen: set[UUID] = set()

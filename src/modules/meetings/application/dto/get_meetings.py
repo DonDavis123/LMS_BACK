@@ -19,3 +19,6 @@ class GetMeetingsDTO:
     host_name: str
     meet_link: str | None = None
     conference_status: str = "none"
+    # (type, name) for every related record, so a list can show leads and
+    # contacts side by side. `related_to_type` stays the first record's type.
+    related_to_items: tuple[tuple[MeetingRelatedRecordType, str], ...] = ()
