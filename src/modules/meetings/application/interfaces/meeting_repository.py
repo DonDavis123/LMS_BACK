@@ -44,6 +44,11 @@ class MeetingRepository(ABC):
         pass
 
     @abstractmethod
+    def get_conference_meetings_not_ended(self, as_of: datetime) -> list[Meeting]:
+        """Active meetings with a created Meet link that have not ended yet."""
+        pass
+
+    @abstractmethod
     def replace_relationships(
         self,
         meeting_id: UUID,

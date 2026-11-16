@@ -109,6 +109,10 @@ class MeetingConferenceService:
         except VideoConferenceError as exc:
             logger.warning("Google event cancel failed for meeting %s: %s", meeting.id, exc)
 
+    def reminder_recipient_emails(self, meeting: Meeting) -> tuple[str, ...]:
+        """Who gets the reminder email: the same people Google invited."""
+        return self._attendee_emails(meeting, meeting.calendar_owner_id or meeting.host_id)
+
     def _build_event(self, meeting: Meeting, owner_id: UUID) -> ConferenceEvent:
         return ConferenceEvent(
             title=meeting.title,

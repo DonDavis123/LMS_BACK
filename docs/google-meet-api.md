@@ -138,3 +138,19 @@ Users are invited at their `google_email` when set, otherwise their `email`.
 - Meetings that are auto-deleted because their Related To lead/contact was
   deleted do not cancel their Google event.
 - Reminders and the timeline do not include the Meet link.
+
+## Participant reminder emails
+
+Google only reminds people whose calendar is Google, and only per their own
+calendar settings. So the CRM also emails every participant (users, leads,
+contacts with an email) the Meet link shortly before the meeting.
+
+- Runs inside the existing notification cron (`POST /api/internal/notifications/process/`
+  or `manage.py process_notifications`). **The cron must run about every minute.**
+- Sent at the meeting's `reminder_at` if one is set, otherwise 15 minutes before `start_at`.
+- Sent once per reminder time. Rescheduling the meeting re-arms it.
+- A meeting created inside the reminder window gets no reminder (the invite just went out).
+- If the mail relay is down the send is retried on the next cron run until the meeting ends.
+- Uses the same mail setup as password reset (`EMAIL_PROVIDER` = `http` or `smtp`),
+  sent from `DEFAULT_FROM_EMAIL`, one email per recipient.
+- The cron response includes `meeting_reminder_emails_sent`.

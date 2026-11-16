@@ -6,6 +6,9 @@ from django.utils import timezone
 from src.modules.calls.infrastructure.persistence.django_call_repository import DjangoCallRepository
 from src.modules.companies.infrastructure.persistence.active_companies import get_active_company_ids
 from src.modules.meetings.infrastructure.persistence.django_meeting_repository import DjangoMeetingRepository
+from src.modules.meetings.presentation.api.dependencies.meeting_dependencies import (
+    get_send_meeting_participant_reminders_use_case,
+)
 from src.modules.notifications.application.dto.process_notifications import ProcessNotificationsResult
 from src.modules.notifications.application.use_cases.process_notifications import ProcessNotificationsUseCase
 from src.modules.notifications.infrastructure.persistence.django_notification_repository import DjangoNotificationRepository
@@ -27,7 +30,16 @@ class Command(BaseCommand):
         self.stdout.write(f"Processing notifications at {now.isoformat()}")
         try:
             result = ProcessNotificationsResult()
+            meeting_reminder_emails_sent = 0
             for company_id in get_active_company_ids():
+                try:
+                    meeting_reminder_emails_sent += (
+                        get_send_meeting_participant_reminders_use_case(company_id).execute(now)
+                    )
+                except Exception:
+                    logger.exception(
+                        "Meeting participant reminders failed for company_id=%s", company_id
+                    )
                 try:
                     company_result = ProcessNotificationsUseCase(
                         notification_repository=DjangoNotificationRepository(company_id=company_id),
@@ -55,6 +67,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Reminders deleted: {result.reminders_deleted}")
         self.stdout.write(f"Task notifications created: {result.task_notifications_created}")
         self.stdout.write(f"Meeting notifications created: {result.meeting_notifications_created}")
+        self.stdout.write(f"Meeting reminder emails sent: {meeting_reminder_emails_sent}")
         self.stdout.write(f"Duplicates skipped: {result.duplicates_skipped}")
         self.stdout.write(f"Planned calls marked missed: {result.calls_marked_missed}")
         self.stdout.write(f"Expired notifications deleted: {result.expired_notifications_deleted}")

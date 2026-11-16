@@ -70,6 +70,7 @@ class DjangoMeetingRepository(MeetingRepository):
                 "conference_status": meeting.conference_status.value,
                 "conference_error": meeting.conference_error,
                 "calendar_owner_id": meeting.calendar_owner_id,
+                "participant_reminder_for": meeting.participant_reminder_for,
             },
         )
         return self._to_domain(model)
@@ -246,6 +247,20 @@ class DjangoMeetingRepository(MeetingRepository):
                 start_at__gte=start_at,
                 start_at__lt=end_at,
             )
+            .order_by("start_at", "id")
+        )
+        return [self._to_domain(model) for model in models]
+
+    def get_conference_meetings_not_ended(self, as_of: datetime) -> list[Meeting]:
+        models = (
+            self._base_queryset()
+            .filter(
+                is_deleted=False,
+                conference_status=ConferenceStatus.CREATED.value,
+                meet_link__isnull=False,
+                end_at__gt=as_of,
+            )
+            .exclude(meet_link="")
             .order_by("start_at", "id")
         )
         return [self._to_domain(model) for model in models]
@@ -471,4 +486,5 @@ class DjangoMeetingRepository(MeetingRepository):
             conference_status=ConferenceStatus(model.conference_status),
             conference_error=model.conference_error,
             calendar_owner_id=model.calendar_owner_id,
+            participant_reminder_for=model.participant_reminder_for,
         )

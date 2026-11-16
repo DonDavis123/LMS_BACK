@@ -17,6 +17,9 @@ from src.modules.companies.infrastructure.persistence.active_companies import (
 from src.modules.meetings.infrastructure.persistence.django_meeting_repository import (
     DjangoMeetingRepository,
 )
+from src.modules.meetings.presentation.api.dependencies.meeting_dependencies import (
+    get_send_meeting_participant_reminders_use_case,
+)
 from src.modules.notifications.application.dto.process_notifications import (
     ProcessNotificationsResult,
 )
@@ -82,7 +85,18 @@ class NotificationCronProcessView(APIView):
         try:
             result = ProcessNotificationsResult()
             failed_company_ids = []
+            meeting_reminder_emails_sent = 0
             for company_id in get_active_company_ids():
+                # Meet-link reminder emails to participants. Isolated so a
+                # mail problem never blocks the in-app notifications below.
+                try:
+                    meeting_reminder_emails_sent += (
+                        get_send_meeting_participant_reminders_use_case(company_id).execute(now)
+                    )
+                except Exception:
+                    logger.exception(
+                        "Meeting participant reminders failed for company_id=%s", company_id
+                    )
                 try:
                     company_result = ProcessNotificationsUseCase(
                         notification_repository=DjangoNotificationRepository(company_id=company_id),
@@ -128,6 +142,7 @@ class NotificationCronProcessView(APIView):
                 "reminders_deleted": result.reminders_deleted,
                 "task_notifications_created": result.task_notifications_created,
                 "meeting_notifications_created": result.meeting_notifications_created,
+                "meeting_reminder_emails_sent": meeting_reminder_emails_sent,
                 "duplicates_skipped": result.duplicates_skipped,
                 "calls_marked_missed": result.calls_marked_missed,
                 "expired_notifications_deleted": result.expired_notifications_deleted,

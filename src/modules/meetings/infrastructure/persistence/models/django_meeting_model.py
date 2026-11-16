@@ -114,6 +114,14 @@ class DjangoMeetingModel(models.Model):
         related_name="+",
     )
 
+    # The reminder time (UTC) a participant reminder email was last sent for.
+    # Comparing it with the current reminder time means moving the meeting
+    # re-arms the reminder without any reset logic.
+    participant_reminder_for = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
     class Meta:
         db_table = "meetings"
         indexes = [

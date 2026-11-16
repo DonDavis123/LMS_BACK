@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from src.modules.meetings.domain.enums.conference_provider import ConferenceProvider
@@ -29,6 +29,8 @@ class Meeting:
     conference_error: str | None = None
     # User whose calendar holds the external event.
     calendar_owner_id: UUID | None = None
+    # Reminder time that the participant reminder email was already sent for.
+    participant_reminder_for: datetime | None = None
 
     @classmethod
     def create(
@@ -81,6 +83,11 @@ class Meeting:
             raise ValueError("Meeting is already deleted.")
 
         self.is_deleted = True
+
+    def participant_reminder_time(self, default_lead: timedelta) -> datetime:
+        """When participants should be reminded: ``reminder_at`` if the user
+        set one, otherwise ``default_lead`` before the meeting starts."""
+        return self.reminder_at or (self.start_at - default_lead)
 
     @property
     def has_conference(self) -> bool:

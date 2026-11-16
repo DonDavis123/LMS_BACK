@@ -158,6 +158,15 @@ class FakeMeetingRepo(MeetingRepository):
         meeting.is_deleted = True
         return meeting
 
+    def get_conference_meetings_not_ended(self, as_of):
+        return [
+            meeting
+            for meeting in self.meetings.values()
+            if not getattr(meeting, "is_deleted", False)
+            and getattr(meeting, "meet_link", None)
+            and meeting.end_at > as_of
+        ]
+
     def get_by_start_at_range(self, start_at, end_at):
         return [
             meeting

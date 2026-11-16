@@ -11,7 +11,11 @@ from src.modules.meetings.application.use_cases.add_meeting_conference import (
     AddMeetingConferenceUseCase,
 )
 from src.modules.meetings.application.use_cases.create_meeting import CreateMeetingUseCase
+from src.modules.meetings.application.use_cases.send_meeting_participant_reminders import (
+    SendMeetingParticipantRemindersUseCase,
+)
 from src.modules.meetings.infrastructure.google_meet_provider import GoogleMeetProvider
+from src.modules.meetings.infrastructure.meeting_reminder_emailer import MeetingReminderEmailer
 from src.modules.reminders.application.services.reminder_sync_service import ReminderSyncService
 from src.modules.reminders.infrastructure.persistence.django_reminder_repository import DjangoReminderRepository
 from src.modules.meetings.application.use_cases.delete_meeting import DeleteMeetingUseCase
@@ -93,4 +97,19 @@ def get_add_meeting_conference_use_case(ctx: TenantContext) -> AddMeetingConfere
     return AddMeetingConferenceUseCase(
         DjangoMeetingRepository(company_id=ctx.company_id),
         conference_service(ctx),
+    )
+
+
+def get_send_meeting_participant_reminders_use_case(
+    company_id,
+) -> SendMeetingParticipantRemindersUseCase:
+    """Used by the notification cron, which has no request/TenantContext."""
+    return SendMeetingParticipantRemindersUseCase(
+        DjangoMeetingRepository(company_id=company_id),
+        MeetingConferenceService(
+            DjangoMeetingRepository(company_id=company_id),
+            DjangoUserRepository(company_id=company_id),
+            GoogleMeetProvider(get_google_access_token_service(company_id)),
+        ),
+        MeetingReminderEmailer(),
     )
