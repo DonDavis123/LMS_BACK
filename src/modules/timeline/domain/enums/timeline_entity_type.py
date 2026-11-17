@@ -8,3 +8,4 @@ class TimelineEntityType(str, Enum):
     TASK = "TASK"
     MEETING = "MEETING"
     CALL = "CALL"
+    DEAL = "DEAL"

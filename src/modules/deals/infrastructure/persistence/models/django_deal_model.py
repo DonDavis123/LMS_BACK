@@ -1,0 +1,149 @@
+import uuid
+
+from django.conf import settings
+from django.db import models
+
+from src.modules.accounts.infrastructure.persistence.django_account_model import (
+    DjangoAccountModel,
+)
+from src.modules.contacts.infrastructure.persistence.django_contact_model import (
+    DjangoContactModel,
+)
+from src.modules.deals.domain.enums.deal_stage import (
+    DEFAULT_PROBABILITY,
+    DealStage,
+)
+from src.modules.leads.infrastructure.persistence.django_lead_model import (
+    DjangoLeadModel,
+)
+
+
+class DjangoDealModel(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    name = models.CharField(
+        max_length=255,
+    )
+
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+
+    expected_close_date = models.DateField(
+        blank=True,
+        null=True,
+    )
+
+    stage = models.CharField(
+        max_length=100,
+        choices=[
+            (stage.value, stage.value)
+            for stage in DealStage
+        ],
+        default=DealStage.NEW.value,
+    )
+
+    probability = models.PositiveSmallIntegerField(
+        default=DEFAULT_PROBABILITY[DealStage.NEW],
+    )
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="owned_deals",
+    )
+
+    account = models.ForeignKey(
+        DjangoAccountModel,
+        on_delete=models.PROTECT,
+        related_name="deals",
+        blank=True,
+        null=True,
+    )
+
+    contact = models.ForeignKey(
+        DjangoContactModel,
+        on_delete=models.PROTECT,
+        related_name="deals",
+        blank=True,
+        null=True,
+    )
+
+    source_lead = models.ForeignKey(
+        DjangoLeadModel,
+        on_delete=models.SET_NULL,
+        related_name="deals",
+        blank=True,
+        null=True,
+    )
+
+    lead_source = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
+    description = models.TextField(
+        blank=True,
+        null=True,
+    )
+
+    lost_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+
+    closed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_deals",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    is_deleted = models.BooleanField(
+        default=False,
+    )
+
+    company = models.ForeignKey(
+        "companies.DjangoCompanyModel",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        db_index=True,
+    )
+
+    class Meta:
+        db_table = "deals"
+        indexes = [
+            models.Index(
+                fields=["company", "is_deleted", "stage"],
+                name="deals_company_stage_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "expected_close_date"],
+                name="deals_company_close_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name

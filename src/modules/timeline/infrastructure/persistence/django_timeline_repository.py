@@ -7,6 +7,7 @@ from django.db.models import Prefetch
 from src.modules.accounts.infrastructure.persistence.django_account_model import DjangoAccountModel
 from src.modules.calls.infrastructure.persistence.models.django_call_model import DjangoCallModel
 from src.modules.contacts.infrastructure.persistence.django_contact_model import DjangoContactModel
+from src.modules.deals.infrastructure.persistence.models.django_deal_model import DjangoDealModel
 from src.modules.leads.infrastructure.persistence.django_lead_model import DjangoLeadModel
 from src.modules.meetings.infrastructure.persistence.models.django_meeting_model import DjangoMeetingModel
 from src.modules.tasks.infrastructure.persistence.models.django_task_model import DjangoTaskModel
@@ -211,6 +212,7 @@ class DjangoTimelineRepository(TimelineRepository):
             "TASK": DjangoTaskModel,
             "MEETING": DjangoMeetingModel,
             "CALL": DjangoCallModel,
+            "DEAL": DjangoDealModel,
         }
         model = models.get(entity_type)
         if model is None:
