@@ -72,6 +72,22 @@ class DjangoCallRecordingTranscriptRepository(CallRecordingTranscriptRepository)
 
         return self._to_domain(model)
 
+    def get_completed_for_calls(
+        self,
+        call_ids: list[UUID],
+    ) -> list[CallRecordingTranscript]:
+        ids = list(call_ids)
+        if not ids:
+            return []
+
+        models = self._base_queryset().filter(
+            call_id__in=ids,
+            call__is_deleted=False,
+            status=TranscriptionStatus.COMPLETED.value,
+        ).order_by("-completed_at", "-id")
+
+        return [self._to_domain(model) for model in models]
+
     @staticmethod
     def _to_domain(model: DjangoCallRecordingTranscriptModel) -> CallRecordingTranscript:
         return CallRecordingTranscript(

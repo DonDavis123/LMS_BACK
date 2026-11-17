@@ -21,3 +21,14 @@ class CallRecordingTranscriptRepository(ABC):
     @abstractmethod
     def get_by_recording_id(self, recording_id: UUID) -> CallRecordingTranscript | None:
         pass
+
+    def get_completed_for_calls(
+        self,
+        call_ids: list[UUID],
+    ) -> list[CallRecordingTranscript]:
+        """COMPLETED transcripts (with a summary) of the given calls, newest first.
+
+        One query for all calls. Not abstract so existing in-memory test
+        doubles keep working.
+        """
+        raise NotImplementedError

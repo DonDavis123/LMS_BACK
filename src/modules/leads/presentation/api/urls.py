@@ -18,6 +18,9 @@ from src.modules.leads.presentation.api.views.convert_lead import (
 from src.modules.leads.presentation.api.views.conversion_check import (
     ConversionCheckView,
 )
+from src.modules.leads.presentation.api.views.lead_summary import (
+    GenerateLeadSummaryView,
+)
 from src.modules.leads.presentation.api.views.lead_import import (
     ImportCancelView,
     ImportDraftView,
@@ -174,6 +177,11 @@ path(
     "<uuid:lead_id>/conversion-check/",
     ConversionCheckView.as_view(),
     name="conversion-check",
+),
+path(
+    "<uuid:lead_id>/summary/",
+    GenerateLeadSummaryView.as_view(),
+    name="lead-summary",
 ),
 
 
