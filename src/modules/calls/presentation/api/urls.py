@@ -4,6 +4,7 @@ from .views.call_detail import CallDetailView
 from .views.call_history import CallRecordHistoryView
 from .views.call_list import CallListView
 from .views.call_record_list import CallRecordListView
+from .views.call_recording_transcript import CallRecordingTranscriptView
 from .views.call_recording import (
     CallRecordingDetailView,
     CallRecordingFileView,
@@ -34,5 +35,10 @@ urlpatterns = [
         "<uuid:call_id>/recordings/<uuid:recording_id>/file/",
         CallRecordingFileView.as_view(),
         name="call-recording-file",
+    ),
+    path(
+        "<uuid:call_id>/recordings/<uuid:recording_id>/transcript/",
+        CallRecordingTranscriptView.as_view(),
+        name="call-recording-transcript",
     ),
 ]

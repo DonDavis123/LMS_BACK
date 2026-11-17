@@ -422,6 +422,47 @@ CALL_RECORDING_STORAGE_LIMIT_MB = int(
 
 
 # -------------------------------------------------------------------
+# Call transcription + summary (Google Gemini)
+# -------------------------------------------------------------------
+# An uploaded call recording is sent to the Gemini API, which returns a
+# speaker-labelled transcript and a summary (see docs/call-transcription-api.md).
+# Keep the real key in the deployment environment; never commit it.
+# Create one in Google AI Studio -> Get API key.
+# Without GEMINI_API_KEY the feature is simply off (the endpoints answer 503
+# and uploads are not transcribed).
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+# Any Gemini model that accepts audio input.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+# Seconds one Gemini request may take (transcribing long audio is slow).
+GEMINI_TIMEOUT_SECONDS = int(os.getenv("GEMINI_TIMEOUT_SECONDS", "300"))
+# Extra attempts after a 429 / 5xx / network error.
+GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "2"))
+GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "32768"))
+
+# Transcribe every new recording right after it is uploaded.
+CALL_TRANSCRIPTION_AUTO = (
+    os.getenv("CALL_TRANSCRIPTION_AUTO", "True").lower() == "true"
+)
+# Language of the summary, key points and action items. The transcript itself
+# always stays in the language that was spoken.
+CALL_TRANSCRIPTION_SUMMARY_LANGUAGE = os.getenv(
+    "CALL_TRANSCRIPTION_SUMMARY_LANGUAGE", "English"
+)
+# Transcriptions that may run at the same time in one server process.
+CALL_TRANSCRIPTION_WORKERS = int(os.getenv("CALL_TRANSCRIPTION_WORKERS", "2"))
+# Minutes after which a PENDING / PROCESSING transcript counts as abandoned
+# (its worker died in a restart) and may be requested again.
+CALL_TRANSCRIPTION_STALE_MINUTES = int(
+    os.getenv("CALL_TRANSCRIPTION_STALE_MINUTES", "15")
+)
+# Run the transcription inside the request instead of in the background.
+# Only for local debugging: a request then lasts as long as Gemini takes.
+CALL_TRANSCRIPTION_RUN_INLINE = (
+    os.getenv("CALL_TRANSCRIPTION_RUN_INLINE", "False").lower() == "true"
+)
+
+
+# -------------------------------------------------------------------
 # Email
 # -------------------------------------------------------------------
 

@@ -1,3 +1,6 @@
+import logging
+from collections.abc import Callable
+
 from src.modules.calls.application.dto.call_recording import (
     GetCallRecordingDTO,
     UploadCallRecordingDTO,
@@ -17,6 +20,8 @@ from src.modules.shared.application.interfaces.transaction_manager import (
 from src.modules.timeline.application.interfaces.timeline_recorder import (
     TimelineRecorder,
 )
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_SIZE_BYTES = 25 * 1024 * 1024
 DEFAULT_MAX_PER_CALL = 10
@@ -60,6 +65,7 @@ class UploadCallRecordingUseCase:
         max_size_bytes: int = DEFAULT_MAX_SIZE_BYTES,
         max_per_call: int = DEFAULT_MAX_PER_CALL,
         max_total_bytes: int | None = None,
+        on_uploaded: Callable[[GetCallRecordingDTO], None] | None = None,
     ):
         self.call_repository = call_repository
         self.recording_repository = recording_repository
@@ -70,6 +76,9 @@ class UploadCallRecordingUseCase:
         self.max_per_call = max_per_call
         # ``None`` means the storage has no overall size limit.
         self.max_total_bytes = max_total_bytes
+        # Optional hook run once the recording is saved (for example to queue
+        # its transcription). Its failure never fails the upload.
+        self.on_uploaded = on_uploaded
 
     def execute(self, data: UploadCallRecordingDTO) -> GetCallRecordingDTO:
         call = self.call_repository.get_by_id(data.call_id)
@@ -134,11 +143,26 @@ class UploadCallRecordingUseCase:
             )
 
         try:
-            return self.transaction_manager.execute(creation)
+            created = self.transaction_manager.execute(creation)
         except Exception:
             # Never leave audio behind that no row points to.
             self._discard_stored_audio(recording.storage_key)
             raise
+
+        self._notify_uploaded(created)
+
+        return created
+
+    def _notify_uploaded(self, created: GetCallRecordingDTO) -> None:
+        if self.on_uploaded is None:
+            return
+
+        try:
+            self.on_uploaded(created)
+        except Exception:
+            logger.exception(
+                "Post-upload hook failed for call recording %s", created.recording.id
+            )
 
     def _discard_stored_audio(self, storage_key: str) -> None:
         try:
