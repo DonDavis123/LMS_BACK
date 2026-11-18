@@ -3,6 +3,8 @@ from src.modules.contacts.infrastructure.persistence.contacts_repository import 
 from src.modules.deals.application.use_cases.create_deal import CreateDealUseCase
 from src.modules.deals.application.use_cases.delete_deal import DeleteDealUseCase
 from src.modules.deals.application.use_cases.get_deal import GetDealUseCase
+from src.modules.deals.application.use_cases.get_deal_board import GetDealBoardUseCase
+from src.modules.deals.application.use_cases.get_deal_forecast import GetDealForecastUseCase
 from src.modules.deals.application.use_cases.get_deals import GetDealsUseCase
 from src.modules.deals.application.use_cases.move_deal_stage import MoveDealStageUseCase
 from src.modules.deals.application.use_cases.update_deal import UpdateDealUseCase
@@ -68,3 +70,11 @@ def get_move_deal_stage_use_case(ctx: TenantContext) -> MoveDealStageUseCase:
         recorder(ctx),
         transaction_manager(),
     )
+
+
+def get_deal_board_use_case(ctx: TenantContext) -> GetDealBoardUseCase:
+    return GetDealBoardUseCase(DjangoDealRepository(company_id=ctx.company_id))
+
+
+def get_deal_forecast_use_case(ctx: TenantContext) -> GetDealForecastUseCase:
+    return GetDealForecastUseCase(DjangoDealRepository(company_id=ctx.company_id))

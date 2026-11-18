@@ -9,6 +9,19 @@ from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
 from src.modules.contacts.domain.entities.contact import Contact
+
+# The leads use case depends on the Deal *interface* and the domain entity
+# only (never on the Django deal model), so the two modules do not form an
+# import cycle: the Django implementation is injected by lead_dependencies.
+from src.modules.deals.application.interfaces.deal_repository import (
+    DealRepository,
+)
+from src.modules.deals.application.services.deal_timeline import (
+    clip,
+    targets_for,
+)
+from src.modules.deals.domain.entities.deal import Deal
+from src.modules.deals.domain.enums.deal_stage import CLOSED_STAGES, DealStage
 from src.modules.leads.application.services.lead_conversion import (
     build_account_from_lead,
     build_contact_from_lead,
@@ -18,7 +31,9 @@ from src.modules.leads.application.services.lead_conversion import (
 from src.modules.leads.domain.entities.option_text import option_text
 
 from src.modules.leads.application.dto.convert_lead import (
+    ConvertDealDTO,
     ConvertLeadDTO,
+    ConvertLeadResultDTO,
 )
 from src.modules.leads.application.interfaces.lead_repository import (
     LeadRepository,
@@ -45,6 +60,7 @@ class ConvertLeadUseCase:
         user_repository: UserRepository,
         transaction_manager: TransactionManager,
         timeline_recorder: TimelineRecorder,
+        deal_repository: DealRepository | None = None,
     ):
         self.lead_repository = lead_repository
         self.account_repository = account_repository
@@ -52,12 +68,14 @@ class ConvertLeadUseCase:
         self.user_repository = user_repository
         self.transaction_manager = transaction_manager
         self.timeline_recorder = timeline_recorder
+        # Only needed when a conversion creates a deal.
+        self.deal_repository = deal_repository
 
     def execute(
         self,
         data: ConvertLeadDTO,
         current_user_id: UUID,
-    ) -> None:
+    ) -> ConvertLeadResultDTO:
 
         # --------------------------------------------------
         # 1. Get and validate Lead
@@ -112,7 +130,10 @@ class ConvertLeadUseCase:
         # 3. Execute conversion atomically
         # --------------------------------------------------
 
+        created_deal_id: UUID | None = None
+
         def conversion():
+            nonlocal created_deal_id
 
             # ----------------------------------------------
             # Account
@@ -156,7 +177,7 @@ class ConvertLeadUseCase:
 
             if data.contact_action == "create_new":
 
-                self._create_contact(
+                contact = self._create_contact(
                     lead=lead,
                     account_id=account.id if account else None,
                     data=data,
@@ -178,6 +199,25 @@ class ConvertLeadUseCase:
                 raise ValueError(
                     "Invalid contact_action."
                 )
+
+            # ----------------------------------------------
+            # Deal (optional)
+            # ----------------------------------------------
+
+            # Created in the same transaction as the Account and Contact:
+            # if the deal is rejected, everything above rolls back and the
+            # Lead is not marked as converted.
+            if data.deal is not None:
+
+                deal = self._create_deal(
+                    lead=lead,
+                    account=account,
+                    contact=contact,
+                    deal_data=data.deal,
+                    current_user_id=current_user_id,
+                )
+
+                created_deal_id = deal.id
 
             # ----------------------------------------------
             # Mark Lead as converted
@@ -207,6 +247,89 @@ class ConvertLeadUseCase:
         self.transaction_manager.execute(
             conversion,
         )
+
+        return ConvertLeadResultDTO(deal_id=created_deal_id)
+
+    # ======================================================
+    # DEAL
+    # ======================================================
+
+    def _create_deal(
+        self,
+        lead,
+        account: Account | None,
+        contact: Contact,
+        deal_data: ConvertDealDTO,
+        current_user_id: UUID,
+    ) -> Deal:
+
+        if self.deal_repository is None:
+            raise RuntimeError(
+                "Deal repository is not configured for lead conversion."
+            )
+
+        try:
+            stage = DealStage(deal_data.stage)
+        except ValueError:
+            raise ValueError("Invalid deal stage.")
+
+        if stage in CLOSED_STAGES:
+            raise ValueError(
+                "A deal created during lead conversion must be in an open stage."
+            )
+
+        # A lead without a company has no Account: the deal then links the
+        # Contact only.
+        account_id = account.id if account is not None else None
+
+        if (
+            account_id is not None
+            and contact.account_id is not None
+            and contact.account_id != account_id
+        ):
+            raise ValueError(
+                "The contact belongs to a different account than the one "
+                "selected for the deal."
+            )
+
+        # Deal.create validates name, amount, stage and probability
+        # (all ValueError).
+        deal = Deal.create(
+            name=deal_data.name,
+            owner_id=lead.owner_id,
+            created_by_id=current_user_id,
+            amount=deal_data.amount,
+            expected_close_date=deal_data.expected_close_date,
+            stage=stage,
+            probability=deal_data.probability,
+            account_id=account_id,
+            contact_id=contact.id,
+            source_lead_id=lead.id,
+            lead_source=option_text(lead.lead_source),
+            description=deal_data.description,
+        )
+
+        saved = self.deal_repository.save(deal)
+
+        self.timeline_recorder.record(
+            event_type="DEAL_CREATED",
+            actor_id=current_user_id,
+            message=clip(
+                f"Deal {saved.name} was created by converting the Lead "
+                f"{lead.name}."
+            ),
+            metadata={
+                "deal_id": str(saved.id),
+                "name": saved.name,
+                "stage": saved.stage.value,
+                "source": "LEAD_CONVERSION",
+                "source_lead_id": str(lead.id),
+                "source_lead_name": lead.name,
+            },
+            targets=targets_for(saved),
+        )
+
+        return saved
 
     # ======================================================
     # ACCOUNT

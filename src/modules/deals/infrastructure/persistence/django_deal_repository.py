@@ -1,13 +1,32 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
+from django.db.models import Count, DecimalField, F, Q, Sum
+from django.db.models.functions import TruncMonth
+
+from src.modules.deals.application.dto.deal_board import (
+    DealBoardColumnDTO,
+    DealBoardQuery,
+    DealCardDTO,
+)
+from src.modules.deals.application.dto.deal_forecast import (
+    DealForecastDTO,
+    MonthForecastDTO,
+    StageForecastDTO,
+)
 from src.modules.deals.application.dto.get_deal import GetDealDTO
 from src.modules.deals.application.interfaces.deal_repository import (
     DealRepository,
 )
+from src.modules.deals.application.services.deal_money import to_money
 from src.modules.deals.domain.entities.deal import Deal
-from src.modules.deals.domain.enums.deal_stage import DealStage
+from src.modules.deals.domain.enums.deal_stage import (
+    CLOSED_STAGES,
+    DEFAULT_PROBABILITY,
+    OPEN_STAGES,
+    DealStage,
+)
 from src.modules.shared.application.dto.list_query import (
     FilterCondition,
     ListQuery,
@@ -111,6 +130,216 @@ class DjangoDealRepository(DealRepository):
             page_size=query.page_size,
             total=total,
         )
+
+    # ------------------------------------------------------------------
+    # Board
+    # ------------------------------------------------------------------
+
+    def get_board(
+        self,
+        query: DealBoardQuery,
+        closed_since: datetime,
+        card_limit: int,
+    ) -> list[DealBoardColumnDTO]:
+        deals = self._base_queryset().filter(is_deleted=False)
+
+        if query.owner_id is not None:
+            deals = deals.filter(owner_id=query.owner_id)
+
+        if query.search:
+            deals = deals.filter(name__icontains=query.search)
+
+        if query.expected_close_from is not None:
+            deals = deals.filter(expected_close_date__gte=query.expected_close_from)
+
+        if query.expected_close_to is not None:
+            deals = deals.filter(expected_close_date__lte=query.expected_close_to)
+
+        # Open deals are always shown; Won / Lost only when closed recently.
+        visible = deals.filter(
+            Q(stage__in=self._values(OPEN_STAGES))
+            | Q(stage__in=self._values(CLOSED_STAGES), closed_at__gte=closed_since)
+        )
+
+        # 1 query: count and totals of every column.
+        totals = {
+            row["stage"]: row
+            for row in visible.order_by()
+            .values("stage")
+            .annotate(
+                count=Count("id"),
+                total=Sum("amount"),
+                weighted=self._weighted_sum(),
+            )
+        }
+
+        columns = []
+
+        # 1 query per column: the capped cards (select_related, so no N+1).
+        for stage in DealStage:
+            row = totals.get(stage.value)
+            count = row["count"] if row else 0
+
+            cards = [
+                self._to_card(model)
+                for model in self._column_queryset(visible, stage)[:card_limit]
+            ]
+
+            columns.append(
+                DealBoardColumnDTO(
+                    stage=stage,
+                    default_probability=DEFAULT_PROBABILITY[stage],
+                    count=count,
+                    total_amount=to_money(row["total"] if row else None),
+                    weighted_amount=to_money(row["weighted"] if row else None),
+                    has_more=count > len(cards),
+                    deals=cards,
+                )
+            )
+
+        return columns
+
+    @staticmethod
+    def _column_queryset(visible, stage: DealStage):
+        queryset = (
+            visible.filter(stage=stage.value)
+            .select_related("owner", "account", "contact")
+        )
+
+        if stage in CLOSED_STAGES:
+            # Most recently closed first.
+            return queryset.order_by(
+                F("closed_at").desc(nulls_last=True), "-created_at", "-id"
+            )
+
+        # Soonest expected close date first, deals without a date last.
+        return queryset.order_by(
+            F("expected_close_date").asc(nulls_last=True), "created_at", "id"
+        )
+
+    @staticmethod
+    def _to_card(model: DjangoDealModel) -> DealCardDTO:
+        return DealCardDTO(
+            id=model.id,
+            name=model.name,
+            amount=model.amount,
+            expected_close_date=model.expected_close_date,
+            probability=model.probability,
+            owner_id=model.owner_id,
+            owner_name=model.owner.name if model.owner else None,
+            account_id=model.account_id,
+            account_name=model.account.account_name if model.account else None,
+            contact_id=model.contact_id,
+            contact_name=model.contact.name if model.contact else None,
+        )
+
+    # ------------------------------------------------------------------
+    # Forecast
+    # ------------------------------------------------------------------
+
+    def get_forecast(
+        self,
+        owner_id: UUID | None,
+        month_start: datetime,
+        month_end: datetime,
+    ) -> DealForecastDTO:
+        deals = self._base_queryset().filter(is_deleted=False)
+
+        if owner_id is not None:
+            deals = deals.filter(owner_id=owner_id)
+
+        open_deals = deals.filter(stage__in=self._values(OPEN_STAGES))
+        closed_this_month = Q(closed_at__gte=month_start, closed_at__lt=month_end)
+
+        # 1 query: every headline number. The weighted amount uses the deal's
+        # own probability (not the stage default) and is rounded only at the end.
+        headline = deals.aggregate(
+            open_pipeline=Sum("amount", filter=self._open_q()),
+            weighted_forecast=self._weighted_sum(filter=self._open_q()),
+            open_deal_count=Count("id", filter=self._open_q()),
+            won_this_month=Sum(
+                "amount", filter=Q(stage=DealStage.WON.value) & closed_this_month
+            ),
+            lost_this_month=Sum(
+                "amount", filter=Q(stage=DealStage.LOST.value) & closed_this_month
+            ),
+        )
+
+        # 1 query: open stages (zero rows are filled in below).
+        stage_rows = {
+            row["stage"]: row
+            for row in open_deals.order_by()
+            .values("stage")
+            .annotate(
+                count=Count("id"),
+                total=Sum("amount"),
+                weighted=self._weighted_sum(),
+            )
+        }
+
+        by_stage = []
+        for stage in OPEN_STAGES:
+            row = stage_rows.get(stage.value)
+            by_stage.append(
+                StageForecastDTO(
+                    stage=stage,
+                    count=row["count"] if row else 0,
+                    total_amount=to_money(row["total"] if row else None),
+                    weighted_amount=to_money(row["weighted"] if row else None),
+                )
+            )
+
+        # 1 query: open deals grouped by expected close month.
+        month_rows = (
+            open_deals.order_by()
+            .annotate(month=TruncMonth("expected_close_date"))
+            .values("month")
+            .annotate(total=Sum("amount"), weighted=self._weighted_sum())
+        )
+
+        by_month = sorted(
+            (
+                MonthForecastDTO(
+                    month=self._month_label(row["month"]),
+                    total_amount=to_money(row["total"]),
+                    weighted_amount=to_money(row["weighted"]),
+                )
+                for row in month_rows
+            ),
+            # Chronological; deals without a close date (None) last.
+            key=lambda item: (item.month is None, item.month or ""),
+        )
+
+        return DealForecastDTO(
+            open_pipeline=to_money(headline["open_pipeline"]),
+            weighted_forecast=to_money(headline["weighted_forecast"]),
+            won_this_month=to_money(headline["won_this_month"]),
+            lost_this_month=to_money(headline["lost_this_month"]),
+            open_deal_count=headline["open_deal_count"] or 0,
+            by_stage=by_stage,
+            by_month=by_month,
+        )
+
+    @staticmethod
+    def _values(stages) -> list[str]:
+        return [stage.value for stage in stages]
+
+    @staticmethod
+    def _open_q() -> Q:
+        return Q(stage__in=[stage.value for stage in OPEN_STAGES])
+
+    @staticmethod
+    def _weighted_sum(**kwargs):
+        """SUM(amount * probability / 100), computed by the database."""
+        return Sum(
+            F("amount") * F("probability") / 100,
+            output_field=DecimalField(max_digits=24, decimal_places=6),
+            **kwargs,
+        )
+
+    @staticmethod
+    def _month_label(month) -> str | None:
+        return month.strftime("%Y-%m") if month is not None else None
 
     # ------------------------------------------------------------------
     # Filters

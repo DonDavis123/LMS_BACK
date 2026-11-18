@@ -7,10 +7,12 @@ from src.modules.shared.presentation.permissions import IsCompanyUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.deals.domain.enums.deal_stage import DealStage
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.leads.application.dto.convert_lead import (
     ConvertAccountDTO,
     ConvertContactDTO,
+    ConvertDealDTO,
     ConvertLeadDTO,
 )
 
@@ -147,6 +149,27 @@ class ConvertLeadView(APIView):
             )
 
         # -----------------------------------------
+        # Deal DTO (optional)
+        # -----------------------------------------
+
+        deal_dto = None
+
+        if data.get("deal") is not None:
+
+            deal_data = data["deal"]
+
+            deal_dto = ConvertDealDTO(
+                name=deal_data["name"],
+                amount=deal_data["amount"],
+                expected_close_date=deal_data.get(
+                    "expected_close_date"
+                ),
+                stage=DealStage(deal_data["stage"]),
+                probability=deal_data.get("probability"),
+                description=deal_data.get("description"),
+            )
+
+        # -----------------------------------------
         # Build DTO
         # -----------------------------------------
 
@@ -160,13 +183,15 @@ class ConvertLeadView(APIView):
             contact_action=data["contact_action"],
             contact_id=data.get("contact_id"),
             contact=contact_dto,
+
+            deal=deal_dto,
         )
 
         use_case = get_convert_lead_use_case(get_tenant_context(request))
 
         try:
 
-            use_case.execute(
+            result = use_case.execute(
                 data=dto,
                 current_user_id=request.user.id,
             )
@@ -197,9 +222,15 @@ class ConvertLeadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        body = {
+            "message": "Lead converted successfully."
+        }
+
+        # Only present when the conversion created a deal.
+        if result.deal_id is not None:
+            body["deal_id"] = str(result.deal_id)
+
         return Response(
-            {
-                "message": "Lead converted successfully."
-            },
+            body,
             status=status.HTTP_200_OK,
         )

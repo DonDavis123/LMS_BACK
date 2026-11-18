@@ -1,4 +1,8 @@
+from decimal import Decimal
+
 from rest_framework import serializers
+
+from src.modules.deals.domain.enums.deal_stage import OPEN_STAGES
 
 
 class ConvertAccountSerializer(serializers.Serializer):
@@ -283,6 +287,46 @@ class ConvertContactSerializer(serializers.Serializer):
     )
 
 
+class ConvertDealSerializer(serializers.Serializer):
+    """Optional deal created by the conversion (open stages only)."""
+
+    name = serializers.CharField(
+        max_length=255,
+    )
+
+    amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        default=Decimal("0"),
+    )
+
+    expected_close_date = serializers.DateField(
+        required=False,
+        allow_null=True,
+    )
+
+    stage = serializers.ChoiceField(
+        choices=[(stage.value, stage.value) for stage in OPEN_STAGES],
+        required=False,
+        default=OPEN_STAGES[0].value,
+    )
+
+    probability = serializers.IntegerField(
+        min_value=0,
+        max_value=100,
+        required=False,
+        allow_null=True,
+    )
+
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+
 class ConvertLeadSerializer(serializers.Serializer):
 
     account_action = serializers.ChoiceField(
@@ -318,6 +362,11 @@ class ConvertLeadSerializer(serializers.Serializer):
     )
 
     contact = ConvertContactSerializer(
+        required=False,
+        allow_null=True,
+    )
+
+    deal = ConvertDealSerializer(
         required=False,
         allow_null=True,
     )

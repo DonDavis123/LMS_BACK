@@ -35,6 +35,7 @@ from src.modules.leads.infrastructure.persistence.django_lead_repository import 
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
+from src.modules.deals.infrastructure.persistence.django_deal_repository import DjangoDealRepository
 from src.modules.tasks.infrastructure.persistence.django_task_repository import DjangoTaskRepository
 from src.modules.calls.infrastructure.persistence.django_call_repository import DjangoCallRepository
 from src.modules.calls.infrastructure.persistence.django_call_recording_transcript_repository import DjangoCallRecordingTranscriptRepository
@@ -100,7 +101,7 @@ def get_delete_lead_use_case(ctx: TenantContext) -> DeleteLeadUseCase:
 
 
 def get_convert_lead_use_case(ctx: TenantContext) -> ConvertLeadUseCase:
-    return ConvertLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoContactRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), DjangoTransactionManager(), recorder(ctx))
+    return ConvertLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoContactRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), DjangoTransactionManager(), recorder(ctx), deal_repository=DjangoDealRepository(company_id=ctx.company_id))
 
 
 def get_conversion_check_use_case(ctx: TenantContext) -> ConversionCheckUseCase:

@@ -20,3 +20,7 @@ DEFAULT_PROBABILITY: dict[DealStage, int] = {
 }
 
 CLOSED_STAGES = frozenset({DealStage.WON, DealStage.LOST})
+
+
+# Open stages in board order (every stage that is not Won or Lost).
+OPEN_STAGES = tuple(stage for stage in DealStage if stage not in CLOSED_STAGES)

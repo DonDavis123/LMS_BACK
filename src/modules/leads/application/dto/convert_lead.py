@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from uuid import UUID
 from datetime import date
+
+from src.modules.deals.domain.enums.deal_stage import DealStage
 
 
 @dataclass
@@ -60,6 +63,27 @@ class ConvertContactDTO:
 
 
 @dataclass
+class ConvertDealDTO:
+    """Optional deal created together with the conversion. The owner, the
+    source lead, the lead source and the account / contact come from the
+    conversion itself."""
+
+    name: str
+    amount: Decimal = Decimal("0")
+    expected_close_date: date | None = None
+    stage: DealStage = DealStage.NEW
+    # None means "use the stage default".
+    probability: int | None = None
+    description: str | None = None
+
+
+@dataclass
+class ConvertLeadResultDTO:
+    # Set only when the conversion created a deal.
+    deal_id: UUID | None = None
+
+
+@dataclass
 class ConvertLeadDTO:
     lead_id: UUID
 
@@ -70,3 +94,5 @@ class ConvertLeadDTO:
     contact_action: str
     contact_id: UUID | None
     contact: ConvertContactDTO | None
+
+    deal: ConvertDealDTO | None = None
