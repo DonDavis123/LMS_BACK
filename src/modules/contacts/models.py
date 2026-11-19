@@ -3,6 +3,10 @@ from src.modules.contacts.infrastructure.persistence.django_contact_model import
     DjangoContactModel,
 )
 
-__all__ = ["DjangoContactModel"]
+from src.modules.contacts.infrastructure.persistence.django_contact_summary_model import (
+    DjangoContactSummaryModel,
+)
+
+__all__ = ["DjangoContactModel", "DjangoContactSummaryModel"]
 
 # Create your models here.

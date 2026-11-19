@@ -290,6 +290,24 @@ class DjangoCallRepository(CallRepository):
 
         return [self._to_dto(model) for model in models]
 
+    def get_by_account_id(
+        self,
+        account_id: UUID,
+        *,
+        limit: int = 50,
+    ) -> list[GetCallDTO]:
+        if limit < 1:
+            raise ValueError("limit must be greater than or equal to 1.")
+
+        models = (
+            self._base_queryset()
+            .filter(is_deleted=False, account_id=account_id)
+            .select_related("owner", "lead", "contact", "account")
+            .order_by(*self.DEFAULT_ORDERING)[:limit]
+        )
+
+        return [self._to_dto(model) for model in models]
+
     def get_overdue_planned(
         self,
         *,

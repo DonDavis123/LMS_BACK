@@ -6,6 +6,7 @@ from .views.get_account_details import GetAccountDetailsView
 from .views.update_account import UpdateAccountView
 from .views.account_documents import AccountDocumentListView
 from .views.account_document_detail import AccountDocumentDetailView
+from .views.account_summary import GenerateAccountSummaryView
 from src.modules.accounts.presentation.api.views.delete_account import (
     DeleteAccountView,
 )
@@ -48,5 +49,10 @@ urlpatterns = [
         "<uuid:account_id>/documents/<uuid:document_id>/",
         AccountDocumentDetailView.as_view(),
         name="account-document-detail",
+    ),
+    path(
+        "<uuid:account_id>/summary/",
+        GenerateAccountSummaryView.as_view(),
+        name="account-summary",
     ),
 ]

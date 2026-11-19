@@ -6,6 +6,10 @@ from src.modules.accounts.infrastructure.persistence.django_account_document_mod
     DjangoAccountDocumentModel,
 )
 
-__all__ = ["DjangoAccountModel", "DjangoAccountDocumentModel"]
+from src.modules.accounts.infrastructure.persistence.django_account_summary_model import (
+    DjangoAccountSummaryModel,
+)
+
+__all__ = ["DjangoAccountModel", "DjangoAccountDocumentModel", "DjangoAccountSummaryModel"]
 
 # Create your models here.

@@ -4,6 +4,7 @@ from .views.create_contact import CreateContactView
 from .views.get_contact_details import GetContactDetailsView
 from .views.update_contact import UpdateContactView
 from .views.delete_contact import DeleteContactView
+from .views.contact_summary import GenerateContactSummaryView
 
 from .views import (
     
@@ -41,4 +42,9 @@ urlpatterns = [
        DeleteContactView.as_view(),
       name="delete-contact",
 ),
+    path(
+        "<uuid:contact_id>/summary/",
+        GenerateContactSummaryView.as_view(),
+        name="contact-summary",
+    ),
 ]

@@ -63,6 +63,20 @@ class CallRepository(ABC):
         """Return active calls of one lead OR contact, newest first."""
         pass
 
+    def get_by_account_id(
+        self,
+        account_id: UUID,
+        *,
+        limit: int = 50,
+    ) -> list[GetCallDTO]:
+        """Return the active calls logged with this account, newest first.
+
+        A call carries an account only together with a contact, so these are
+        the calls of the account's contacts. Not abstract so existing
+        in-memory test doubles keep working.
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def count_by_related_record(
         self,
