@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from src.modules.shared.presentation.error_body import error_body
 from src.modules.shared.presentation.permissions import IsCompanyUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -74,7 +75,7 @@ class CreateLeadView(APIView):
 
         except ValueError as error:
             return Response(
-                {"detail": str(error)},
+                error_body(error),
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

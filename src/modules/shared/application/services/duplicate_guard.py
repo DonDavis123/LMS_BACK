@@ -14,20 +14,42 @@ from src.modules.shared.application.services.contact_field_rules import (
 )
 
 
+def _describe_match(match: ContactPointMatch) -> str:
+    label = "email address" if match.kind == KIND_EMAIL else "phone number"
+    return (
+        f'This {label} ({match.value}) is already used by the '
+        f'{match.record_type} "{match.record_name}".'
+    )
+
+
 class DuplicateContactPointError(ValueError):
     """Raised when an email / phone already belongs to another record.
 
     A ``ValueError`` on purpose: the views already turn it into a 400 with
-    ``{"detail": message}``.
+    ``{"detail": message}``. Every conflicting value is reported (one message
+    each in ``messages``) so the form can show them all at once; ``str()``
+    joins them so callers that only read ``detail`` still get everything.
     """
 
-    def __init__(self, match: ContactPointMatch):
-        label = "email address" if match.kind == KIND_EMAIL else "phone number"
-        super().__init__(
-            f'This {label} ({match.value}) is already used by the '
-            f'{match.record_type} "{match.record_name}".'
-        )
-        self.match = match
+    def __init__(self, matches: Iterable[ContactPointMatch]):
+        if isinstance(matches, ContactPointMatch):
+            matches = [matches]
+        self.matches = _first_match_per_value(matches)
+        self.messages = [_describe_match(m) for m in self.matches]
+        super().__init__(" ".join(self.messages))
+        self.match = self.matches[0]
+
+
+def _first_match_per_value(matches: Iterable[ContactPointMatch]):
+    """One match per entered value (a value may hit several records)."""
+    seen, result = set(), []
+    for match in matches:
+        key = (match.kind, match.value.strip().lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(match)
+    return result
 
 
 class DuplicateGuard:
@@ -74,7 +96,7 @@ class DuplicateGuard:
     def ensure_unique(self, **kwargs) -> None:
         matches = self.find(**kwargs)
         if matches:
-            raise DuplicateContactPointError(matches[0])
+            raise DuplicateContactPointError(matches)
 
 
 def _unique(values, normalize, skip):

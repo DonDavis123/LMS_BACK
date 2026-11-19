@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.modules.shared.presentation.error_body import error_body
 from src.modules.shared.presentation.permissions import IsCompanyUser
 from src.modules.shared.presentation.tenant import get_tenant_context
 from src.modules.contacts.application.dto.update_contact import (
@@ -45,7 +46,7 @@ class UpdateContactView(APIView):
 
         except ValueError as error:
             return Response(
-                {"detail": str(error)},
+                error_body(error),
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
