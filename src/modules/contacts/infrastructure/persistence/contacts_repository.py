@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from uuid import UUID
 
 from django.db.models import OuterRef, Q, Subquery
@@ -10,6 +10,9 @@ from src.modules.contacts.application.interfaces.contact_repository import (
 )
 from src.modules.contacts.domain.entities.contact import Contact
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.persistence.datetime_filters import (
+    apply_datetime_filter,
+)
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -271,7 +274,7 @@ class DjangoContactRepository(ContactRepository):
                     queryset, date_fields[field], operator, value, field
                 )
             elif field in datetime_fields:
-                queryset = DjangoContactRepository._apply_datetime_filter(
+                queryset = apply_datetime_filter(
                     queryset, datetime_fields[field], operator, value, field
                 )
             elif field in uuid_fields:
@@ -339,38 +342,6 @@ class DjangoContactRepository(ContactRepository):
         if operator == "after":
             return queryset.filter(**{f"{db_field}__gt": parsed})
         raise ValueError(f"Operator '{operator}' is not supported for date field '{field}'.")
-
-    @staticmethod
-    def _parse_datetime(value, field):
-        if not isinstance(value, str):
-            raise ValueError(f"Value for '{field}' must be an ISO date/datetime string.")
-        try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError:
-            try:
-                return date.fromisoformat(value)
-            except ValueError:
-                raise ValueError(f"Invalid date/datetime value for '{field}'.")
-
-    @staticmethod
-    def _apply_datetime_filter(queryset, db_field, operator, value, field):
-        if operator == "between":
-            if not isinstance(value, dict) or "from" not in value or "to" not in value:
-                raise ValueError(f"Value for '{field}' must contain 'from' and 'to'.")
-            start = DjangoContactRepository._parse_datetime(value["from"], field)
-            end = DjangoContactRepository._parse_datetime(value["to"], field)
-            if start > end:
-                raise ValueError(f"'from' must not be after 'to' for '{field}'.")
-            return queryset.filter(**{f"{db_field}__range": (start, end)})
-
-        parsed = DjangoContactRepository._parse_datetime(value, field)
-        if operator == "equals":
-            return queryset.filter(**{db_field: parsed})
-        if operator == "before":
-            return queryset.filter(**{f"{db_field}__lt": parsed})
-        if operator == "after":
-            return queryset.filter(**{f"{db_field}__gt": parsed})
-        raise ValueError(f"Operator '{operator}' is not supported for datetime field '{field}'.")
 
     @staticmethod
     def _apply_uuid_filter(queryset, db_field, operator, value, field):

@@ -9,6 +9,9 @@ from src.modules.accounts.application.interfaces.account_repository import (
 )
 from src.modules.accounts.domain.entities.account import Account
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.persistence.datetime_filters import (
+    apply_datetime_filter,
+)
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -156,6 +159,10 @@ class DjangoAccountRepository(AccountRepository):
         numeric_fields = {
             "annual_revenue": "annual_revenue",
         }
+        datetime_fields = {
+            "created_at": "created_at",
+            "updated_at": "updated_at",
+        }
         uuid_fields = {
             "account_owner": "account_owner_id",
         }
@@ -172,6 +179,10 @@ class DjangoAccountRepository(AccountRepository):
             elif field in numeric_fields:
                 queryset = DjangoAccountRepository._apply_numeric_filter(
                     queryset, numeric_fields[field], operator, value, field
+                )
+            elif field in datetime_fields:
+                queryset = apply_datetime_filter(
+                    queryset, datetime_fields[field], operator, value, field
                 )
             elif field in uuid_fields:
                 queryset = DjangoAccountRepository._apply_uuid_filter(
