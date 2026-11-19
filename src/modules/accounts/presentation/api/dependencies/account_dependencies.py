@@ -1,6 +1,8 @@
 from django.conf import settings
 
 from src.modules.shared.application.tenant_context import TenantContext
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
+from src.modules.shared.infrastructure.persistence.django_contact_point_directory import DjangoContactPointDirectory
 from src.modules.accounts.application.use_cases.create_account import CreateAccountUseCase
 from src.modules.accounts.application.use_cases.get_accounts import GetAccountsUseCase
 from src.modules.accounts.application.use_cases.get_account_details import GetAccountDetailsUseCase
@@ -38,6 +40,7 @@ def get_create_account_use_case(ctx: TenantContext) -> CreateAccountUseCase:
         DjangoTransactionManager(),
         DjangoUserRepository(company_id=ctx.company_id),
         DjangoAccountDocumentRepository(company_id=ctx.company_id),
+        duplicate_guard=DuplicateGuard(DjangoContactPointDirectory(company_id=ctx.company_id)),
     )
 
 
@@ -60,6 +63,7 @@ def get_update_account_use_case(ctx: TenantContext) -> UpdateAccountUseCase:
         DjangoTransactionManager(),
         picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id),
         user_repository=DjangoUserRepository(company_id=ctx.company_id),
+        duplicate_guard=DuplicateGuard(DjangoContactPointDirectory(company_id=ctx.company_id)),
     )
 
 

@@ -10,6 +10,7 @@ from src.modules.contacts.application.interfaces.contact_repository import (
     ContactRepository,
 )
 from src.modules.contacts.domain.entities.contact import Contact
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
 from src.modules.users.application.interfaces.user_repository import (
     UserRepository,
 )
@@ -27,18 +28,27 @@ class CreateContactUseCase:
         user_repository: UserRepository,
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
+        duplicate_guard: DuplicateGuard | None = None,
     ):
         self.contact_repository = contact_repository
         self.account_repository = account_repository
         self.user_repository = user_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
+        # An email / phone may only belong to one lead, contact or account.
+        self.duplicate_guard = duplicate_guard
 
     def execute(
         self,
         data: CreateContactDTO,
         current_user_id: UUID,
     ) -> Contact:
+
+        if self.duplicate_guard is not None:
+            self.duplicate_guard.ensure_unique(
+                emails=[data.email, data.secondary_email],
+                phones=[data.phone, data.mobile, data.other_phone, data.home_phone],
+            )
 
         # Validate Account only when an Account is provided
         if data.account_id is not None:

@@ -11,6 +11,7 @@ from src.modules.accounts.domain.entities.account import Account
 from src.modules.accounts.domain.entities.account_document import AccountDocument
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
 from src.modules.users.application.interfaces.user_repository import UserRepository
 
 
@@ -23,18 +24,24 @@ class CreateAccountUseCase:
         transaction_manager: TransactionManager,
         user_repository: UserRepository,
         document_repository: AccountDocumentRepository | None = None,
+        duplicate_guard: DuplicateGuard | None = None,
     ):
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
         self.transaction_manager = transaction_manager
         self.user_repository = user_repository
         self.document_repository = document_repository
+        # An email / phone may only belong to one lead, contact or account.
+        self.duplicate_guard = duplicate_guard
 
     def execute(
         self,
         data: CreateAccountDTO,
         current_user_id,
     ) -> Account:
+
+        if self.duplicate_guard is not None:
+            self.duplicate_guard.ensure_unique(phones=[data.phone])
 
         account_owner_id = (
             data.account_owner_id

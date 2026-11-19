@@ -1,6 +1,8 @@
 from django.conf import settings
 
 from src.modules.shared.application.tenant_context import TenantContext
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
+from src.modules.shared.infrastructure.persistence.django_contact_point_directory import DjangoContactPointDirectory
 from src.modules.contacts.application.use_cases.create_contact import CreateContactUseCase
 from src.modules.contacts.application.use_cases.get_contacts import GetContactsUseCase
 from src.modules.contacts.application.use_cases.get_contact_details import GetContactDetailsUseCase
@@ -27,7 +29,7 @@ def recorder(ctx: TenantContext):
 
 
 def get_create_contact_use_case(ctx: TenantContext) -> CreateContactUseCase:
-    return CreateContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager())
+    return CreateContactUseCase(DjangoContactRepository(company_id=ctx.company_id), DjangoAccountRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager(), duplicate_guard=DuplicateGuard(DjangoContactPointDirectory(company_id=ctx.company_id)))
 
 
 def get_contacts_use_case(ctx: TenantContext) -> GetContactsUseCase:
@@ -46,6 +48,7 @@ def get_update_contact_use_case(ctx: TenantContext) -> UpdateContactUseCase:
         recorder(ctx),
         DjangoTransactionManager(),
         picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id),
+        duplicate_guard=DuplicateGuard(DjangoContactPointDirectory(company_id=ctx.company_id)),
     )
 
 def get_delete_contact_use_case(ctx: TenantContext) -> DeleteContactUseCase:

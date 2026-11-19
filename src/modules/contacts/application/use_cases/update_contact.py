@@ -6,6 +6,8 @@ from src.modules.contacts.application.dto.update_contact import UpdateContactDTO
 from src.modules.contacts.application.interfaces.contact_repository import ContactRepository
 from src.modules.picklists.application.interfaces.picklist_repository import PicklistRepository
 from src.modules.picklists.application.services.option_validation import resolve_option_value
+from src.modules.shared.application.dto.contact_point_match import RECORD_CONTACT
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.users.domain.entities.role import UserRole
 from src.modules.timeline.application.interfaces.timeline_recorder import TimelineRecorder
@@ -26,6 +28,7 @@ class UpdateContactUseCase:
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
         picklist_repository: PicklistRepository | None = None,
+        duplicate_guard: DuplicateGuard | None = None,
     ):
         self.contact_repository = contact_repository
         self.account_repository = account_repository
@@ -35,6 +38,8 @@ class UpdateContactUseCase:
         # The company's own dropdown options. When given, Lead Source must
         # be one of them.
         self.picklist_repository = picklist_repository
+        # An email / phone may only belong to one lead, contact or account.
+        self.duplicate_guard = duplicate_guard
 
     def _option(self, field: str, value, current_value):
         if self.picklist_repository is None:
@@ -56,6 +61,17 @@ class UpdateContactUseCase:
         if "lead_source" in fields:
             fields["lead_source"] = self._option(
                 "lead_source", fields["lead_source"], contact.lead_source
+            )
+
+        email_fields = ("email", "secondary_email")
+        phone_fields = ("phone", "mobile", "other_phone", "home_phone")
+        if self.duplicate_guard is not None:
+            self.duplicate_guard.ensure_unique(
+                emails=[fields[f] for f in email_fields if f in fields],
+                phones=[fields[f] for f in phone_fields if f in fields],
+                exclude=(RECORD_CONTACT, contact.id),
+                previous_emails=[getattr(contact, f) for f in email_fields],
+                previous_phones=[getattr(contact, f) for f in phone_fields],
             )
 
         updateable_fields = (

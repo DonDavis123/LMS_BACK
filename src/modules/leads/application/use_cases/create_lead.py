@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
 from src.modules.leads.application.dto.create_lead_dto import CreateLeadDTO
 from src.modules.leads.application.interfaces.lead_repository import LeadRepository
 from src.modules.leads.domain.entities.lead import Lead
@@ -20,6 +21,7 @@ class CreateLeadUseCase:
         timeline_recorder: TimelineRecorder,
         transaction_manager: TransactionManager,
         picklist_repository: PicklistRepository | None = None,
+        duplicate_guard: DuplicateGuard | None = None,
     ):
         self.lead_repository = lead_repository
         self.user_repository = user_repository
@@ -28,6 +30,8 @@ class CreateLeadUseCase:
         # The company's own dropdown options. When given, Lead Source /
         # Status / Industry / Rating must be one of them.
         self.picklist_repository = picklist_repository
+        # An email / phone may only belong to one lead, contact or account.
+        self.duplicate_guard = duplicate_guard
 
     def _option(self, field: str, value) -> str:
         value = option_text(value)
@@ -58,6 +62,12 @@ class CreateLeadUseCase:
         }:
             raise ValueError(
                 "Selected owner must be an ADMIN or SUPERADMIN."
+            )
+
+        if self.duplicate_guard is not None:
+            self.duplicate_guard.ensure_unique(
+                emails=[data.email],
+                phones=[data.phone, data.mobile_number],
             )
 
         lead_source = self._option("lead_source", data.lead_source)

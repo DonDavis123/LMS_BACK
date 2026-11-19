@@ -11,6 +11,8 @@ from src.modules.timeline.application.services.change_tracker import (
     format_field_changes,
     resolve_relationship_changes,
 )
+from src.modules.shared.application.dto.contact_point_match import RECORD_ACCOUNT
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
 from src.modules.users.application.interfaces.user_repository import UserRepository
 from src.modules.shared.application.interfaces.transaction_manager import TransactionManager
 
@@ -25,6 +27,7 @@ class UpdateAccountUseCase:
         transaction_manager: TransactionManager,
         picklist_repository: PicklistRepository | None = None,
         user_repository: UserRepository | None = None,
+        duplicate_guard: DuplicateGuard | None = None,
     ):
         self.account_repository = account_repository
         self.timeline_recorder = timeline_recorder
@@ -34,6 +37,8 @@ class UpdateAccountUseCase:
         self.picklist_repository = picklist_repository
         # Used to check a new Account Owner (a user of the same company).
         self.user_repository = user_repository
+        # An email / phone may only belong to one lead, contact or account.
+        self.duplicate_guard = duplicate_guard
 
     def _option(self, field: str, value, current_value):
         if self.picklist_repository is None:
@@ -73,6 +78,13 @@ class UpdateAccountUseCase:
             raise ValueError("Account not found.")
         if account.is_deleted:
             raise ValueError("Deleted Account cannot be updated.")
+
+        if self.duplicate_guard is not None:
+            self.duplicate_guard.ensure_unique(
+                phones=[data.phone],
+                exclude=(RECORD_ACCOUNT, account.id),
+                previous_phones=[account.phone],
+            )
 
         updateable_fields = (
             "account_name", "account_site", "account_number", "account_type", "industry",

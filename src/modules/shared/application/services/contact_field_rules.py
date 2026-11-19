@@ -56,3 +56,25 @@ def email_error(value: str | None) -> str | None:
     if not _EMAIL_RE.match(text):
         return EMAIL_INVALID_MESSAGE
     return None
+
+
+# --- Normalisation, used to compare values across leads/contacts/accounts ---
+
+PHONE_MATCH_DIGITS = 10
+
+
+def normalize_email(value: str | None) -> str | None:
+    """Trimmed, lower-case email; ``None`` when blank."""
+    text = (value or "").strip().lower()
+    return text or None
+
+
+def normalize_phone(value: str | None) -> str | None:
+    """Digits only; the LAST 10 when there are 10 or more (country codes and
+    leading zeros do not matter); ``None`` below 7 digits."""
+    digits = re.sub(r"\D", "", value or "")
+    if len(digits) < PHONE_MIN_DIGITS:
+        return None
+    if len(digits) >= PHONE_MATCH_DIGITS:
+        return digits[-PHONE_MATCH_DIGITS:]
+    return digits

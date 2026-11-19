@@ -1,6 +1,8 @@
 from django.conf import settings
 
 from src.modules.shared.application.tenant_context import TenantContext
+from src.modules.shared.application.services.duplicate_guard import DuplicateGuard
+from src.modules.shared.infrastructure.persistence.django_contact_point_directory import DjangoContactPointDirectory
 from src.modules.leads.application.use_cases.create_lead import CreateLeadUseCase
 from src.modules.leads.application.use_cases.get_leads import GetLeadsUseCase
 from src.modules.leads.application.use_cases.get_leaddetails import GetLeadDetailsUseCase
@@ -53,7 +55,7 @@ def recorder(ctx: TenantContext):
 
 
 def get_create_lead_use_case(ctx: TenantContext) -> CreateLeadUseCase:
-    return CreateLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager(), picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id))
+    return CreateLeadUseCase(DjangoLeadRepository(company_id=ctx.company_id), DjangoUserRepository(company_id=ctx.company_id), recorder(ctx), DjangoTransactionManager(), picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id), duplicate_guard=DuplicateGuard(DjangoContactPointDirectory(company_id=ctx.company_id)))
 
 
 def get_update_lead_use_case(ctx: TenantContext) -> UpdateLeadUseCase:
@@ -63,6 +65,7 @@ def get_update_lead_use_case(ctx: TenantContext) -> UpdateLeadUseCase:
         recorder(ctx),
         DjangoTransactionManager(),
         picklist_repository=DjangoPicklistRepository(company_id=ctx.company_id),
+        duplicate_guard=DuplicateGuard(DjangoContactPointDirectory(company_id=ctx.company_id)),
     )
 
 def get_leads_use_case(ctx: TenantContext) -> GetLeadsUseCase:
