@@ -1,5 +1,10 @@
 from rest_framework import serializers
 
+from src.modules.shared.presentation.serializer_fields import (
+    EmailAddressField,
+    PhoneNumberField,
+)
+
 
 
 class CreateLeadSerializer(serializers.Serializer):
@@ -22,25 +27,19 @@ class CreateLeadSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-    email = serializers.EmailField(
+    email = EmailAddressField(
         required=False,
         allow_blank=True,
         allow_null=True,
     )
 
-    mobile_number = serializers.CharField(
-        max_length=20,
+    mobile_number = PhoneNumberField(
         required=False,
         allow_blank=True,
         allow_null=True,
     )
 
-    phone = serializers.CharField(
-        max_length=20,
-        required=False,
-        allow_blank=True,
-        allow_null=True,
-    )
+    phone = PhoneNumberField()
 
     # Allowed values are the company's own options (editable by its
     # superadmins), so they are checked per company in the use case rather

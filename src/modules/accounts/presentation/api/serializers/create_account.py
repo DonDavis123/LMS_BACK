@@ -1,5 +1,10 @@
 from rest_framework import serializers
 
+from src.modules.shared.presentation.serializer_fields import (
+    EmailAddressField,
+    PhoneNumberField,
+)
+
 from .account_document import AccountDocumentInputSerializer
 
 
@@ -55,12 +60,7 @@ class CreateAccountSerializer(serializers.Serializer):
         allow_null=True,
     )
 
-    phone = serializers.CharField(
-        max_length=20,
-        required=False,
-        allow_blank=True,
-        allow_null=True,
-    )
+    phone = PhoneNumberField()
 
     website = serializers.URLField(
         max_length=500,

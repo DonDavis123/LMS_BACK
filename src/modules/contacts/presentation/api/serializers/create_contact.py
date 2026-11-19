@@ -1,5 +1,10 @@
 from rest_framework import serializers
 
+from src.modules.shared.presentation.serializer_fields import (
+    EmailAddressField,
+    PhoneNumberField,
+)
+
 
 class CreateContactSerializer(serializers.Serializer):
 
@@ -17,48 +22,39 @@ class CreateContactSerializer(serializers.Serializer):
         max_length=255,
     )
 
-    email = serializers.EmailField(
+    email = EmailAddressField(
         required=False,
         allow_blank=True,
         allow_null=True,
     )
 
-    secondary_email = serializers.EmailField(
+    secondary_email = EmailAddressField(
         required=False,
         allow_blank=True,
         allow_null=True,
     )
 
-    phone = serializers.CharField(
-        max_length=20,
+    phone = PhoneNumberField()
+
+    other_phone = PhoneNumberField(
         required=False,
         allow_blank=True,
         allow_null=True,
     )
 
-    other_phone = serializers.CharField(
-        max_length=20,
+    mobile = PhoneNumberField(
         required=False,
         allow_blank=True,
         allow_null=True,
     )
 
-    mobile = serializers.CharField(
-        max_length=20,
+    home_phone = PhoneNumberField(
         required=False,
         allow_blank=True,
         allow_null=True,
     )
 
-    home_phone = serializers.CharField(
-        max_length=20,
-        required=False,
-        allow_blank=True,
-        allow_null=True,
-    )
-
-    assistant_phone = serializers.CharField(
-        max_length=20,
+    assistant_phone = PhoneNumberField(
         required=False,
         allow_blank=True,
         allow_null=True,

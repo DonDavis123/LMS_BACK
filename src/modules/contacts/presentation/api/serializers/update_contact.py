@@ -1,5 +1,10 @@
 from rest_framework import serializers
 
+from src.modules.shared.presentation.serializer_fields import (
+    EmailAddressField,
+    PhoneNumberField,
+)
+
 
 class UpdateContactSerializer(serializers.Serializer):
     account_id = serializers.UUIDField(
@@ -17,48 +22,41 @@ class UpdateContactSerializer(serializers.Serializer):
         required=False,
     )
 
-    email = serializers.EmailField(
+    email = EmailAddressField(
         required=False,
         allow_null=True,
         allow_blank=True,
     )
 
-    secondary_email = serializers.EmailField(
+    secondary_email = EmailAddressField(
         required=False,
         allow_null=True,
         allow_blank=True,
     )
 
-    phone = serializers.CharField(
-        max_length=20,
+    phone = PhoneNumberField(
+        required=False,
+    )
+
+    other_phone = PhoneNumberField(
         required=False,
         allow_null=True,
         allow_blank=True,
     )
 
-    other_phone = serializers.CharField(
-        max_length=20,
+    mobile = PhoneNumberField(
         required=False,
         allow_null=True,
         allow_blank=True,
     )
 
-    mobile = serializers.CharField(
-        max_length=20,
+    home_phone = PhoneNumberField(
         required=False,
         allow_null=True,
         allow_blank=True,
     )
 
-    home_phone = serializers.CharField(
-        max_length=20,
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-    )
-
-    assistant_phone = serializers.CharField(
-        max_length=20,
+    assistant_phone = PhoneNumberField(
         required=False,
         allow_null=True,
         allow_blank=True,

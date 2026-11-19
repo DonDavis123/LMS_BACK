@@ -1,5 +1,10 @@
 from rest_framework import serializers
 
+from src.modules.shared.presentation.serializer_fields import (
+    EmailAddressField,
+    PhoneNumberField,
+)
+
 
 class UpdateAccountSerializer(serializers.Serializer):
     account_owner_id = serializers.UUIDField(
@@ -52,11 +57,8 @@ class UpdateAccountSerializer(serializers.Serializer):
         allow_blank=True,
     )
 
-    phone = serializers.CharField(
-        max_length=20,
+    phone = PhoneNumberField(
         required=False,
-        allow_null=True,
-        allow_blank=True,
     )
 
     website = serializers.CharField(

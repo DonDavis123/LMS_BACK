@@ -33,6 +33,11 @@ urlpatterns = [
     ),
 
     path(
+        "api/validate/",
+        include("src.modules.shared.presentation.urls"),
+    ),
+
+    path(
         "api/leads/",
         include("src.modules.leads.presentation.api.urls"),
     ),
