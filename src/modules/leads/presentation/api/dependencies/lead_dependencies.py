@@ -6,6 +6,7 @@ from src.modules.leads.application.use_cases.get_leads import GetLeadsUseCase
 from src.modules.leads.application.use_cases.get_leaddetails import GetLeadDetailsUseCase
 from src.modules.leads.application.use_cases.update_lead import UpdateLeadUseCase
 from src.modules.leads.application.use_cases.generate_lead_summary import GenerateLeadSummaryUseCase
+from src.modules.leads.application.use_cases.get_lead_summary import GetLeadSummaryUseCase
 from src.modules.leads.application.use_cases.delete_lead import DeleteLeadUseCase
 from src.modules.leads.application.use_cases.convert_lead import ConvertLeadUseCase
 from src.modules.leads.application.use_cases.coversion_check import ConversionCheckUseCase
@@ -32,6 +33,7 @@ from src.modules.leads.infrastructure.lead_import_undo_store import (
 )
 from src.modules.leads.infrastructure.persistence.django_lead_import_job_repository import DjangoLeadImportJobRepository
 from src.modules.leads.infrastructure.persistence.django_lead_repository import DjangoLeadRepository
+from src.modules.leads.infrastructure.persistence.django_lead_summary_repository import DjangoLeadSummaryRepository
 from src.modules.users.infrastructure.persistence.user_repository import DjangoUserRepository
 from src.modules.accounts.infrastructure.persistence.django_account_repository import DjangoAccountRepository
 from src.modules.contacts.infrastructure.persistence.contacts_repository import DjangoContactRepository
@@ -93,6 +95,14 @@ def get_generate_lead_summary_use_case(ctx: TenantContext) -> GenerateLeadSummar
         DjangoCallRepository(company_id=ctx.company_id),
         DjangoCallRecordingTranscriptRepository(company_id=ctx.company_id),
         get_lead_summary_generator(),
+        DjangoLeadSummaryRepository(company_id=ctx.company_id),
+    )
+
+
+def get_lead_summary_use_case(ctx: TenantContext) -> GetLeadSummaryUseCase:
+    return GetLeadSummaryUseCase(
+        DjangoLeadRepository(company_id=ctx.company_id),
+        DjangoLeadSummaryRepository(company_id=ctx.company_id),
     )
 
 

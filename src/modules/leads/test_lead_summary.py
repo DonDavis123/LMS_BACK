@@ -21,6 +21,10 @@ from src.modules.leads.application.services.lead_summary_dossier import (
 from src.modules.leads.application.use_cases.generate_lead_summary import (
     GenerateLeadSummaryUseCase,
 )
+from src.modules.leads.application.use_cases.get_lead_summary import (
+    GetLeadSummaryUseCase,
+)
+from src.modules.leads.domain.entities.lead_summary import LeadSummary
 from src.modules.leads.infrastructure.summary.gemini_lead_summary_generator import (
     GeminiLeadSummaryGenerator,
     GeminiSummaryConfig,
@@ -157,6 +161,127 @@ class UseCaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             use_case.execute(uuid4())
         generator.generate.assert_not_called()
+
+
+class StoredSummaryTests(unittest.TestCase):
+    """The summary is stored; a refresh replaces the previous one."""
+
+    def build(self, *, lead=None):
+        lead = lead or make_lead()
+        leads = MagicMock()
+        leads.get_by_id_with_owner.return_value = (lead, "Ravi")
+        timeline = MagicMock()
+        timeline.get_for_entity.return_value = [make_event(1)]
+        calls = MagicMock()
+        calls.get_by_related_record.return_value = [make_call()]
+        transcripts = MagicMock()
+        transcripts.get_completed_for_calls.return_value = []
+        generator = MagicMock()
+        generator.is_configured.return_value = True
+        generator.generate.return_value = LeadSummaryResult(
+            headline="Warm lead", key_points=["a"], next_steps=["b"], model_name="m",
+        )
+        repository = MagicMock()
+        repository.replace_for_lead.side_effect = lambda summary: summary
+        use_case = GenerateLeadSummaryUseCase(
+            leads, timeline, calls, transcripts, generator, repository,
+        )
+        return use_case, generator, repository, lead
+
+    def test_result_is_stored_through_replace(self):
+        use_case, _, repository, lead = self.build()
+
+        result = use_case.execute(lead.id)
+
+        repository.replace_for_lead.assert_called_once()
+        stored = repository.replace_for_lead.call_args.args[0]
+        self.assertEqual(stored.lead_id, lead.id)
+        self.assertEqual(stored.headline, "Warm lead")
+        self.assertEqual(stored.key_points, ["a"])
+        self.assertEqual(stored.next_steps, ["b"])
+        self.assertEqual(stored.timeline_events_used, 1)
+        self.assertEqual(stored.calls_used, 1)
+        # The response is what was stored, including its timestamp.
+        self.assertEqual(result.generated_at, stored.generated_at)
+        self.assertEqual(result.headline, "Warm lead")
+
+    def test_failed_generation_keeps_the_previous_summary(self):
+        use_case, generator, repository, lead = self.build()
+        generator.generate.side_effect = LeadSummaryError("Model is busy.")
+
+        with self.assertRaises(LeadSummaryError):
+            use_case.execute(lead.id)
+
+        repository.replace_for_lead.assert_not_called()
+        repository.delete_by_lead_id.assert_not_called()
+
+    def test_not_configured_leaves_the_stored_summary_alone(self):
+        use_case, generator, repository, lead = self.build()
+        generator.is_configured.return_value = False
+
+        with self.assertRaises(LeadSummaryUnavailableError):
+            use_case.execute(lead.id)
+
+        repository.replace_for_lead.assert_not_called()
+
+    def test_without_a_repository_nothing_is_stored(self):
+        use_case, _, _, lead = self.build()
+        use_case.summary_repository = None
+
+        self.assertEqual(use_case.execute(lead.id).headline, "Warm lead")
+
+
+class GetStoredSummaryTests(unittest.TestCase):
+    def build(self, *, lead="default", stored=None):
+        lead = make_lead(is_deleted=False) if lead == "default" else lead
+        leads = MagicMock()
+        leads.get_by_id.return_value = lead
+        repository = MagicMock()
+        repository.get_by_lead_id.return_value = stored
+        return GetLeadSummaryUseCase(leads, repository), repository, lead
+
+    def stored(self, lead_id):
+        return LeadSummary.create(
+            lead_id=lead_id, headline="Warm lead", key_points=["a"],
+            next_steps=["b"], model_name="m", timeline_events_used=3, calls_used=2,
+        )
+
+    def test_returns_none_when_nothing_was_generated(self):
+        use_case, _, lead = self.build()
+        self.assertIsNone(use_case.execute(lead.id))
+
+    def test_returns_the_stored_summary(self):
+        lead = make_lead(is_deleted=False)
+        use_case, _, _ = self.build(lead=lead, stored=self.stored(lead.id))
+
+        result = use_case.execute(lead.id)
+
+        self.assertEqual(result.headline, "Warm lead")
+        self.assertEqual(result.key_points, ["a"])
+        self.assertEqual(result.timeline_events_used, 3)
+        self.assertEqual(result.calls_used, 2)
+
+    def test_unknown_or_deleted_lead(self):
+        use_case, repository, _ = self.build(lead=None)
+        with self.assertRaises(ValueError):
+            use_case.execute(uuid4())
+
+        use_case, repository, lead = self.build(lead=make_lead(is_deleted=True))
+        with self.assertRaises(ValueError):
+            use_case.execute(lead.id)
+        repository.get_by_lead_id.assert_not_called()
+
+
+class LeadSummaryEntityTests(unittest.TestCase):
+    def test_headline_is_required_and_trimmed(self):
+        kwargs = dict(
+            lead_id=uuid4(), key_points=[], next_steps=[], model_name=None,
+            timeline_events_used=0, calls_used=0,
+        )
+        with self.assertRaises(ValueError):
+            LeadSummary.create(headline="   ", **kwargs)
+
+        self.assertEqual(LeadSummary.create(headline="  Hi  ", **kwargs).headline, "Hi")
 
 
 def http_response(status=200, body=None):

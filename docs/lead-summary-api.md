@@ -8,12 +8,31 @@ Same rules as the other lead endpoints: JWT, company user
 (`IsAuthenticated` + `IsCompanyUser`), tenant scoped. A lead of another company
 behaves like one that does not exist (`404`).
 
-Nothing is generated when a lead is opened and **nothing is stored**: every
-click is one model request and the result lives only in the response.
+Nothing is generated when a lead is opened: every **Generate** / **Refresh**
+click is one model request. The result is **stored** (table `lead_summaries`,
+one row per lead), so the lead page shows the last summary the next time it is
+opened without calling the model. A refresh **permanently deletes** the old
+summary and stores the new one in its place (delete + insert in one
+transaction; no history, no soft delete). If the model fails, the old summary
+is left untouched.
 
-## Endpoint
+## Endpoints
 
-`POST /api/leads/<lead_id>/summary/` (no body)
+### `GET /api/leads/<lead_id>/summary/`
+
+Returns the stored summary. Never calls the model, so it is free to call
+whenever a lead page opens. Same JSON as the `POST` below, with
+`generated_at` = when it was written.
+
+| Status | Meaning |
+|---|---|
+| `200` | The stored summary. |
+| `204` | No summary has been generated for this lead yet (empty body). |
+| `404` | Lead not found (or not in your company). |
+
+### `POST /api/leads/<lead_id>/summary/` (no body)
+
+Writes a fresh summary, stores it in place of the old one and returns it.
 
 ```json
 {
@@ -30,7 +49,7 @@ click is one model request and the result lives only in the response.
 
 | Status | Meaning |
 |---|---|
-| `200` | Summary written. |
+| `200` | Summary written and stored (the previous one is gone). |
 | `404` | Lead not found (or not in your company). |
 | `502` | The model failed; `detail` is safe to show. |
 | `503` | No `GEMINI_API_KEY` is set on the server. |

@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from uuid import UUID
 
 from src.modules.calls.application.interfaces.call_recording_transcript_repository import (
@@ -11,20 +10,28 @@ from src.modules.leads.application.interfaces.lead_summary_generator import (
     LeadSummaryGenerator,
     LeadSummaryUnavailableError,
 )
+from src.modules.leads.application.interfaces.lead_summary_repository import (
+    LeadSummaryRepository,
+)
 from src.modules.leads.application.services.lead_summary_dossier import (
     MAX_CALLS,
     MAX_TIMELINE_EVENTS,
     build_lead_dossier,
 )
+from src.modules.leads.domain.entities.lead_summary import LeadSummary
 from src.modules.timeline.application.interfaces.timeline_repository import TimelineRepository
 
 
 class GenerateLeadSummaryUseCase:
     """Writes a short "where does this lead stand" summary from its history.
 
-    Runs only when a user asks for it (nothing is stored). It reads the lead,
-    its timeline and its calls (with the summaries of transcribed recordings),
-    all scoped to the caller's company by the repositories.
+    Runs only when a user asks for it. It reads the lead, its timeline and its
+    calls (with the summaries of transcribed recordings), all scoped to the
+    caller's company by the repositories.
+
+    The result is stored as the lead's current summary. A refresh deletes the
+    previous summary permanently and stores the new one in its place; when
+    the model fails nothing is touched and the previous summary stays.
     """
 
     def __init__(
@@ -34,12 +41,15 @@ class GenerateLeadSummaryUseCase:
         call_repository: CallRepository,
         transcript_repository: CallRecordingTranscriptRepository,
         summary_generator: LeadSummaryGenerator,
+        summary_repository: LeadSummaryRepository | None = None,
     ):
         self.lead_repository = lead_repository
         self.timeline_repository = timeline_repository
         self.call_repository = call_repository
         self.transcript_repository = transcript_repository
         self.summary_generator = summary_generator
+        # ``None`` keeps the old behaviour: generate without storing.
+        self.summary_repository = summary_repository
 
     def execute(self, lead_id: UUID) -> LeadSummaryResponseDTO:
         # Check the setup first: no point reading the history without a model.
@@ -66,18 +76,24 @@ class GenerateLeadSummaryUseCase:
             call_summaries=call_summaries,
         )
 
+        # Raises LeadSummaryError on failure, before anything is deleted.
         result = self.summary_generator.generate(dossier)
 
-        return LeadSummaryResponseDTO(
+        summary = LeadSummary.create(
             lead_id=lead.id,
             headline=result.headline,
             key_points=result.key_points,
             next_steps=result.next_steps,
-            generated_at=datetime.now(timezone.utc),
             model_name=result.model_name,
             timeline_events_used=len(events),
             calls_used=len(calls),
         )
+
+        if self.summary_repository is not None:
+            # Old summary deleted + new one stored, in one transaction.
+            summary = self.summary_repository.replace_for_lead(summary)
+
+        return LeadSummaryResponseDTO.from_entity(summary)
 
     def _call_summaries(self, call_ids: list[UUID]) -> dict:
         grouped: dict = {}
