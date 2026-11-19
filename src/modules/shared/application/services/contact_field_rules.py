@@ -18,6 +18,7 @@ PHONE_INVALID_MESSAGE = (
 PHONE_CHARS_MESSAGE = (
     "Phone number can only contain digits, spaces, + ( ) - and ."
 )
+INDIA_INVALID_MESSAGE = "Indian numbers (+91) must have exactly 10 digits."
 EMAIL_INVALID_MESSAGE = "Enter a valid email address."
 
 _PHONE_ALLOWED = re.compile(r"^\+?[\d\s().\-]+$")
@@ -40,6 +41,9 @@ def phone_error(value: str | None) -> str | None:
     digits = sum(ch.isdigit() for ch in text)
     if not PHONE_MIN_DIGITS <= digits <= PHONE_MAX_DIGITS:
         return PHONE_INVALID_MESSAGE
+    # India (+91): the number after the country code is always 10 digits.
+    if re.sub(r"[\s().\-]", "", text).startswith("+91") and digits != 12:
+        return INDIA_INVALID_MESSAGE
     return None
 
 
