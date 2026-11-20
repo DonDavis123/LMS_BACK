@@ -16,6 +16,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
 
@@ -151,6 +152,9 @@ LEAD_CAPTURE_DAILY_CAP = int(os.getenv("LEAD_CAPTURE_DAILY_CAP", "500"))
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Compresses JSON responses (list endpoints are large). Placed right after
+    # CORS/Security so the CORS headers are still added to the response.
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -187,8 +191,6 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 # rows-to-fix and results files) lose the server's file name.
 CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 
-
-from corsheaders.defaults import default_headers
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "ngrok-skip-browser-warning",
@@ -261,10 +263,6 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # -------------------------------------------------------------------
 
-# -------------------------------------------------------------------
-# Database
-# -------------------------------------------------------------------
-
 IS_TESTING = "test" in sys.argv
 
 if IS_TESTING:
@@ -279,6 +277,29 @@ if IS_TESTING:
         }
     }
 else:
+    # Keep each connection open and reuse it across requests instead of
+    # opening a new TCP + TLS connection to the database on every request
+    # (very slow when Render and Supabase are in different places).
+    # 0 = old behaviour (close after each request).
+    _db_conn_max_age = int(os.getenv("DB_CONN_MAX_AGE", "60"))
+
+    _db_options = {
+        # Fail fast instead of hanging when the database is unreachable.
+        "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "10")),
+    }
+    if os.getenv("DB_SSLMODE"):
+        # e.g. DB_SSLMODE=require for Supabase.
+        _db_options["sslmode"] = os.getenv("DB_SSLMODE")
+
+    # Set DB_TRANSACTION_POOLER=True when DB_HOST is Supabase's transaction
+    # pooler (port 6543). That mode cannot use server-side cursors or
+    # prepared statements, so both are switched off.
+    _db_transaction_pooler = (
+        os.getenv("DB_TRANSACTION_POOLER", "False").lower() == "true"
+    )
+    if _db_transaction_pooler:
+        _db_options["prepare_threshold"] = None
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -287,6 +308,12 @@ else:
             "PASSWORD": os.getenv("DB_PASSWORD"),
             "HOST": os.getenv("DB_HOST"),
             "PORT": os.getenv("DB_PORT"),
+            "CONN_MAX_AGE": _db_conn_max_age,
+            # Checks a reused connection is still alive before using it, so a
+            # connection dropped by Supabase never causes a failed request.
+            "CONN_HEALTH_CHECKS": True,
+            "DISABLE_SERVER_SIDE_CURSORS": _db_transaction_pooler,
+            "OPTIONS": _db_options,
         }
     }
 
@@ -388,8 +415,7 @@ USE_TZ = True
 # -------------------------------------------------------------------
 # Static files
 # -------------------------------------------------------------------
-
-STATIC_URL = "static/"
+# STATIC_URL and STATIC_ROOT are defined at the top of this file.
 
 
 # -------------------------------------------------------------------
