@@ -242,10 +242,11 @@ exact number of proxies in front of the app (it is `None` by default). If it is
 unset behind a proxy, DRF trusts the whole header (which a client can forge) or,
 without the header, every visitor shares the proxy's address and one limit.
 
-*Per-process limits.* Counters are kept in Django's cache. The default cache is
-per process, so with several workers each process counts on its own and the
-effective limit is roughly rate x number of processes. A shared cache (for
-example Redis) is needed for an exact global limit.
+*Per-process limits.* Counters are kept in Django's cache. Without `REDIS_URL`
+the default cache is per process, so with several workers each process counts
+on its own and the effective limit is roughly rate x number of processes. Set
+`REDIS_URL` (see `docs/redis-cache.md`) to share the counters between all
+workers and get an exact global limit.
 
 **Daily cap per form.** A form accepts at most `LEAD_CAPTURE_DAILY_CAP` leads
 per local day (default `500`; the day follows the project `TIME_ZONE`). After

@@ -106,7 +106,10 @@ AUTH_USER_MODEL = "users.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Same as simplejwt's JWTAuthentication, but the user row is served from
+        # the cache (Redis in production) for AUTH_CACHE_TTL_SECONDS seconds.
+        "src.modules.authentication.infrastructure.security."
+        "cached_jwt_authentication.CachedJWTAuthentication",
     ),
     # Unexpected errors are answered with JSON ({"detail": ...}) instead of
     # Django's HTML 500 page, so the frontend can always show a message.
@@ -116,8 +119,10 @@ REST_FRAMEWORK = {
     # Throttle rates for the public lead-capture form (see
     # src/modules/lead_capture/presentation/api/throttles.py). There is
     # deliberately NO DEFAULT_THROTTLE_CLASSES: no other endpoint is throttled.
-    # Counters live in Django's cache; the default cache (LocMemCache) is
-    # per process, so each worker process enforces its own limit.
+    # Counters live in Django's default cache (see CACHES below). With
+    # REDIS_URL set that is Redis, shared by every worker, so the limit is
+    # global; without it the cache is per process (LocMemCache) and each
+    # worker process enforces its own limit.
     "DEFAULT_THROTTLE_RATES": {
         "lead_capture_submit": os.getenv("LEAD_CAPTURE_SUBMIT_RATE", "10/hour"),
         "lead_capture_view": os.getenv("LEAD_CAPTURE_VIEW_RATE", "120/hour"),
@@ -271,7 +276,6 @@ if IS_TESTING:
             "PASSWORD": os.getenv("TEST_DB_PASSWORD"),
             "HOST": os.getenv("TEST_DB_HOST", "localhost"),
             "PORT": os.getenv("TEST_DB_PORT", "5432"),
-            
         }
     }
 else:
@@ -283,10 +287,53 @@ else:
             "PASSWORD": os.getenv("DB_PASSWORD"),
             "HOST": os.getenv("DB_HOST"),
             "PORT": os.getenv("DB_PORT"),
-            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
-            "CONN_HEALTH_CHECKS": True,
         }
     }
+
+
+# -------------------------------------------------------------------
+# Cache (Redis)
+# -------------------------------------------------------------------
+
+# With REDIS_URL set (e.g. redis://:password@host:6379/0, or rediss:// for
+# TLS) the default cache is Redis, shared by all workers. Without it, or
+# while running tests, Django's per-process in-memory cache is used, so local
+# development needs no Redis. Uses Django's built-in Redis backend; it needs
+# the "redis" package (see requirements.txt).
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+
+if REDIS_URL and not IS_TESTING:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            # Lets several environments share one Redis without clashing.
+            "KEY_PREFIX": os.getenv("CACHE_KEY_PREFIX", "lms"),
+            "OPTIONS": {
+                # Fail fast: a slow or unreachable Redis must not stall
+                # requests (the auth cache then falls back to the database).
+                "socket_connect_timeout": float(
+                    os.getenv("REDIS_CONNECT_TIMEOUT", "0.5")
+                ),
+                "socket_timeout": float(os.getenv("REDIS_SOCKET_TIMEOUT", "0.5")),
+            },
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+
+# Seconds the authenticated user row and a company's "suspended?" answer are
+# cached (see src/modules/shared/infrastructure/caching/auth_cache.py). Saving
+# the user / company clears the entry at once, so this only bounds changes
+# made outside Django's save() (e.g. raw SQL). 0 turns the cache off. Always
+# off in tests so they see database changes immediately.
+AUTH_CACHE_TTL_SECONDS = (
+    0 if IS_TESTING else int(os.getenv("AUTH_CACHE_TTL_SECONDS", "60"))
+)
 
 
 # -------------------------------------------------------------------
