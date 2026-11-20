@@ -48,4 +48,4 @@ class DjangoAccountSummaryModel(models.Model):
         db_table = "account_summaries"
 
     def __str__(self):
-        return f"Summary of account {self.account_id}"
+        return f"Summary of company {self.account_id}"

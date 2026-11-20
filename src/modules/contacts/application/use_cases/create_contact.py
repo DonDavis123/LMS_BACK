@@ -55,11 +55,11 @@ class CreateContactUseCase:
             account = self.account_repository.get_by_id(data.account_id)
 
             if account is None:
-                raise ValueError("Account not found.")
+                raise ValueError("Company not found.")
 
             if account.is_deleted:
                 raise ValueError(
-                    "Cannot create a Contact for a deleted Account."
+                    "Cannot create a Contact for a deleted Company."
                 )
 
         # Resolve Contact owner

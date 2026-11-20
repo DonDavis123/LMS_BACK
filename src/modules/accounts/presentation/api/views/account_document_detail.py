@@ -22,7 +22,7 @@ from ..serializers.account_document import (
     AccountDocumentSerializer,
 )
 
-NOT_FOUND_MESSAGES = {"Account not found.", "Document not found."}
+NOT_FOUND_MESSAGES = {"Company not found.", "Document not found."}
 
 
 class AccountDocumentDetailView(APIView):

@@ -25,6 +25,6 @@ class ListAccountDocumentsUseCase:
         account = self.account_repository.get_by_id(account_id)
 
         if account is None or account.is_deleted:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
 
         return self.document_repository.list_by_account_id(account.id)

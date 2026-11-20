@@ -67,7 +67,7 @@ class AccountDocumentListView(APIView):
                 {"detail": message},
                 status=(
                     status.HTTP_404_NOT_FOUND
-                    if message == "Account not found."
+                    if message == "Company not found."
                     else status.HTTP_400_BAD_REQUEST
                 ),
             )

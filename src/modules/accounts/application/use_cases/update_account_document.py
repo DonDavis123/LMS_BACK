@@ -40,7 +40,7 @@ class UpdateAccountDocumentUseCase:
         account = self.account_repository.get_by_id(data.account_id)
 
         if account is None or account.is_deleted:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
 
         document = self.document_repository.get_by_id(
             data.document_id,
@@ -65,7 +65,7 @@ class UpdateAccountDocumentUseCase:
                     event_type="ACCOUNT_DOCUMENT_UPDATED",
                     actor_id=current_user_id,
                     message=(
-                        f'Document "{saved.name}" of account '
+                        f'Document "{saved.name}" of company '
                         f"{account.account_name} was updated."
                     ),
                     metadata={

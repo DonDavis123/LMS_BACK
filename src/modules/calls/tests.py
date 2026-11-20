@@ -360,7 +360,7 @@ class ContactCallFlowTests(CallApiTestCase):
 
         rows = {row["id"]: row for row in response.data["results"]}
         self.assertEqual(rows[with_account["id"]]["account_id"], str(self.account.id))
-        self.assertEqual(rows[with_account["id"]]["account_name"], "Call Account")
+        self.assertEqual(rows[with_account["id"]]["account_name"], "Call Company")
         self.assertEqual(rows[with_account["id"]]["contact_name"], "Call Contact")
         self.assertIsNone(rows[with_account["id"]]["lead_id"])
         self.assertIsNone(rows[without_account["id"]]["account_id"])
@@ -592,7 +592,7 @@ class CallDetailTests(CallApiTestCase):
             data["related_record"],
             {"type": "CONTACT", "id": str(self.contact.id), "name": "Call Contact"},
         )
-        self.assertEqual(data["account_name"], "Call Account")
+        self.assertEqual(data["account_name"], "Call Company")
         self.assertEqual(data["change_history"][0]["event_type"], "CALL_LOGGED")
         self.assertEqual([item["id"] for item in data["related_calls"]], [second["id"]])
         self.assertEqual(data["total_calls_for_record"], 2)

@@ -34,14 +34,14 @@ def validate_account_and_contact(
     contact_id: UUID | None,
 ) -> None:
     if account_id is None and contact_id is None:
-        raise ValueError("A deal requires an account or a contact.")
+        raise ValueError("A deal requires a company or a contact.")
 
     account = None
     if account_id is not None:
         account = account_repository.get_by_id(account_id)
 
         if account is None or account.is_deleted:
-            raise ValueError("Selected account not found.")
+            raise ValueError("Selected company not found.")
 
     if contact_id is not None:
         contact = contact_repository.get_by_id(contact_id)
@@ -55,5 +55,5 @@ def validate_account_and_contact(
             and contact.account_id != account_id
         ):
             raise ValueError(
-                "Selected contact does not belong to the selected account."
+                "Selected contact does not belong to the selected company."
             )

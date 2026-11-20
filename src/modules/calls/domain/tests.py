@@ -57,7 +57,7 @@ class CallEntityTests(unittest.TestCase):
             self.make(contact_id=self.contact_id)
 
     def test_account_requires_contact(self):
-        with self.assertRaisesRegex(ValueError, "account requires"):
+        with self.assertRaisesRegex(ValueError, "company requires"):
             self.make(account_id=self.account_id)
 
     def test_duration_bounds(self):

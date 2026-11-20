@@ -127,12 +127,12 @@ class UpdateTaskUseCase:
 
             if task.lead_id is not None and task.account_id is not None:
                 raise ValueError(
-                    "Task associated with a lead cannot have an account."
+                    "Task associated with a lead cannot have a company."
                 )
 
             if task.account_id is not None and task.contact_id is None:
                 raise ValueError(
-                    "Task account requires an associated contact."
+                    "Task company requires an associated contact."
                 )
 
             if task.lead_id is not None:
@@ -151,7 +151,7 @@ class UpdateTaskUseCase:
                 account = self.account_repository.get_by_id(task.account_id)
 
                 if account is None or account.is_deleted:
-                    raise ValueError("Selected account not found.")
+                    raise ValueError("Selected company not found.")
 
             # Persist the Task.
             saved = self.task_repository.save(task)
@@ -256,7 +256,7 @@ class UpdateTaskUseCase:
                         "reminder_at": "Reminder",
                         "lead_id": "Lead",
                         "contact_id": "Contact",
-                        "account_id": "Account",
+                        "account_id": "Company",
                         "status": "Status",
                         "description": "Description",
                     },

@@ -53,7 +53,7 @@ Example: `GET /api/exports/leads/?format=xlsx&search=acme&filters=[{"field":"lea
 
 | Entity     | Columns (in order) |
 |------------|--------------------|
-| `accounts` | Account Name, Account Number, Account Type, Industry, Phone, Website, Rating, Employees, Annual Revenue, Billing Address, Billing City, Billing State, Billing Country, Billing Postal Code, Owner, Created At, Updated At |
+| `accounts` | Company Name, Company Number, Company Type, Industry, Phone, Website, Rating, Employees, Annual Revenue, Billing Address, Billing City, Billing State, Billing Country, Billing Postal Code, Owner, Created At, Updated At |
 | `contacts` | Name, Title, Department, Email, Secondary Email, Phone, Mobile, Account, Lead Source, Owner, Date of Birth, Email Opt Out, Mailing Address, Mailing City, Mailing State, Mailing Country, Mailing Postal Code, Next Task Due Date, Next Task Status, Created At, Updated At |
 
 The extra account and contact fields are carried by the list use cases

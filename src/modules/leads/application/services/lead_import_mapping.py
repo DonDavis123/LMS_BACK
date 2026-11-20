@@ -120,7 +120,7 @@ def validate_mapping(mapping: dict, headers: list[str], options=None) -> Mapping
         column = by_field["converted"][0]
         check.warnings.append(
             f"The column '{column}' is mapped to Converted, so rows marked Yes will be "
-            "added as an Account and a Contact instead of a lead. If that is not what "
+            "added as a Company and a Contact instead of a lead. If that is not what "
             "you want, set the column to 'Do not import'."
         )
 

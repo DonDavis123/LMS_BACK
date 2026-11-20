@@ -353,7 +353,7 @@ class ConversionRollbackTests(ConversionWithDealBase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("different account", response.data["detail"])
+        self.assertIn("different company", response.data["detail"])
         self.assert_nothing_changed(before)
         self.assertFalse(
             DjangoAccountModel.objects.filter(account_name="Ravi's shop").exists()

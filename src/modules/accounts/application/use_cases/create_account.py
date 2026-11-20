@@ -50,10 +50,10 @@ class CreateAccountUseCase:
 
         owner = self.user_repository.get_by_id(account_owner_id)
         if owner is None:
-            raise ValueError("Account owner not found.")
+            raise ValueError("Company owner not found.")
         # Blocked and retired (soft-deleted) users are inactive.
         if not owner.is_active:
-            raise ValueError("Account owner must be an active user.")
+            raise ValueError("Company owner must be an active user.")
 
         account = Account.create(
             account_owner_id=account_owner_id,
@@ -101,7 +101,7 @@ class CreateAccountUseCase:
 
         def creation():
             saved = self.account_repository.save(account)
-            self.timeline_recorder.record(event_type="ACCOUNT_CREATED", actor_id=current_user_id, message=f"Account {saved.account_name} was created.", metadata={"account_id": str(saved.id), "account_name": saved.account_name}, targets=[("ACCOUNT", saved.id)])
+            self.timeline_recorder.record(event_type="ACCOUNT_CREATED", actor_id=current_user_id, message=f"Company {saved.account_name} was created.", metadata={"account_id": str(saved.id), "account_name": saved.account_name}, targets=[("ACCOUNT", saved.id)])
 
             for document in documents:
                 saved_document = self.document_repository.save(document)
@@ -109,7 +109,7 @@ class CreateAccountUseCase:
                     event_type="ACCOUNT_DOCUMENT_ADDED",
                     actor_id=current_user_id,
                     message=(
-                        f'Document "{saved_document.name}" was added to account '
+                        f'Document "{saved_document.name}" was added to company '
                         f"{saved.account_name}."
                     ),
                     metadata={

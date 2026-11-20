@@ -214,7 +214,7 @@ class ConversionTenantIsolationTests(APITestCase):
         )
 
         self.assertEqual(foreign.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(foreign.data, {"detail": "Selected Account not found."})
+        self.assertEqual(foreign.data, {"detail": "Selected Company not found."})
         self.assert_same_as_missing(foreign, missing)
 
         self.lead_a.refresh_from_db()

@@ -18,7 +18,7 @@ RESULT_SKIPPED = "skipped"
 RESULT_FAILED = "failed"
 
 NOT_ENABLED_NOTE = (
-    "Importing converted leads as an Account and a Contact is not available yet, "
+    "Importing converted leads as a Company and a Contact is not available yet, "
     "so this row was skipped."
 )
 

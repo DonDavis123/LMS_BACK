@@ -362,7 +362,7 @@ class ContactUpdateIsolationTests(TwoCompaniesContactsTestCase):
         missing = self.patch(self.client_a, self.a_ann.id, account_id=str(uuid.uuid4()))
 
         self.assertEqual(foreign.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(foreign.data, {"detail": "Selected Account not found."})
+        self.assertEqual(foreign.data, {"detail": "Selected Company not found."})
         self.assert_same_as_missing(foreign, missing)
 
         self.a_ann.refresh_from_db()
@@ -535,7 +535,7 @@ class ContactCreateIsolationTests(TwoCompaniesContactsTestCase):
         missing = self.create(self.client_a, account_id=str(uuid.uuid4()))
 
         self.assertEqual(foreign.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(foreign.data, {"detail": "Account not found."})
+        self.assertEqual(foreign.data, {"detail": "Company not found."})
         self.assert_same_as_missing(foreign, missing)
         self.assertEqual(DjangoContactModel.objects.count(), total)
 

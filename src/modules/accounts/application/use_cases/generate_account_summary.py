@@ -59,11 +59,11 @@ class GenerateAccountSummaryUseCase:
     def execute(self, account_id: UUID) -> AccountSummaryResponseDTO:
         # Check the setup first: no point reading the history without a model.
         if not self.summary_generator.is_configured():
-            raise AccountSummaryUnavailableError("Account summaries are not configured.")
+            raise AccountSummaryUnavailableError("Company summaries are not configured.")
 
         found = self.account_repository.get_by_id_with_owner(account_id)
         if found is None:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
         account, owner_name = found
 
         contacts = self.contact_repository.get_by_account_id_with_owner(account.id)[:MAX_CONTACTS]

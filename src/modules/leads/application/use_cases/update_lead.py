@@ -56,7 +56,7 @@ class UpdateLeadUseCase:
         if existing_lead.is_converted:
             raise ValueError(
                 "This lead has been converted and can no longer be edited. "
-                "Update the related Contact or Account instead."
+                "Update the related Contact or Company instead."
             )
 
         # Checked up front so a bad value fails before anything is changed.

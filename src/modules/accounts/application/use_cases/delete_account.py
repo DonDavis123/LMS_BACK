@@ -51,10 +51,10 @@ class DeleteAccountUseCase:
         )
 
         if account is None:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
 
         if account.is_deleted:
-            raise ValueError("Account is already deleted.")
+            raise ValueError("Company is already deleted.")
 
         def deletion():
 

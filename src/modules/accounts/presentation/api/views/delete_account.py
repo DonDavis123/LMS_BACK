@@ -45,7 +45,7 @@ class DeleteAccountView(APIView):
 
         return Response(
             {
-                "message": "Account deleted successfully.",
+                "message": "Company deleted successfully.",
                 "account_id": account_id,
             },
             status=status.HTTP_200_OK,

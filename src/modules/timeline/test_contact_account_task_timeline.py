@@ -240,7 +240,7 @@ class ContactAccountTaskTimelineTests(TestCase):
         self.assertEqual(changes["account_id"], {"old_value": None, "new_value": account.account_name})
         self.assertEqual(changes["contact_owner_id"], {"old_value": self.user.name, "new_value": owner.name})
         self.assertEqual(changes["reporting_to_id"], {"old_value": None, "new_value": reporting_contact.name})
-        self.assertIn(f"Account: None → {account.account_name}", event["message"])
+        self.assertIn(f"Company: None → {account.account_name}", event["message"])
         self.assertNotIn(str(account.id), event["message"])
         self.assertNotIn(str(owner.id), event["message"])
         self.assertNotIn(str(reporting_contact.id), event["message"])

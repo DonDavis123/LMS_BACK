@@ -28,7 +28,7 @@ class GetAccountDetailsView(APIView):
 
         if account is None:
             return Response(
-                {"detail": "Account not found."},
+                {"detail": "Company not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 

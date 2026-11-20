@@ -149,7 +149,7 @@ class ConvertLeadUseCase:
                 if self._has_company_name(lead.company_name):
                     raise ValueError(
                         "A company is required for normal lead conversion. "
-                        "Create or select an Account."
+                        "Create or select a Company."
                     )
 
             elif data.account_action == "create_new":
@@ -288,7 +288,7 @@ class ConvertLeadUseCase:
             and contact.account_id != account_id
         ):
             raise ValueError(
-                "The contact belongs to a different account than the one "
+                "The contact belongs to a different company than the one "
                 "selected for the deal."
             )
 
@@ -392,7 +392,7 @@ class ConvertLeadUseCase:
             event_type="ACCOUNT_CREATED",
             actor_id=current_user_id,
             message=(
-                f"Account created by converting the Lead {lead.name}"
+                f"Company created by converting the Lead {lead.name}"
             ),
             metadata={
                 "account_id": str(saved.id),
@@ -421,7 +421,7 @@ class ConvertLeadUseCase:
 
         if account_id is None:
             raise ValueError(
-                "account_id is required when using an existing Account."
+                "account_id is required when using an existing Company."
             )
 
         account = self.account_repository.get_by_id(
@@ -430,12 +430,12 @@ class ConvertLeadUseCase:
 
         if account is None:
             raise ValueError(
-                "Selected Account not found."
+                "Selected Company not found."
             )
 
         if account.is_deleted:
             raise ValueError(
-                "Cannot use a deleted Account."
+                "Cannot use a deleted Company."
             )
 
         return account

@@ -165,7 +165,7 @@ _STAGES = {
     ),
     "account": (
         "company_name",
-        "Could not create the account for row {row}: {reason}.",
+        "Could not create the company for row {row}: {reason}.",
         "Fix the company name and upload this row again.",
     ),
     "contact": (

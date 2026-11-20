@@ -263,7 +263,7 @@ class AccountDetailIsolationTests(TwoCompaniesAccountsTestCase):
         missing = self.client_a.get(f"/api/accounts/{uuid.uuid4()}/")
 
         self.assertEqual(foreign.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(foreign.data, {"detail": "Account not found."})
+        self.assertEqual(foreign.data, {"detail": "Company not found."})
         self.assert_same_as_missing(foreign, missing)
 
     def test_detail_lists_only_own_contacts(self):
@@ -310,7 +310,7 @@ class AccountUpdateIsolationTests(TwoCompaniesAccountsTestCase):
         missing = self.update(self.client_a, uuid.uuid4(), account_name="Hijacked")
 
         # Same response as for a record that does not exist.
-        self.assertEqual(foreign.data, {"detail": "Account not found."})
+        self.assertEqual(foreign.data, {"detail": "Company not found."})
         self.assert_same_as_missing(foreign, missing)
         self.assertIn(
             foreign.status_code,
@@ -360,7 +360,7 @@ class AccountDeleteIsolationTests(TwoCompaniesAccountsTestCase):
         missing = self.client_a.delete(f"/api/accounts/{uuid.uuid4()}/delete/")
 
         self.assertEqual(foreign.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(foreign.data, {"detail": "Account not found."})
+        self.assertEqual(foreign.data, {"detail": "Company not found."})
         self.assert_same_as_missing(foreign, missing)
 
         after = DjangoAccountModel.objects.get(id=self.b_beta.id)
@@ -440,7 +440,7 @@ class AccountCreateIsolationTests(TwoCompaniesAccountsTestCase):
         )
 
         self.assertEqual(foreign.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(foreign.data, {"detail": "Account owner not found."})
+        self.assertEqual(foreign.data, {"detail": "Company owner not found."})
         self.assert_same_as_missing(foreign, missing)
         self.assertEqual(DjangoAccountModel.objects.count(), total)
 

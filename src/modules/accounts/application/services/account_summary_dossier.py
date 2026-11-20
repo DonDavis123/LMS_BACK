@@ -102,7 +102,7 @@ def build_account_dossier(
     if len(contacts) > MAX_CONTACTS:
         lines.append(f"- … and {len(contacts) - MAX_CONTACTS} more contacts")
 
-    lines += ["", f"CALLS with this account's contacts (newest first, up to {MAX_CALLS})"]
+    lines += ["", f"CALLS with this company's contacts (newest first, up to {MAX_CALLS})"]
     if not calls:
         lines.append("- No calls logged.")
     for index, item in enumerate(calls[:MAX_CALLS]):

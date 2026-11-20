@@ -77,7 +77,7 @@ class UpdateAccountView(APIView):
 
         return Response(
             {
-                "message": "Account updated successfully.",
+                "message": "Company updated successfully.",
                 "account_id": account.id,
             },
             status=status.HTTP_200_OK,

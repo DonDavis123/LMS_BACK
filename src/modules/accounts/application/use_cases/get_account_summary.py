@@ -23,7 +23,7 @@ class GetAccountSummaryUseCase:
         account = self.account_repository.get_by_id(account_id)
 
         if account is None or account.is_deleted:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
 
         summary = self.summary_repository.get_by_account_id(account.id)
 

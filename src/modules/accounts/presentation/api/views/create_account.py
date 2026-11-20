@@ -84,7 +84,7 @@ class CreateAccountView(APIView):
         return Response(
             {
                 "id": str(account.id),
-                "message": "Account created successfully.",
+                "message": "Company created successfully.",
             },
             status=status.HTTP_201_CREATED,
         )

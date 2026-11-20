@@ -85,7 +85,7 @@ class CreateCallUseCase:
             account = self.account_repository.get_by_id(data.account_id)
 
             if account is None or account.is_deleted:
-                raise ValueError("Selected account not found.")
+                raise ValueError("Selected company not found.")
 
         call = Call.create(
             owner_id=owner_id,

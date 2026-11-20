@@ -41,7 +41,7 @@ class AddAccountDocumentUseCase:
         account = self.account_repository.get_by_id(data.account_id)
 
         if account is None or account.is_deleted:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
 
         document = AccountDocument.create(
             account_id=account.id,
@@ -57,7 +57,7 @@ class AddAccountDocumentUseCase:
                 event_type="ACCOUNT_DOCUMENT_ADDED",
                 actor_id=current_user_id,
                 message=(
-                    f'Document "{saved.name}" was added to account '
+                    f'Document "{saved.name}" was added to company '
                     f"{account.account_name}."
                 ),
                 metadata={

@@ -163,7 +163,7 @@ class UseCaseTests(unittest.TestCase):
     def test_returns_summary_and_counts(self):
         use_case, _, timeline, calls, generator, account = self.build()
         result = use_case.execute(account.id)
-        self.assertEqual(result.headline, "Strong account")
+        self.assertEqual(result.headline, "Strong company")
         self.assertEqual(result.timeline_events_used, 1)
         self.assertEqual(result.calls_used, 1)
         self.assertEqual(result.contacts_used, 1)
@@ -222,7 +222,7 @@ class StoredSummaryTests(unittest.TestCase):
         repository.replace_for_account.assert_called_once()
         stored = repository.replace_for_account.call_args.args[0]
         self.assertEqual(stored.account_id, account.id)
-        self.assertEqual(stored.headline, "Strong account")
+        self.assertEqual(stored.headline, "Strong company")
         self.assertEqual(stored.key_points, ["a"])
         self.assertEqual(stored.next_steps, ["b"])
         self.assertEqual(stored.timeline_events_used, 1)
@@ -253,7 +253,7 @@ class StoredSummaryTests(unittest.TestCase):
         use_case, _, _, account = self.build()
         use_case.summary_repository = None
 
-        self.assertEqual(use_case.execute(account.id).headline, "Strong account")
+        self.assertEqual(use_case.execute(account.id).headline, "Strong company")
 
 
 class GetStoredSummaryTests(unittest.TestCase):
@@ -282,7 +282,7 @@ class GetStoredSummaryTests(unittest.TestCase):
 
         result = use_case.execute(account.id)
 
-        self.assertEqual(result.headline, "Strong account")
+        self.assertEqual(result.headline, "Strong company")
         self.assertEqual(result.key_points, ["a"])
         self.assertEqual(result.timeline_events_used, 3)
         self.assertEqual(result.calls_used, 2)
@@ -340,13 +340,13 @@ class GeminiGeneratorTests(unittest.TestCase):
             "headline": "  Strong account  ", "key_points": ["a", "", "b"], "next_steps": [],
         }))
         result = self.generator().generate("dossier")
-        self.assertEqual(result.headline, "Strong account")
+        self.assertEqual(result.headline, "Strong company")
         self.assertEqual(result.key_points, ["a", "b"])
         kwargs = post.call_args.kwargs
         self.assertEqual(kwargs["headers"]["x-goog-api-key"], "k")
         self.assertNotIn("key=", post.call_args.args[0])
         prompt = kwargs["json"]["contents"][0]["parts"][1]["text"]
-        self.assertIn("account history", prompt)
+        self.assertIn("company history", prompt)
 
     def test_not_configured(self):
         self.assertFalse(self.generator(key="").is_configured())

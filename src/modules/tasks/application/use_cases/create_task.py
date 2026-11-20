@@ -95,12 +95,12 @@ class CreateTaskUseCase:
 
         if data.lead_id is not None and data.account_id is not None:
             raise ValueError(
-                "Task associated with a lead cannot have an account."
+                "Task associated with a lead cannot have a company."
             )
 
         if data.account_id is not None and data.contact_id is None:
             raise ValueError(
-                "Task account requires an associated contact."
+                "Task company requires an associated contact."
             )
 
         if data.lead_id is not None:
@@ -119,7 +119,7 @@ class CreateTaskUseCase:
             account = self.account_repository.get_by_id(data.account_id)
 
             if account is None or account.is_deleted:
-                raise ValueError("Selected account not found.")
+                raise ValueError("Selected company not found.")
 
         task = Task.create(
             subject=data.subject,

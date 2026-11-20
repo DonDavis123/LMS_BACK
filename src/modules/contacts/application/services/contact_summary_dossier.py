@@ -80,7 +80,7 @@ def build_contact_dossier(
             lines.append(f"- {label}: {_clean(value)}")
 
     if account_name:
-        lines.append(f"- Account: {_clean(account_name)}")
+        lines.append(f"- Company: {_clean(account_name)}")
     if owner_name:
         lines.append(f"- Owner: {_clean(owner_name)}")
     if getattr(contact, "email_opt_out", False):

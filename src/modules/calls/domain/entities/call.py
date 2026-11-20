@@ -101,7 +101,7 @@ class Call:
             )
 
         if self.account_id is not None and self.contact_id is None:
-            raise ValueError("Call account requires an associated contact.")
+            raise ValueError("Call company requires an associated contact.")
 
         if self.call_start_time is None:
             raise ValueError("Call start time is required.")

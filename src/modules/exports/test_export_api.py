@@ -143,7 +143,7 @@ class ExportApiTests(APITestCase):
     def test_accounts_export_is_scoped_to_the_company(self):
         lines = self._csv_lines(self.client.get("/api/exports/accounts/"))
 
-        self.assertTrue(lines[0].startswith("Account Name,Account Number,Account Type"))
+        self.assertTrue(lines[0].startswith("Company Name,Company Number,Company Type"))
         self.assertEqual(len(lines), 2)  # header + Acme Corp only
         text = "\n".join(lines)
         self.assertIn("Acme Corp", text)
@@ -157,8 +157,8 @@ class ExportApiTests(APITestCase):
         sheet = load_workbook(io.BytesIO(_download(response))).active
         headers = [cell.value for cell in sheet[1]]
         row = dict(zip(headers, [cell.value for cell in sheet[2]]))
-        self.assertEqual(row["Account Name"], "Acme Corp")
-        self.assertEqual(row["Account Type"], "Customer")
+        self.assertEqual(row["Company Name"], "Acme Corp")
+        self.assertEqual(row["Company Type"], "Customer")
         self.assertEqual(row["Industry"], "Software")
         self.assertEqual(row["Billing City"], "Kochi")
         self.assertEqual(row["Billing Country"], "India")
@@ -206,7 +206,7 @@ class ExportApiTests(APITestCase):
         self.assertEqual(row["Title"], "Head of Sales")
         self.assertEqual(row["Department"], "Sales")
         self.assertEqual(row["Email"], "meera@acme.test")
-        self.assertEqual(row["Account"], "Acme Corp")
+        self.assertEqual(row["Company"], "Acme Corp")
         self.assertEqual(row["Owner"], "Admin One")
         self.assertEqual(row["Mailing City"], "Kochi")
         self.assertEqual(row["Email Opt Out"], "Yes")

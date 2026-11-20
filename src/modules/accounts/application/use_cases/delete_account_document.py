@@ -39,7 +39,7 @@ class DeleteAccountDocumentUseCase:
         account = self.account_repository.get_by_id(data.account_id)
 
         if account is None or account.is_deleted:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
 
         document = self.document_repository.get_by_id(
             data.document_id,
@@ -56,7 +56,7 @@ class DeleteAccountDocumentUseCase:
                 event_type="ACCOUNT_DOCUMENT_DELETED",
                 actor_id=current_user_id,
                 message=(
-                    f'Document "{document.name}" was removed from account '
+                    f'Document "{document.name}" was removed from company '
                     f"{account.account_name}."
                 ),
                 metadata={

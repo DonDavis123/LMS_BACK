@@ -51,13 +51,13 @@ class UpdateAccountUseCase:
 
     def _check_new_owner(self, owner_id: UUID) -> None:
         if self.user_repository is None:
-            raise ValueError("Account owner cannot be changed right now.")
+            raise ValueError("Company owner cannot be changed right now.")
         owner = self.user_repository.get_by_id(owner_id)
         if owner is None:
-            raise ValueError("Account owner not found.")
+            raise ValueError("Company owner not found.")
         # Blocked and retired (soft-deleted) users are inactive.
         if not owner.is_active:
-            raise ValueError("Account owner must be an active user.")
+            raise ValueError("Company owner must be an active user.")
 
     def _owner_names(self, changes: dict) -> dict:
         """Show the owner change by name in the Timeline, not by id."""
@@ -75,9 +75,9 @@ class UpdateAccountUseCase:
     def execute(self, data: UpdateAccountDTO, current_user_id: UUID):
         account = self.account_repository.get_by_id(data.account_id)
         if account is None:
-            raise ValueError("Account not found.")
+            raise ValueError("Company not found.")
         if account.is_deleted:
-            raise ValueError("Deleted Account cannot be updated.")
+            raise ValueError("Deleted Company cannot be updated.")
 
         if self.duplicate_guard is not None:
             self.duplicate_guard.ensure_unique(
@@ -126,10 +126,10 @@ class UpdateAccountUseCase:
                 change_summary = format_field_changes(
                     changes,
                     field_labels={
-                        "account_name": "Account Name",
-                        "account_site": "Account Site",
-                        "account_number": "Account Number",
-                        "account_type": "Account Type",
+                        "account_name": "Company Name",
+                        "account_site": "Company Site",
+                        "account_number": "Company Number",
+                        "account_type": "Company Type",
                         "industry": "Industry",
                         "annual_revenue": "Annual Revenue",
                         "rating": "Rating",
@@ -145,14 +145,14 @@ class UpdateAccountUseCase:
                         "billing_country": "Billing Country",
                         "billing_postal_code": "Billing Postal Code",
                         "description": "Description",
-                        "account_owner_id": "Account Owner",
+                        "account_owner_id": "Company Owner",
                     },
                 )
                 self.timeline_recorder.record(
                     event_type="ACCOUNT_UPDATED",
                     actor_id=current_user_id,
                     message=(
-                        f"Account {saved.account_name} was updated. "
+                        f"Company {saved.account_name} was updated. "
                         f"Changes: {change_summary}"
                     ),
                     metadata={"changes": changes},

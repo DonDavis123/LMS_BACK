@@ -52,7 +52,7 @@ RESULT_LABELS = {
     CATEGORY_SKIPPED_DUPLICATE: "Skipped duplicate",
     CATEGORY_NEEDS_ATTENTION: "Needs attention",
     CATEGORY_EXCLUDED: "Excluded",
-    CATEGORY_CONVERTED: "Converted to account and contact",
+    CATEGORY_CONVERTED: "Converted to company and contact",
 }
 
 STAGE_FINISHED = "finished"
@@ -316,7 +316,7 @@ def result_details(entry: dict | None) -> str:
             text = duplicate_text(duplicate) + ". Existing lead updated"
         parts.append(text + ".")
     elif category == CATEGORY_CONVERTED:
-        parts.append("Added as a lead and converted to an account and a contact.")
+        parts.append("Added as a lead and converted to a company and a contact.")
     elif isinstance(duplicate, dict):
         parts.append(duplicate_text(duplicate) + ". Added anyway, as you chose.")
     for warning in entry.get("warnings") or []:

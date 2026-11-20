@@ -37,7 +37,7 @@ class AccountSummary:
         contacts_used: int,
     ) -> "AccountSummary":
         if account_id is None:
-            raise ValueError("Summary account is required.")
+            raise ValueError("Summary company is required.")
 
         if not isinstance(headline, str) or not headline.strip():
             raise ValueError("Summary headline cannot be empty.")

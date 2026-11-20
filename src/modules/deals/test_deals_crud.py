@@ -247,7 +247,7 @@ class DealValidationTests(DealApiTestBase):
         self.account.is_deleted = True
         self.account.save()
 
-        self.assert_rejected(self.create(), "account not found")
+        self.assert_rejected(self.create(), "company not found")
 
     def test_deleted_contact(self):
         self.contact.is_deleted = True

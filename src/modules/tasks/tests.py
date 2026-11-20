@@ -244,7 +244,7 @@ class TaskApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["pagination"]["total"], 1)
-        self.assertEqual(response.data["results"][0]["subject"], "Account task")
+        self.assertEqual(response.data["results"][0]["subject"], "Company task")
 
     def test_invalid_task_filter_is_rejected(self):
         self.client.force_authenticate(self.user)

@@ -30,7 +30,7 @@ FIELD_LABELS = {
     "stage": "Stage",
     "probability": "Probability",
     "owner_id": "Deal Owner",
-    "account_id": "Account",
+    "account_id": "Company",
     "contact_id": "Contact",
     "description": "Description",
     "lost_reason": "Lost Reason",

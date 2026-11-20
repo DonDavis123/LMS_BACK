@@ -90,9 +90,9 @@ class UpdateContactUseCase:
                 if account_id is not None:
                     account = self.account_repository.get_by_id(account_id)
                     if account is None:
-                        raise ValueError("Selected Account not found.")
+                        raise ValueError("Selected Company not found.")
                     if account.is_deleted:
-                        raise ValueError("Cannot assign Contact to a deleted Account.")
+                        raise ValueError("Cannot assign Contact to a deleted Company.")
                 contact.account_id = account_id
 
             if "contact_owner_id" in fields:
@@ -144,7 +144,7 @@ class UpdateContactUseCase:
                 change_summary = format_field_changes(
                     changes,
                     field_labels={
-                        "account_id": "Account",
+                        "account_id": "Company",
                         "contact_owner_id": "Contact Owner",
                         "name": "Name",
                         "email": "Email",

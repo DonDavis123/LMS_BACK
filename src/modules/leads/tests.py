@@ -148,7 +148,7 @@ class LeadCompanyOptionalTests(SimpleTestCase):
         contact_repository = use_case.contact_repository
         contact_repository.save.side_effect = lambda value: value
 
-        with self.assertRaisesRegex(ValueError, r"account\.account_name is required"):
+        with self.assertRaisesRegex(ValueError, r"company\.account_name is required"):
             use_case.execute(
                 ConvertLeadDTO(
                     lead.id,
@@ -227,7 +227,7 @@ class LeadCompanyOptionalTests(SimpleTestCase):
         use_case, _, account_repository, contact_repository = self._use_case(lead)
         contact_repository.save.side_effect = lambda value: value
 
-        with self.assertRaisesRegex(ValueError, "Create or select an Account"):
+        with self.assertRaisesRegex(ValueError, "Create or select a Company"):
             use_case.execute(
                 ConvertLeadDTO(
                     lead.id,

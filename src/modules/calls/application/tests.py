@@ -402,7 +402,7 @@ class CallApplicationTests(unittest.TestCase):
 
         self.accounts[self.account.id].is_deleted = True
         self.contacts[self.contact.id].is_deleted = False
-        with self.assertRaisesRegex(ValueError, "account not found"):
+        with self.assertRaisesRegex(ValueError, "company not found"):
             self.log_contact_call(account_id=self.account.id)
 
         self.assertEqual(self.timeline.events, [])
@@ -414,7 +414,7 @@ class CallApplicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exactly one"):
             self.log_lead_call(contact_id=self.contact.id)
 
-        with self.assertRaisesRegex(ValueError, "account requires"):
+        with self.assertRaisesRegex(ValueError, "company requires"):
             self.log_lead_call(account_id=self.account.id)
 
         with self.assertRaisesRegex(ValueError, "future"):

@@ -390,15 +390,15 @@ class ConvertLeadSerializer(serializers.Serializer):
             if account_id is None:
                 raise serializers.ValidationError({
                     "account_id": (
-                        "This field is required when using an existing Account."
+                        "This field is required when using an existing Company."
                     )
                 })
 
             if account is not None:
                 raise serializers.ValidationError({
                     "account": (
-                        "Account data must not be provided when using "
-                        "an existing Account."
+                        "Company data must not be provided when using "
+                        "an existing Company."
                     )
                 })
 
@@ -408,7 +408,7 @@ class ConvertLeadSerializer(serializers.Serializer):
                 raise serializers.ValidationError({
                     "account_id": (
                         "account_id must not be provided when creating "
-                        "a new Account."
+                        "a new Company."
                     )
                 })
 
@@ -417,7 +417,7 @@ class ConvertLeadSerializer(serializers.Serializer):
             if account_id is not None:
                 raise serializers.ValidationError({
                     "account_id": (
-                        "account_id must not be provided when no Account "
+                        "account_id must not be provided when no Company "
                         "is selected."
                     )
                 })
@@ -425,7 +425,7 @@ class ConvertLeadSerializer(serializers.Serializer):
             if account is not None:
                 raise serializers.ValidationError({
                     "account": (
-                        "Account data must not be provided when no Account "
+                        "Company data must not be provided when no Company "
                         "is selected."
                     )
                 })

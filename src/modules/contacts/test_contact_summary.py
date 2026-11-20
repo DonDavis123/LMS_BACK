@@ -77,7 +77,7 @@ class DossierTests(unittest.TestCase):
             calls=[make_call()], call_summaries={}, now=NOW,
         )
         self.assertIn("- Title: Buyer", text)
-        self.assertIn("- Account: Acme", text)
+        self.assertIn("- Company: Acme", text)
         self.assertIn("- Owner: Ravi", text)
         self.assertIn("outcome Connected", text)
         self.assertLess(text.index("event 1"), text.index("event 2"))
@@ -90,7 +90,7 @@ class DossierTests(unittest.TestCase):
         )
         self.assertEqual(text.count("[CONTACT_UPDATED]"), MAX_TIMELINE_EVENTS)
         self.assertIn("No calls logged.", text)
-        self.assertNotIn("- Account:", text)
+        self.assertNotIn("- Company:", text)
 
         empty = build_contact_dossier(
             contact=make_contact(), account_name=None, owner_name=None,

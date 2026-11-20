@@ -52,7 +52,7 @@ RESPONSE_SCHEMA = {
 def build_prompt(language: str) -> str:
     return (
         f"Summarise the contact history above in {language}. Return JSON only.\n"
-        "- headline: 1 or 2 sentences: who the contact is (role, account), "
+        "- headline: 1 or 2 sentences: who the contact is (role, company), "
         "where the relationship stands now (most recent conversation) and what "
         "matters most.\n"
         f"- key_points: 3 to {MAX_ITEMS} short bullets covering the history in "
