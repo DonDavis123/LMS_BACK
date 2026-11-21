@@ -2,6 +2,9 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Upper
+from django.db.models.indexes import OpClass
 
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
@@ -215,6 +218,24 @@ class DjangoContactModel(models.Model):
             models.Index(
                 fields=["company", "is_deleted", "account"],
                 name="contacts_co_account_idx",
+            ),
+            # Search / "contains" filters on name (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0008_contact_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("name"), name="gin_trgm_ops"),
+                name="contacts_name_trgm_idx",
+            ),
+            # Search / "contains" filters on email (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0008_contact_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("email"), name="gin_trgm_ops"),
+                name="contacts_email_trgm_idx",
+            ),
+            # Search / "contains" filters on secondary_email (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0008_contact_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("secondary_email"), name="gin_trgm_ops"),
+                name="contacts_sec_email_trgm_idx",
             ),
         ]
 

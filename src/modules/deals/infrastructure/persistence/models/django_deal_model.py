@@ -2,6 +2,9 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Upper
+from django.db.models.indexes import OpClass
 
 from src.modules.accounts.infrastructure.persistence.django_account_model import (
     DjangoAccountModel,
@@ -160,6 +163,12 @@ class DjangoDealModel(models.Model):
             models.Index(
                 fields=["company", "is_deleted", "contact"],
                 name="deals_co_contact_idx",
+            ),
+            # Search / "contains" filters on name (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0004_deal_search_trigram_index).
+            GinIndex(
+                OpClass(Upper("name"), name="gin_trgm_ops"),
+                name="deals_name_trgm_idx",
             ),
         ]
 

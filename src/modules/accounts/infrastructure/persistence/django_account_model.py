@@ -2,6 +2,9 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Upper
+from django.db.models.indexes import OpClass
 
 
 class DjangoAccountModel(models.Model):
@@ -159,6 +162,24 @@ class DjangoAccountModel(models.Model):
             models.Index(
                 fields=["company", "is_deleted", "account_owner"],
                 name="accounts_co_owner_idx",
+            ),
+            # Search / "contains" filters on account_name (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0009_account_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("account_name"), name="gin_trgm_ops"),
+                name="accounts_name_trgm_idx",
+            ),
+            # Search / "contains" filters on website (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0009_account_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("website"), name="gin_trgm_ops"),
+                name="accounts_website_trgm_idx",
+            ),
+            # Search / "contains" filters on phone (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0009_account_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("phone"), name="gin_trgm_ops"),
+                name="accounts_phone_trgm_idx",
             ),
         ]
 

@@ -2,6 +2,9 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.indexes import GinIndex
+from django.db.models.functions import Upper
+from django.db.models.indexes import OpClass
 
 
 class DjangoLeadModel(models.Model):
@@ -310,6 +313,24 @@ class DjangoLeadModel(models.Model):
             models.Index(
                 fields=["company", "is_deleted", "is_converted", "lead_source"],
                 name="leads_co_source_idx",
+            ),
+            # Search / "contains" filters on name (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0013_lead_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("name"), name="gin_trgm_ops"),
+                name="leads_name_trgm_idx",
+            ),
+            # Search / "contains" filters on email (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0013_lead_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("email"), name="gin_trgm_ops"),
+                name="leads_email_trgm_idx",
+            ),
+            # Search / "contains" filters on company_name (UPPER(...) is what the
+            # case-insensitive lookups query; see migration 0013_lead_search_trigram_indexes).
+            GinIndex(
+                OpClass(Upper("company_name"), name="gin_trgm_ops"),
+                name="leads_company_trgm_idx",
             ),
         ]
 

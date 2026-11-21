@@ -32,3 +32,21 @@ host names come from `select_related` joins, never one query per row.
   read only the display name (`list_columns()` in
   `shared/infrastructure/persistence/list_projection.py`).
 - Meetings: only the columns the table shows; the host join reads the name only.
+
+## Text search (pg_trgm)
+Search and "contains / starts with / ends with" filters use `UPPER(column) LIKE ...`
+(Django `icontains` etc.), which a normal index cannot serve. These columns have a
+trigram GIN index on `UPPER(column)`:
+
+| Table | Columns |
+|---|---|
+| leads | name, email, company_name |
+| contacts | name, email, secondary_email |
+| accounts | account_name, website, phone |
+| deals | name |
+
+The free-text search ORs several columns, so every column in that search is
+indexed (an unindexed branch would force a table scan). Calls search joined
+tables and is not indexed. Searches shorter than 3 characters cannot use the index.
+Migrations: `leads/0013`, `contacts/0008`, `accounts/0009`, `deals/0004`
+(each runs `CREATE EXTENSION IF NOT EXISTS pg_trgm`, never dropped on reverse).
