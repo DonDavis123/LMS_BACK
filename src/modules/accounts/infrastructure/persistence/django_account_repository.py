@@ -32,6 +32,23 @@ class DjangoAccountRepository(AccountRepository):
         "created_at": SortableField("created_at"),
     }
 
+    # Columns the account list reads. Everything else (billing address,
+    # description, ticker, ...) stays in the database for list requests.
+    LIST_COLUMNS = (
+        "id",
+        "account_name",
+        "phone",
+        "website",
+        "ownership",
+        "account_owner",
+        "account_owner__name",
+        "created_by",
+        "modified_by",
+        "created_at",
+        "updated_at",
+        "is_deleted",
+    )
+
     def __init__(self, *, company_id: UUID):
         if company_id is None:
             raise ValueError("company_id is required.")
@@ -115,6 +132,8 @@ class DjangoAccountRepository(AccountRepository):
         queryset = (
             self._base_queryset()
             .select_related("account_owner")
+            # Only the columns the list shows (see LIST_COLUMNS).
+            .only(*self.LIST_COLUMNS)
             .filter(is_deleted=False)
         )
 
@@ -144,7 +163,7 @@ class DjangoAccountRepository(AccountRepository):
         return PaginatedResult(
             results=[
                 (
-                    self._to_domain(model),
+                    self._to_list_domain(model),
                     model.account_owner.name if model.account_owner else None,
                 )
                 for model in models
@@ -450,6 +469,44 @@ class DjangoAccountRepository(AccountRepository):
         if updated:
             count_cache.bump_affected(self._company_id, count_cache.ACCOUNTS)
         return updated
+
+    @staticmethod
+    def _to_list_domain(model: DjangoAccountModel) -> Account:
+        """
+        An Account built from the list columns only (LIST_COLUMNS).
+
+        Columns the list does not read are None. Reading one here would make
+        Django load it with an extra query per row, so only loaded columns
+        are touched. Use _to_domain for a full account.
+        """
+        return Account(
+            id=model.id,
+            account_owner_id=model.account_owner_id,
+            account_name=model.account_name,
+            account_site=None,
+            account_number=None,
+            account_type=None,
+            industry=None,
+            annual_revenue=None,
+            rating=None,
+            phone=model.phone,
+            website=model.website,
+            ticker_symbol=None,
+            ownership=model.ownership,
+            employees=None,
+            sic_code=None,
+            billing_address=None,
+            billing_city=None,
+            billing_state=None,
+            billing_country=None,
+            billing_postal_code=None,
+            description=None,
+            created_by_id=model.created_by_id,
+            created_at=model.created_at,
+            modified_by_id=model.modified_by_id,
+            updated_at=model.updated_at,
+            is_deleted=model.is_deleted,
+        )
 
     @staticmethod
     def _to_domain(

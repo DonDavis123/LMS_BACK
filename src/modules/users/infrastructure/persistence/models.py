@@ -79,6 +79,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ["name"]
 
     class Meta:
+        indexes = [
+            # User list: company + not deleted, newest first (see migration
+            # 0010_user_list_indexes).
+            models.Index(
+                fields=["company", "deleted_at", "created_at"],
+                name="users_co_created_idx",
+            ),
+        ]
         constraints = [
             models.UniqueConstraint(
                 Lower("email"),

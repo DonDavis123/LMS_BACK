@@ -142,6 +142,24 @@ class DjangoMeetingModel(models.Model):
             models.Index(fields=["start_at"]),
             models.Index(fields=["end_at"]),
             models.Index(fields=["host"]),
+            # List filters / sorts (see migration 0011_meeting_list_indexes
+            # and 0012_meeting_tenant_indexes).
+            models.Index(
+                fields=["company", "is_deleted", "start_at"],
+                name="meetings_co_start_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "created_at"],
+                name="meetings_co_created_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "end_at"],
+                name="meetings_co_end_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "host"],
+                name="meetings_co_host_idx",
+            ),
         ]
 
     def __str__(self):

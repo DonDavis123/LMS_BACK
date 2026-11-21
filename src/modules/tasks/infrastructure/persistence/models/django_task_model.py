@@ -127,6 +127,35 @@ class DjangoTaskModel(models.Model):
 
     class Meta:
         db_table = "tasks"
+        indexes = [
+            # List filters / sorts (see migration 0005_task_list_indexes and
+            # 0006_task_assigned_index).
+            models.Index(
+                fields=["company", "is_deleted", "created_at"],
+                name="tasks_co_created_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "status"],
+                name="tasks_co_status_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "due_date"],
+                name="tasks_co_due_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "owner"],
+                name="tasks_co_owner_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "assigned_to"],
+                name="tasks_co_assigned_idx",
+            ),
+            # "Next task" of a contact (contact list subquery).
+            models.Index(
+                fields=["contact", "is_deleted", "due_date", "created_at"],
+                name="tasks_contact_next_idx",
+            ),
+        ]
 
     def __str__(self):
         return self.subject

@@ -168,9 +168,22 @@ class DjangoMeetingRepository(MeetingRepository):
     }
 
     def get_all(self, query: ListQuery) -> PaginatedResult[GetMeetingsDTO]:
+        # Only the columns the list shows; the host join reads just the name
+        # (the full user row is never needed here).
         queryset = (
             self._base_queryset()
             .select_related("host")
+            .only(
+                "id",
+                "title",
+                "start_at",
+                "end_at",
+                "reminder_at",
+                "meet_link",
+                "conference_status",
+                "host",
+                "host__name",
+            )
             .filter(is_deleted=False)
         )
         if query.sort_by == "related_to":

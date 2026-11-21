@@ -150,6 +150,17 @@ class DjangoAccountModel(models.Model):
 
     class Meta:
         db_table = "accounts"
+        indexes = [
+            # List filters / sorts (see migration 0008_account_list_indexes).
+            models.Index(
+                fields=["company", "is_deleted", "created_at"],
+                name="accounts_co_created_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "account_owner"],
+                name="accounts_co_owner_idx",
+            ),
+        ]
 
     def __str__(self):
         return self.account_name

@@ -298,6 +298,19 @@ class DjangoLeadModel(models.Model):
                 fields=["company", "is_deleted", "is_converted", "created_at"],
                 name="leads_dashboard_idx",
             ),
+            # List filters / sorts (see migration 0012_lead_list_indexes).
+            models.Index(
+                fields=["company", "is_deleted", "is_converted", "owner"],
+                name="leads_co_owner_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "is_converted", "lead_status"],
+                name="leads_co_status_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "is_converted", "lead_source"],
+                name="leads_co_source_idx",
+            ),
         ]
 
     def __str__(self):

@@ -10,6 +10,9 @@ from src.modules.tasks.application.interfaces.task_repository import (
 )
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
 from src.modules.shared.infrastructure.caching import count_cache
+from src.modules.shared.infrastructure.persistence.list_projection import (
+    list_columns,
+)
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -30,6 +33,16 @@ class DjangoTaskRepository(TaskRepository):
 
     def _base_queryset(self):
         return DjangoTaskModel.objects.filter(company_id=self._company_id)
+
+    # The task list returns the whole task row but only the *name* of each
+    # related record, so the joins read just those columns.
+    RELATED_NAME_COLUMNS = (
+        "owner__name",
+        "assigned_to__name",
+        "lead__name",
+        "contact__name",
+        "account__account_name",
+    )
 
     SORTABLE_FIELDS = {
         "subject": SortableField("subject", is_text=True),
@@ -119,18 +132,9 @@ class DjangoTaskRepository(TaskRepository):
         return [self._to_domain(model) for model in models]
 
     def get_all(self, query: ListQuery) -> PaginatedResult[Task]:
-        queryset = (
-            self._base_queryset()
-            .select_related(
-                "owner",
-                "assigned_to",
-                "created_by",
-                "lead",
-                "contact",
-                "account",
-            )
-            .filter(is_deleted=False)
-        )
+        # Task entities carry only ids, so nothing is joined to read the
+        # rows. Filtering / sorting by a related name joins on its own.
+        queryset = self._base_queryset().filter(is_deleted=False)
 
         queryset = self._apply_filters(queryset, query.filters)
         # Every condition that narrows the queryset above is part of the cache key.
@@ -162,6 +166,7 @@ class DjangoTaskRepository(TaskRepository):
         queryset = (
             self._base_queryset()
             .select_related("owner", "assigned_to", "lead", "contact", "account")
+            .only(*list_columns(DjangoTaskModel, *self.RELATED_NAME_COLUMNS))
             .filter(is_deleted=False)
         )
 

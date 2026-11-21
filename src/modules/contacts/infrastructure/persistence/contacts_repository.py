@@ -37,6 +37,26 @@ class DjangoContactRepository(ContactRepository):
         "created_at": SortableField("created_at"),
     }
 
+    # Columns the contact list reads. Everything else (addresses,
+    # description, extra phones, ...) stays in the database for list requests.
+    LIST_COLUMNS = (
+        "id",
+        "name",
+        "email",
+        "phone",
+        "mobile",
+        "account",
+        "account__account_name",
+        "contact_owner",
+        "contact_owner__name",
+        "email_opt_out",
+        "created_by",
+        "modified_by",
+        "created_at",
+        "updated_at",
+        "is_deleted",
+    )
+
     def __init__(self, *, company_id: UUID):
         if company_id is None:
             raise ValueError("company_id is required.")
@@ -179,6 +199,9 @@ class DjangoContactRepository(ContactRepository):
                 "account",
                 "contact_owner",
             )
+            # Only the columns the list shows (see LIST_COLUMNS); the joins
+            # read just the account / owner name.
+            .only(*self.LIST_COLUMNS)
             .filter(is_deleted=False)
             .annotate(
                 next_task_due_date=Subquery(
@@ -216,7 +239,7 @@ class DjangoContactRepository(ContactRepository):
         return PaginatedResult(
             results=[
                 (
-                    self._to_domain(model),
+                    self._to_list_domain(model),
                     model.account.account_name if model.account else None,
                     model.contact_owner.name if model.contact_owner else None,
                     model.next_task_due_date,
@@ -585,6 +608,49 @@ class DjangoContactRepository(ContactRepository):
         if updated:
             count_cache.bump_affected(self._company_id, count_cache.CONTACTS)
         return updated
+
+    @staticmethod
+    def _to_list_domain(model: DjangoContactModel) -> Contact:
+        """
+        A Contact built from the list columns only (LIST_COLUMNS).
+
+        Columns the list does not read are None. Reading one here would make
+        Django load it with an extra query per row, so only loaded columns
+        are touched. Use _to_domain for a full contact.
+        """
+        return Contact(
+            id=model.id,
+            account_id=model.account_id,
+            contact_owner_id=model.contact_owner_id,
+            name=model.name,
+            email=model.email,
+            secondary_email=None,
+            phone=model.phone,
+            other_phone=None,
+            mobile=model.mobile,
+            home_phone=None,
+            assistant_phone=None,
+            title=None,
+            department=None,
+            lead_source=None,
+            vendor_name=None,
+            date_of_birth=None,
+            assistant=None,
+            email_opt_out=model.email_opt_out,
+            reporting_to_id=None,
+            mailing_address=None,
+            mailing_city=None,
+            mailing_state=None,
+            mailing_country=None,
+            mailing_postal_code=None,
+            other_address=None,
+            description=None,
+            created_by_id=model.created_by_id,
+            created_at=model.created_at,
+            modified_by_id=model.modified_by_id,
+            updated_at=model.updated_at,
+            is_deleted=model.is_deleted,
+        )
 
     @staticmethod
     def _to_domain(model: DjangoContactModel) -> Contact:

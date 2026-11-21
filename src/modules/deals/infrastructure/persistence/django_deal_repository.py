@@ -33,6 +33,9 @@ from src.modules.shared.application.dto.list_query import (
     PaginatedResult,
 )
 from src.modules.shared.infrastructure.caching import count_cache
+from src.modules.shared.infrastructure.persistence.list_projection import (
+    list_columns,
+)
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -44,6 +47,15 @@ from .models import DjangoDealModel
 class DjangoDealRepository(DealRepository):
 
     RELATIONS = ("owner", "account", "contact", "source_lead")
+
+    # The deal list returns the whole deal row but only the *name* of each
+    # related record, so the joins read just those columns.
+    RELATED_NAME_COLUMNS = (
+        "owner__name",
+        "account__account_name",
+        "contact__name",
+        "source_lead__name",
+    )
 
     SORTABLE_FIELDS = {
         "name": SortableField("name", is_text=True),
@@ -112,6 +124,7 @@ class DjangoDealRepository(DealRepository):
         queryset = (
             self._base_queryset()
             .select_related(*self.RELATIONS)
+            .only(*list_columns(DjangoDealModel, *self.RELATED_NAME_COLUMNS))
             .filter(is_deleted=False)
         )
 
@@ -215,6 +228,21 @@ class DjangoDealRepository(DealRepository):
         queryset = (
             visible.filter(stage=stage.value)
             .select_related("owner", "account", "contact")
+            .only(
+                "id",
+                "name",
+                "amount",
+                "expected_close_date",
+                "probability",
+                "closed_at",
+                "created_at",
+                "owner",
+                "owner__name",
+                "account",
+                "account__account_name",
+                "contact",
+                "contact__name",
+            )
         )
 
         if stage in CLOSED_STAGES:

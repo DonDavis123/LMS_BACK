@@ -202,6 +202,21 @@ class DjangoContactModel(models.Model):
 
     class Meta:
         db_table = "contacts"
+        indexes = [
+            # List filters / sorts (see migration 0007_contact_list_indexes).
+            models.Index(
+                fields=["company", "is_deleted", "created_at"],
+                name="contacts_co_created_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "contact_owner"],
+                name="contacts_co_owner_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "account"],
+                name="contacts_co_account_idx",
+            ),
+        ]
 
     def __str__(self):
         return self.name

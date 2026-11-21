@@ -31,6 +31,9 @@ from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
 from src.modules.shared.infrastructure.caching import count_cache
+from src.modules.shared.infrastructure.persistence.list_projection import (
+    list_columns,
+)
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -48,6 +51,15 @@ class DjangoCallRepository(CallRepository):
 
     def _base_queryset(self):
         return DjangoCallModel.objects.filter(company_id=self._company_id)
+
+    # The call list returns the whole call row but only the *name* of each
+    # related record, so the joins read just those columns.
+    RELATED_NAME_COLUMNS = (
+        "owner__name",
+        "lead__name",
+        "contact__name",
+        "account__account_name",
+    )
 
     SORTABLE_FIELDS = {
         "call_start_time": SortableField("call_start_time"),
@@ -122,6 +134,7 @@ class DjangoCallRepository(CallRepository):
         queryset = (
             self._base_queryset()
             .select_related("owner", "lead", "contact", "account")
+            .only(*list_columns(DjangoCallModel, *self.RELATED_NAME_COLUMNS))
             .filter(is_deleted=False)
         )
 

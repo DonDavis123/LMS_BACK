@@ -39,6 +39,25 @@ class DjangoLeadRepository(LeadRepository):
         "created_at": SortableField("created_at"),
     }
 
+    # Columns the lead list reads. Everything else (address, description,
+    # website, ...) stays in the database for list requests.
+    LIST_COLUMNS = (
+        "id",
+        "name",
+        "company_name",
+        "email",
+        "phone",
+        "mobile_number",
+        "lead_source",
+        "lead_status",
+        "owner",
+        "owner__name",
+        "is_deleted",
+        "is_converted",
+        "created_at",
+        "updated_at",
+    )
+
     def __init__(self, *, company_id: UUID):
         if company_id is None:
             raise ValueError("company_id is required.")
@@ -149,9 +168,12 @@ class DjangoLeadRepository(LeadRepository):
         self,
         query: ListQuery,
     ) -> PaginatedResult[tuple[Lead, str]]:
+        # One query for the page: the owner's name comes from the join, and
+        # only the columns the list shows are read (see LIST_COLUMNS).
         queryset = (
             self._base_queryset()
             .select_related("owner")
+            .only(*self.LIST_COLUMNS)
             .filter(
                 is_deleted=False,
                 is_converted=False,
@@ -185,7 +207,7 @@ class DjangoLeadRepository(LeadRepository):
         return PaginatedResult(
             results=[
                 (
-                    self._to_domain(model),
+                    self._to_list_domain(model),
                     model.owner.name,
                 )
                 for model in models
@@ -663,6 +685,43 @@ class DjangoLeadRepository(LeadRepository):
             is_converted=model.is_converted,
 
             # Backend controlled timestamps
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+        )
+
+    @staticmethod
+    def _to_list_domain(model: DjangoLeadModel) -> Lead:
+        """
+        A Lead built from the list columns only (LIST_COLUMNS).
+
+        Columns the list does not read are None. Reading one here would make
+        Django load it with an extra query per row, so only loaded columns
+        are touched. Use _to_domain for a full lead.
+        """
+        return Lead(
+            id=model.id,
+            name=model.name,
+            title=None,
+            company_name=model.company_name,
+            email=model.email,
+            mobile_number=model.mobile_number,
+            phone=model.phone,
+            lead_source=model.lead_source,
+            lead_status=model.lead_status,
+            industry=None,
+            rating=None,
+            website=None,
+            number_of_employees=None,
+            annual_revenue=None,
+            owner_id=model.owner_id,
+            address=None,
+            city=None,
+            state=None,
+            country=None,
+            postal_code=None,
+            description=None,
+            is_deleted=model.is_deleted,
+            is_converted=model.is_converted,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

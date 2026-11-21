@@ -145,6 +145,15 @@ class DjangoCallModel(models.Model):
             ),
         ]
         indexes = [
+            # List filters / sorts (see migration 0005_call_list_indexes).
+            models.Index(
+                fields=["company", "is_deleted", "call_start_time"],
+                name="calls_co_start_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "status"],
+                name="calls_co_status_idx",
+            ),
             models.Index(
                 fields=["company", "lead", "-call_start_time"],
                 name="calls_co_lead_start_idx",

@@ -143,6 +143,24 @@ class DjangoDealModel(models.Model):
                 fields=["company", "is_deleted", "expected_close_date"],
                 name="deals_company_close_idx",
             ),
+            # List sort / filters (see migration 0002_deal_list_indexes and
+            # 0003_deal_relation_indexes).
+            models.Index(
+                fields=["company", "is_deleted", "created_at"],
+                name="deals_co_created_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "owner"],
+                name="deals_co_owner_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "account"],
+                name="deals_co_account_idx",
+            ),
+            models.Index(
+                fields=["company", "is_deleted", "contact"],
+                name="deals_co_contact_idx",
+            ),
         ]
 
     def __str__(self):

@@ -79,6 +79,10 @@ class DjangoReminderModel(models.Model):
         name="reminders_remind_8eeb0a_idx",
     ),
     models.Index(
+        fields=["company", "remind_at"],
+        name="reminders_co_remind_idx",
+    ),
+    models.Index(
         fields=["task"],
         name="reminders_task_id_6d6f2f_idx",
     ),
