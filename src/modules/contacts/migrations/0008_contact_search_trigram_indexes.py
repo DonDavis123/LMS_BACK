@@ -1,7 +1,6 @@
-from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.db import migrations
 from django.db.models.functions import Upper
-from django.db.models.indexes import OpClass
 
 
 class Migration(migrations.Migration):

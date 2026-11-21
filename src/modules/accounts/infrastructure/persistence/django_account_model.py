@@ -2,9 +2,8 @@ import uuid
 
 from django.conf import settings
 from django.db import models
-from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.db.models.functions import Upper
-from django.db.models.indexes import OpClass
 
 
 class DjangoAccountModel(models.Model):
