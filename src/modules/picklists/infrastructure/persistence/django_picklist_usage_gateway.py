@@ -11,6 +11,7 @@ from src.modules.contacts.infrastructure.persistence.django_contact_model import
 from src.modules.leads.infrastructure.persistence.django_lead_model import (
     DjangoLeadModel,
 )
+from src.modules.shared.infrastructure.caching import count_cache
 from src.modules.picklists.application.interfaces.picklist_usage_gateway import (
     PicklistUsageGateway,
 )
@@ -91,4 +92,8 @@ class DjangoPicklistUsageGateway(PicklistUsageGateway):
                 .filter(**{column: old_value})
                 .update(**{column: new_value})
             )
+        # QuerySet.update() sends no signal: lists filtered on the old or new
+        # value now count differently.
+        if changed:
+            count_cache.bump_affected(self._company_id, module)
         return changed

@@ -11,6 +11,7 @@ from src.modules.contacts.infrastructure.persistence.django_contact_model import
     DjangoContactModel,
 )
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.caching import count_cache
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -164,7 +165,18 @@ class DjangoLeadRepository(LeadRepository):
                 | Q(company_name__icontains=query.search)
             )
         queryset = self._apply_filters(queryset, query.filters)
-        total = queryset.count()
+        # Every condition that narrows the queryset above is part of the cache key.
+        total = count_cache.get_or_count(
+            self._company_id,
+            count_cache.LEADS,
+            count_cache.build_filter_parts(
+                query.search,
+                query.filters,
+                is_deleted=False,
+                is_converted=False,
+            ),
+            queryset.count,
+        )
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size
@@ -523,6 +535,8 @@ class DjangoLeadRepository(LeadRepository):
         ]
         # created_at / updated_at are filled in by the model's auto fields.
         DjangoLeadModel.objects.bulk_create(models, batch_size=self.IMPORT_BATCH_SIZE)
+        # bulk_create sends no signal: one bump for the whole batch.
+        count_cache.bump_affected(self._company_id, count_cache.LEADS)
         return len(models)
 
     def get_many_for_update(self, lead_ids) -> dict[UUID, Lead]:
@@ -570,6 +584,8 @@ class DjangoLeadRepository(LeadRepository):
             DjangoLeadModel.objects.bulk_update(
                 touched, sorted(columns), batch_size=self.IMPORT_BATCH_SIZE
             )
+            # bulk_update sends no signal: one bump for the whole batch.
+            count_cache.bump_affected(self._company_id, count_cache.LEADS)
         return len(touched)
 
     def get_many_by_ids(self, ids: list[UUID]) -> list[Lead]:
@@ -595,12 +611,16 @@ class DjangoLeadRepository(LeadRepository):
     ) -> int:
         # Only the owner relationship (and updated_at) changes. Soft-deleted
         # Leads are included so the retired user keeps no ownership at all.
-        return self._base_queryset().filter(
+        updated = self._base_queryset().filter(
             owner_id=from_user_id,
         ).update(
             owner_id=to_user_id,
             updated_at=timezone.now(),
         )
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.LEADS)
+        return updated
 
     @staticmethod
     def _to_domain(model: DjangoLeadModel) -> Lead:

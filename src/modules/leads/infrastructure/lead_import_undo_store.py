@@ -25,6 +25,7 @@ from src.modules.calls.infrastructure.persistence.models.django_call_model impor
 from src.modules.contacts.infrastructure.persistence.django_contact_model import (
     DjangoContactModel,
 )
+from src.modules.shared.infrastructure.caching import count_cache
 from src.modules.leads.application.services.lead_import_undo import (
     NOT_NULL_FIELDS,
     RESTORABLE_FIELDS,
@@ -215,12 +216,16 @@ class DjangoUndoStore:
 
     def soft_delete_leads(self, ids, now: datetime) -> int:
         # The job is part of the filter: only this import's own leads.
-        return DjangoLeadModel.objects.filter(
+        updated = DjangoLeadModel.objects.filter(
             company_id=self._company_id,
             import_job_id=self._job_id,
             id__in=list(ids),
             is_deleted=False,
         ).update(is_deleted=True, updated_at=now)
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.LEADS)
+        return updated
 
     # ------------------------------------------------------------------
     # Contacts and accounts created by the job
@@ -310,14 +315,22 @@ class DjangoUndoStore:
         return found
 
     def soft_delete_contacts(self, ids, now: datetime, actor_id) -> int:
-        return DjangoContactModel.objects.filter(
+        updated = DjangoContactModel.objects.filter(
             company_id=self._company_id, id__in=_uuids(ids), is_deleted=False,
         ).update(is_deleted=True, updated_at=now, modified_by_id=actor_id)
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.CONTACTS)
+        return updated
 
     def soft_delete_accounts(self, ids, now: datetime, actor_id) -> int:
-        return DjangoAccountModel.objects.filter(
+        updated = DjangoAccountModel.objects.filter(
             company_id=self._company_id, id__in=_uuids(ids), is_deleted=False,
         ).update(is_deleted=True, updated_at=now, modified_by_id=actor_id)
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.ACCOUNTS)
+        return updated
 
     # ------------------------------------------------------------------
     # Leads the job updated
@@ -362,6 +375,8 @@ class DjangoUndoStore:
             touched.append(model)
         if touched:
             DjangoLeadModel.objects.bulk_update(touched, sorted(columns), batch_size=500)
+            # bulk_update sends no signal: one bump for the whole batch.
+            count_cache.bump_affected(self._company_id, count_cache.LEADS)
         return len(touched)
 
 

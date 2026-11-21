@@ -11,3 +11,8 @@ class UsersConfig(AppConfig):
         from src.modules.users.infrastructure.persistence import (  # noqa: F401
             auth_cache_invalidation,
         )
+
+        # Same for the list totals that depend on a user's name.
+        from src.modules.users.infrastructure.persistence import (  # noqa: F401
+            count_cache_invalidation,
+        )

@@ -32,6 +32,7 @@ from src.modules.shared.application.dto.list_query import (
     ListQuery,
     PaginatedResult,
 )
+from src.modules.shared.infrastructure.caching import count_cache
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -118,7 +119,17 @@ class DjangoDealRepository(DealRepository):
             queryset = queryset.filter(name__icontains=query.search)
 
         queryset = self._apply_filters(queryset, query.filters)
-        total = queryset.count()
+        # Every condition that narrows the queryset above is part of the cache key.
+        total = count_cache.get_or_count(
+            self._company_id,
+            count_cache.DEALS,
+            count_cache.build_filter_parts(
+                query.search,
+                query.filters,
+                is_deleted=False,
+            ),
+            queryset.count,
+        )
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size

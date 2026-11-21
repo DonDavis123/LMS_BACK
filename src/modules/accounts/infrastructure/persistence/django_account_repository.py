@@ -9,6 +9,7 @@ from src.modules.accounts.application.interfaces.account_repository import (
 )
 from src.modules.accounts.domain.entities.account import Account
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.caching import count_cache
 from src.modules.shared.infrastructure.persistence.datetime_filters import (
     apply_datetime_filter,
 )
@@ -124,7 +125,17 @@ class DjangoAccountRepository(AccountRepository):
                 | Q(phone__icontains=query.search)
             )
         queryset = self._apply_filters(queryset, query.filters)
-        total = queryset.count()
+        # Every condition that narrows the queryset above is part of the cache key.
+        total = count_cache.get_or_count(
+            self._company_id,
+            count_cache.ACCOUNTS,
+            count_cache.build_filter_parts(
+                query.search,
+                query.filters,
+                is_deleted=False,
+            ),
+            queryset.count,
+        )
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
         offset = (query.page - 1) * query.page_size
@@ -401,6 +412,8 @@ class DjangoAccountRepository(AccountRepository):
             for account in accounts
         ]
         DjangoAccountModel.objects.bulk_create(models, batch_size=500)
+        # bulk_create sends no signal: one bump for the whole batch.
+        count_cache.bump_affected(self._company_id, count_cache.ACCOUNTS)
         return len(models)
 
     def get_many_by_ids(self, ids: list[UUID]) -> list[Account]:
@@ -427,12 +440,16 @@ class DjangoAccountRepository(AccountRepository):
         to_user_id: UUID,
     ) -> int:
         # created_by / modified_by are historical and intentionally untouched.
-        return self._base_queryset().filter(
+        updated = self._base_queryset().filter(
             account_owner_id=from_user_id,
         ).update(
             account_owner_id=to_user_id,
             updated_at=timezone.now(),
         )
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.ACCOUNTS)
+        return updated
 
     @staticmethod
     def _to_domain(

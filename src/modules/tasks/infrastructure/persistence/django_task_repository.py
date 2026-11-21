@@ -9,6 +9,7 @@ from src.modules.tasks.application.interfaces.task_repository import (
     TaskRepository,
 )
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.caching import count_cache
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -132,7 +133,18 @@ class DjangoTaskRepository(TaskRepository):
         )
 
         queryset = self._apply_filters(queryset, query.filters)
-        total = queryset.count()
+        # Every condition that narrows the queryset above is part of the cache key.
+        total = count_cache.get_or_count(
+            self._company_id,
+            count_cache.TASKS,
+            count_cache.build_filter_parts(
+                query.search,
+                query.filters,
+                variant="all",
+                is_deleted=False,
+            ),
+            queryset.count,
+        )
         queryset = self._annotate_related_sort(queryset, query)
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
@@ -154,7 +166,18 @@ class DjangoTaskRepository(TaskRepository):
         )
 
         queryset = self._apply_filters(queryset, query.filters)
-        total = queryset.count()
+        # Every condition that narrows the queryset above is part of the cache key.
+        total = count_cache.get_or_count(
+            self._company_id,
+            count_cache.TASKS,
+            count_cache.build_filter_parts(
+                query.search,
+                query.filters,
+                variant="with_relations",
+                is_deleted=False,
+            ),
+            queryset.count,
+        )
         queryset = self._annotate_related_sort(queryset, query)
         queryset = apply_ordering(queryset, query, self.SORTABLE_FIELDS)
 
@@ -396,25 +419,31 @@ class DjangoTaskRepository(TaskRepository):
         return queryset.exclude(condition) if operator in {"not_contains", "not_equals"} else queryset.filter(condition)
 
     def soft_delete_by_lead_id(self, lead_id: UUID) -> None:
-        self._base_queryset().filter(
+        updated = self._base_queryset().filter(
             lead_id=lead_id,
             is_deleted=False,
         ).update(
             is_deleted=True,
         )
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.TASKS)
 
     def soft_delete_by_contact_id(self, contact_id: UUID) -> None:
-        self._base_queryset().filter(
+        updated = self._base_queryset().filter(
             contact_id=contact_id,
             is_deleted=False,
         ).update(
             is_deleted=True,
         )
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.TASKS)
 
     def soft_delete_by_account_id(self, account_id: UUID) -> None:
         # Account-only tasks are not valid in the current Task business rules.
         # Keep this repository operation defensive for any legacy/invalid rows.
-        self._base_queryset().filter(
+        updated = self._base_queryset().filter(
             account_id=account_id,
             contact_id__isnull=True,
             lead_id__isnull=True,
@@ -422,17 +451,23 @@ class DjangoTaskRepository(TaskRepository):
         ).update(
             is_deleted=True,
         )
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.TASKS)
 
     def unlink_account_from_contact_tasks(self, account_id: UUID) -> None:
         # Account is optional when a Task is associated with a Contact.
         # Deleting the Account must not destroy that Contact task.
-        self._base_queryset().filter(
+        updated = self._base_queryset().filter(
             account_id=account_id,
             contact_id__isnull=False,
             is_deleted=False,
         ).update(
             account_id=None,
         )
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.TASKS)
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
         return self._base_queryset().filter(owner_id=owner_id).count()
@@ -444,6 +479,9 @@ class DjangoTaskRepository(TaskRepository):
         deleted, _ = self._base_queryset().filter(
             owner_id=owner_id,
         ).delete()
+        # Signals fire per row; one explicit bump covers the batch too.
+        if deleted:
+            count_cache.bump_affected(self._company_id, count_cache.TASKS)
         return deleted
 
     @staticmethod

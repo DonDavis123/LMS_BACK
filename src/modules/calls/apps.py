@@ -11,3 +11,9 @@ class CallsConfig(AppConfig):
         from src.modules.calls.infrastructure.persistence import (  # noqa: F401
             recording_cleanup,
         )
+
+        # Registers the signals that bump the cached list total when a call
+        # is saved or deleted.
+        from src.modules.calls.infrastructure.persistence import (  # noqa: F401
+            count_cache_invalidation,
+        )

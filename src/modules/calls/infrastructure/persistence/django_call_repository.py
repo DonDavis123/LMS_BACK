@@ -30,6 +30,7 @@ from src.modules.calls.domain.enums.call_outcome import CallOutcome
 from src.modules.calls.domain.enums.call_status import CallStatus
 from src.modules.calls.domain.enums.call_type import CallType
 from src.modules.shared.application.dto.list_query import FilterCondition, ListQuery, PaginatedResult
+from src.modules.shared.infrastructure.caching import count_cache
 from src.modules.shared.infrastructure.persistence.ordering import (
     SortableField,
     apply_ordering,
@@ -126,7 +127,18 @@ class DjangoCallRepository(CallRepository):
 
         queryset = self._apply_search(queryset, query.search)
         queryset = self._apply_filters(queryset, query.filters)
-        total = queryset.count()
+        # Every condition that narrows the queryset above is part of the cache key.
+        total = count_cache.get_or_count(
+            self._company_id,
+            count_cache.CALLS,
+            count_cache.build_filter_parts(
+                query.search,
+                query.filters,
+                variant="rows",
+                is_deleted=False,
+            ),
+            queryset.count,
+        )
         queryset = apply_ordering(
             self._with_record_name(queryset),
             query,
@@ -199,7 +211,18 @@ class DjangoCallRepository(CallRepository):
             .select_related("owner", "lead", "contact", "account")
         )
 
-        total = queryset.count()
+        # Every condition that narrows the queryset above is part of the cache key.
+        total = count_cache.get_or_count(
+            self._company_id,
+            count_cache.CALLS,
+            count_cache.build_filter_parts(
+                query.search,
+                query.filters,
+                variant="records",
+                is_deleted=False,
+            ),
+            queryset.count,
+        )
         queryset = apply_ordering(
             self._with_record_name(queryset),
             query,
@@ -607,6 +630,8 @@ class DjangoCallRepository(CallRepository):
             ).update(
                 is_deleted=True,
             )
+            # QuerySet.update() sends no signal: one bump for the batch.
+            count_cache.bump_affected(self._company_id, count_cache.CALLS)
 
         return ids
 
@@ -635,13 +660,16 @@ class DjangoCallRepository(CallRepository):
     def unlink_account_from_contact_calls(self, account_id: UUID) -> None:
         # Account is optional when a Call is associated with a Contact.
         # Deleting the Account must not destroy that Contact call.
-        self._base_queryset().filter(
+        updated = self._base_queryset().filter(
             account_id=account_id,
             contact_id__isnull=False,
             is_deleted=False,
         ).update(
             account_id=None,
         )
+        # QuerySet.update() sends no signal.
+        if updated:
+            count_cache.bump_affected(self._company_id, count_cache.CALLS)
 
     def count_by_owner_id(self, owner_id: UUID) -> int:
         return self._base_queryset().filter(owner_id=owner_id).count()
@@ -651,6 +679,9 @@ class DjangoCallRepository(CallRepository):
         deleted, _ = self._base_queryset().filter(
             owner_id=owner_id,
         ).delete()
+        # Signals fire per row; one explicit bump covers the batch too.
+        if deleted:
+            count_cache.bump_affected(self._company_id, count_cache.CALLS)
         return deleted
 
     @staticmethod
