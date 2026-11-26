@@ -391,18 +391,26 @@ COUNT_CACHE_TTL_SECONDS = (
 # Password validation
 # -------------------------------------------------------------------
 
+# The password policy for every flow that sets a password through the API
+# (reset by email link, admin reset, user / company creation) via
+# src/modules/shared/presentation/password_validation.py, and for the
+# create_platform_admin command. Change the minimum length here (the serializers
+# also keep a plain min_length=8 check).
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "UserAttributeSimilarityValidator"
         ),
+        # Our user model has "name", not first_name / last_name.
+        "OPTIONS": {"user_attributes": ("email", "name")},
     },
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "MinimumLengthValidator"
         ),
+        "OPTIONS": {"min_length": 8},
     },
     {
         "NAME": (
@@ -417,6 +425,21 @@ AUTH_PASSWORD_VALIDATORS = [
         ),
     },
 ]
+
+if IS_TESTING:
+    # Many existing tests create users with simple passwords such as
+    # "password123", which the common-password list rejects. Only the length
+    # rule runs by default under `manage.py test`; the password-policy tests
+    # switch the full list on with override_settings.
+    AUTH_PASSWORD_VALIDATORS = [
+        {
+            "NAME": (
+                "django.contrib.auth.password_validation."
+                "MinimumLengthValidator"
+            ),
+            "OPTIONS": {"min_length": 8},
+        },
+    ]
 
 
 # -------------------------------------------------------------------

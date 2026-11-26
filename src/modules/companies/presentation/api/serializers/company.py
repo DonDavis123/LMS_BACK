@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from src.modules.shared.presentation.password_validation import password_errors
 from src.modules.users.domain.entities.role import MANAGEABLE_ROLES
 
 from src.modules.users.presentation.api.serializers.enum_value_field import (
@@ -60,8 +61,19 @@ class CreateCompanySerializer(serializers.Serializer):
     admin_password = serializers.CharField(
         write_only=True,
         min_length=8,
+        max_length=128,
         trim_whitespace=False,
     )
+
+    def validate(self, attrs):
+        errors = password_errors(
+            attrs["admin_password"],
+            email=attrs.get("admin_email"),
+            name=attrs.get("admin_name"),
+        )
+        if errors:
+            raise serializers.ValidationError({"admin_password": errors})
+        return attrs
 
 
 class UpdateCompanySerializer(serializers.Serializer):
@@ -86,11 +98,22 @@ class CreateCompanyUserSerializer(serializers.Serializer):
     password = serializers.CharField(
         write_only=True,
         min_length=8,
+        max_length=128,
         trim_whitespace=False,
     )
     role = serializers.ChoiceField(
         choices=[(role.value, role.name) for role in MANAGEABLE_ROLES],
     )
+
+    def validate(self, attrs):
+        errors = password_errors(
+            attrs["password"],
+            email=attrs.get("email"),
+            name=attrs.get("name"),
+        )
+        if errors:
+            raise serializers.ValidationError({"password": errors})
+        return attrs
 
 
 class PlatformAuditLogSerializer(serializers.Serializer):

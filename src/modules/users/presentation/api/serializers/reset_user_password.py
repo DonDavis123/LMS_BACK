@@ -2,6 +2,8 @@ from collections.abc import Mapping
 
 from rest_framework import serializers
 
+from src.modules.shared.presentation.password_validation import password_errors
+
 
 class ResetUserPasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(
@@ -10,6 +12,12 @@ class ResetUserPasswordSerializer(serializers.Serializer):
         max_length=128,
         trim_whitespace=False,
     )
+
+    def validate_new_password(self, value):
+        errors = password_errors(value)
+        if errors:
+            raise serializers.ValidationError(errors)
+        return value
 
     def to_internal_value(self, data):
         if not isinstance(data, Mapping):
