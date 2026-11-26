@@ -15,6 +15,10 @@ from src.modules.calls.presentation.api.dependencies.call_dependencies import (
     get_request_recording_transcription_use_case,
 )
 from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.throttles import (
+    TranscriptionCompanyThrottle,
+    TranscriptionUserThrottle,
+)
 from src.modules.shared.presentation.tenant import get_tenant_context
 
 from ..serializers.call_recording_transcript import (
@@ -42,6 +46,9 @@ class CallRecordingTranscriptView(APIView):
     """``GET`` the transcript + summary of a recording, ``POST`` to (re)generate it."""
 
     permission_classes = [IsAuthenticated, IsCompanyUser]
+    # POST starts a Gemini audio job: limited per user and per company. GET is
+    # the status poll and is not counted.
+    throttle_classes = [TranscriptionUserThrottle, TranscriptionCompanyThrottle]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def get(self, request, call_id, recording_id):

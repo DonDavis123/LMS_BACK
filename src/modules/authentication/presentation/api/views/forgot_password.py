@@ -9,6 +9,11 @@ from src.modules.authentication.presentation.api.dependencies.authentication_dep
     get_forgot_password_use_case,
 )
 
+from src.modules.shared.presentation.throttles import (
+    ForgotPasswordEmailThrottle,
+    ForgotPasswordIPThrottle,
+)
+
 from ..serializer.forgot_password import ForgotPasswordSerializer
 
 logger = logging.getLogger(__name__)
@@ -20,6 +25,9 @@ class ForgotPasswordView(APIView):
     # AllowAny is even consulted.
     authentication_classes = []
     permission_classes = [AllowAny]
+    # Mail-spam guard: per client IP and per submitted email (counted whether
+    # or not the account exists, so a 429 reveals nothing).
+    throttle_classes = [ForgotPasswordIPThrottle, ForgotPasswordEmailThrottle]
 
     def post(self, request):
         serializer = ForgotPasswordSerializer(

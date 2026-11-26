@@ -10,6 +10,8 @@ from src.modules.authentication.presentation.api.dependencies.authentication_dep
     get_reset_password_use_case,
 )
 
+from src.modules.shared.presentation.throttles import ResetPasswordThrottle
+
 from ..serializer.reset_password import ResetPasswordSerializer
 
 
@@ -19,6 +21,8 @@ class ResetPasswordView(APIView):
     # AllowAny is even consulted.
     authentication_classes = []
     permission_classes = [AllowAny]
+    # Token-guessing guard, per client IP.
+    throttle_classes = [ResetPasswordThrottle]
 
     def post(self, request):
         serializer = ResetPasswordSerializer(

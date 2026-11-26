@@ -15,6 +15,10 @@ from src.modules.dashboard.presentation.api.serializers import (
     DailyBriefingSerializer,
 )
 from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.throttles import (
+    AIGenerationCompanyThrottle,
+    AIGenerationUserThrottle,
+)
 from src.modules.shared.presentation.tenant import get_tenant_context
 
 
@@ -28,6 +32,9 @@ class DailyBriefingView(APIView):
     """
 
     permission_classes = [IsAuthenticated, IsCompanyUser]
+    # Every POST costs a Gemini request: limited per user and per company
+    # (GET never calls the model and is not counted).
+    throttle_classes = [AIGenerationUserThrottle, AIGenerationCompanyThrottle]
 
     def post(self, request):
         body = DailyBriefingRequestSerializer(data=request.data)

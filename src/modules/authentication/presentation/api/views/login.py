@@ -14,10 +14,17 @@ from src.modules.authentication.presentation.api.dependencies.authentication_dep
     get_login_user_use_case,
 )
 
+from src.modules.shared.presentation.throttles import (
+    LoginEmailThrottle,
+    LoginIPThrottle,
+)
+
 from ..serializer.login import LoginSerializer
 
 
 class LoginView(APIView):
+    # Brute-force guard: limited per client IP and per submitted email.
+    throttle_classes = [LoginIPThrottle, LoginEmailThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)

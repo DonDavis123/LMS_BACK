@@ -104,6 +104,19 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = "users.User"
 
 
+def _throttle_rate(env_name: str, default: str) -> str:
+    """Throttle rate from the environment (empty counts as unset).
+
+    While running tests the limits are effectively off, so suites that log in
+    or call the AI endpoints many times never trip them (counters live in a
+    cache that survives between tests). Throttle tests set their own rates
+    with ``override_settings``.
+    """
+    if "test" in sys.argv:
+        return "100000/hour"
+    return os.getenv(env_name, "").strip() or default
+
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         # Same as simplejwt's JWTAuthentication, but the user row is served from
@@ -116,16 +129,44 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": (
         "src.modules.shared.presentation.exception_handler.api_exception_handler"
     ),
-    # Throttle rates for the public lead-capture form (see
-    # src/modules/lead_capture/presentation/api/throttles.py). There is
-    # deliberately NO DEFAULT_THROTTLE_CLASSES: no other endpoint is throttled.
-    # Counters live in Django's default cache (see CACHES below). With
-    # REDIS_URL set that is Redis, shared by every worker, so the limit is
-    # global; without it the cache is per process (LocMemCache) and each
-    # worker process enforces its own limit.
+    # Throttle rates. There is deliberately NO DEFAULT_THROTTLE_CLASSES: a
+    # view is throttled only when it lists throttle classes itself. Those are:
+    #   * the public lead-capture form
+    #     (src/modules/lead_capture/presentation/api/throttles.py), and
+    #   * login, forgot-password, reset-password and the Gemini-backed POST
+    #     endpoints (src/modules/shared/presentation/throttles.py).
+    # Rates are "<count>/<second|minute|hour|day>". Counters live in Django's
+    # default cache (see CACHES below). With REDIS_URL set that is Redis,
+    # shared by every worker, so the limit is global; without it the cache is
+    # per process (LocMemCache) and each worker process enforces its own limit.
     "DEFAULT_THROTTLE_RATES": {
         "lead_capture_submit": os.getenv("LEAD_CAPTURE_SUBMIT_RATE", "10/hour"),
         "lead_capture_view": os.getenv("LEAD_CAPTURE_VIEW_RATE", "120/hour"),
+        # Authentication (per client IP / per submitted email). The login IP
+        # limit is generous on purpose: an office behind one NAT shares an IP.
+        "auth_login_ip": _throttle_rate("AUTH_LOGIN_IP_RATE", "100/hour"),
+        "auth_login_email": _throttle_rate("AUTH_LOGIN_EMAIL_RATE", "10/hour"),
+        "auth_forgot_password_ip": _throttle_rate(
+            "AUTH_FORGOT_PASSWORD_IP_RATE", "10/hour"
+        ),
+        "auth_forgot_password_email": _throttle_rate(
+            "AUTH_FORGOT_PASSWORD_EMAIL_RATE", "3/hour"
+        ),
+        "auth_reset_password_ip": _throttle_rate(
+            "AUTH_RESET_PASSWORD_IP_RATE", "20/hour"
+        ),
+        # Gemini (POST only; per user and per company). Lead / contact /
+        # account summaries and the daily briefing share one bucket.
+        "ai_generation_user": _throttle_rate("AI_GENERATION_USER_RATE", "30/hour"),
+        "ai_generation_company": _throttle_rate(
+            "AI_GENERATION_COMPANY_RATE", "300/hour"
+        ),
+        "ai_transcription_user": _throttle_rate(
+            "AI_TRANSCRIPTION_USER_RATE", "10/hour"
+        ),
+        "ai_transcription_company": _throttle_rate(
+            "AI_TRANSCRIPTION_COMPANY_RATE", "60/hour"
+        ),
     },
     # The app runs behind a reverse proxy, so REMOTE_ADDR is the proxy, not
     # the visitor. With NUM_PROXIES = n, DRF takes the client IP from

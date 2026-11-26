@@ -14,6 +14,10 @@ from src.modules.contacts.presentation.api.dependencies.contact_dependency impor
     get_contact_summary_use_case,
 )
 from src.modules.shared.presentation.permissions import IsCompanyUser
+from src.modules.shared.presentation.throttles import (
+    AIGenerationCompanyThrottle,
+    AIGenerationUserThrottle,
+)
 from src.modules.shared.presentation.tenant import get_tenant_context
 
 from ..serializers.contact_summary import ContactSummarySerializer
@@ -31,6 +35,9 @@ class GenerateContactSummaryView(APIView):
     """
 
     permission_classes = [IsAuthenticated, IsCompanyUser]
+    # Every POST costs a Gemini request: limited per user and per company
+    # (GET never calls the model and is not counted).
+    throttle_classes = [AIGenerationUserThrottle, AIGenerationCompanyThrottle]
 
     def get(self, request, contact_id):
         use_case = get_contact_summary_use_case(get_tenant_context(request))
